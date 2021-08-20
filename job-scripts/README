@@ -1,0 +1,24 @@
+# Folders in this directory:
+
+# CONTINUOUS JOB
+# These are launched from the jobs tab
+
+- "api-calls": scripts that perform API calls and save the results in a MongoDB.
+
+# HOURLY
+
+- "update-leaderboard": hourly script that calls the leaderboard and updates it.
+
+# DAILY
+
+- "generate-report": daily script that generates the charts and tables used in the weekly report from the ranked data in MySQL. It's daily because I like having a look at it every day, but can easily be run weekly if needed.
+
+- "mongo-to-sql": daily script that reads BSON data from MongoDB and preprocess it, convert to tabular and saves in MySQL. Also saves a table with matchup information.
+
+# WEEKLY
+
+- "mongo-to-sql": this folder also contains a weekly job that saves historical region playrate in a MySQL table. DONE ON WEDNESDAY MORNING.
+
+- "weekly-db-cleanup": script that removes from the main MongoDB / MySQL collections all matches older than 1 month; they are moved to "old" collections just for archive purposes, but are no more actively used. Also updates historical region playrates for that one chart. DONE ON WEDNESDAY MORNING.
+
+- "publish-report": script that generates the actual .md file to be used as report, saves it to lor-meta.com.
