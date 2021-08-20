@@ -1,0 +1,538 @@
+# OLD CODE NO MORE USED
+
+```{r games-by-day, fig.height = 8, fig.width = 12}
+
+data %>% 
+  count(date) %>% 
+  ggplot(aes(x = date, y = n)) +
+  geom_col(fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_text(aes(label = n, y = n), size = 6, vjust = -0.5) +
+  theme_bw() +
+  labs(x = "Day", y = "# of Games", title = "Number of Games collected by day") +
+  scale_x_date(labels = nice_date, breaks = "1 day")
+
+```
+
+```{r nerds-leaderboard, fig.height = 8, fig.width = 12}
+
+data %>% 
+  select(player_1_id, player_2_id) %>% 
+  pivot_longer(cols = everything()) %>% 
+  count(value) %>%
+  arrange(-n) %>% 
+  slice_max(n = 10, order_by = n, with_ties = FALSE) %>%
+  mutate(player = sapply(X = value, FUN = get_name_from_id, USE.NAMES = FALSE)) %>% 
+  ggplot(aes(x = reorder(player, -n), y = n)) +
+  geom_col(fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_text(aes(label = "", y = 1.1*n), size = 6) + # add breathing space
+  geom_text(aes(label = n, y = n), size = 6,  vjust = -0.5) +
+  theme_bw() +
+  labs(x = "Player", y = "# of Games", title = "Players with the most games analyzed this week", subtitle = "aka the 'Nerds Leaderboard'") +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+
+```
+
+## Champion Winrate {.tabset .tabset-fade .tabset-pills}
+
+### Chart
+
+```{r champion-winrate-chart, fig.height = 8, fig.width = 12}
+
+decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  mutate(won = ifelse(deck == winner, 1, 0)) %>%
+  select(starts_with("champ"), won) %>%
+  pivot_longer(cols = -won) %>%
+  select(-name) %>%
+  drop_na() %>%
+  left_join(champ_codes, by = c("value" = "X")) %>%
+  group_by(Name, Region, value) %>%
+  summarise(n = n(), win = sum(won), .groups = "drop") %>%
+  mutate(winrate = win / n) %>%
+  mutate(playrate = n / (nrow(data)*2)) %>%
+  filter(playrate > 0.01) %>% # filter to ensure robust data
+  slice_max(n = 10, order_by = winrate, with_ties = FALSE) %>%
+  mutate(img = paste0("./images/cards/", value, ".png")) %>%
+  mutate(logo = paste0(path_logo, Region, ".png")) %>%
+  ggplot(aes(x = reorder(Name, winrate))) +
+  geom_col(aes(y = winrate, fill = Region), color = "grey30", alpha = 0.8) +
+  geom_text(aes(label = scales::percent(winrate, accuracy = .1), y = winrate+0.05), size = 6) +
+  geom_image(aes(image = img, y = -0.04), size = 0.045, asp = 1.5) +
+  geom_image(aes(image = logo, y = -0.09), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_fill_manual(values = region_colors) +
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = NULL) +
+  scale_x_discrete(labels = element_blank()) +
+  labs(
+    x = "Champion",
+    y = "Winrate",
+    title = "Winrate by Champion",
+    subtitle = "Only the 10 champions with the highest winrate are shown; champions with a playrate < 1% are excluded."
+  )
+
+```
+
+### Change
+
+```{r champion-winrate-change, fig.height = 8, fig.width = 12}
+
+decks_matchup %>%
+  mutate(won = ifelse(deck == winner, 1, 0)) %>%
+  select(date, starts_with("champ"), won) %>%
+  pivot_longer(cols = -c(date, won)) %>%
+  select(-name) %>%
+  drop_na() %>%
+  left_join(champ_codes, by = c("value" = "X")) %>%
+  mutate(week = isoweek(date)) %>% 
+  select(-date) %>% 
+  group_by(week, Name, Region, value) %>%
+  summarise(match = n(), win = sum(won), .groups = "drop") %>%
+  mutate(winrate = win / match) %>%
+  left_join(region_history %>% select(week, n_games = match) %>% distinct(), by = "week") %>% 
+  mutate(playrate = match / (n_games*2)) %>%
+  select(-n_games) %>% 
+  group_by(value, Name, Region) %>% 
+  summarise(change = winrate[week == max(week)] - winrate[week == min(week)], mean_playrate = mean(playrate, na.rm = TRUE), .groups = "drop") %>% 
+  filter(mean_playrate > 0.01) %>% 
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>% 
+  mutate(img = paste0("./images/cards/", value, ".png")) %>%
+  mutate(logo = paste0(path_logo, Region, ".png")) %>%
+  mutate(sign = ifelse(change > 0, "pos", "neg")) %>% 
+  ggplot(aes(x = reorder(Name, change))) +
+  geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.02), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.02), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.015*sign(change)), size = 6) +
+  geom_image(aes(image = img, y = -0.015*sign(change)), size = 0.045, asp = 1.5) +
+  geom_image(aes(image = logo, y = -0.035*sign(change)), size = 0.06, asp = 1.5) +
+  theme_bw() +
+  coord_flip() +
+  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) +
+  scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Champion", 
+    y = "% Change", 
+    title = "Change in Winrate by Champion", 
+    subtitle = "Only the 10 champions with the biggest change are shown; champions with a playrate < 1% are excluded."
+  )
+
+```
+
+## Region Combinations Playrate {.tabset .tabset-fade .tabset-pills}
+
+### Chart
+
+```{r region-combinations-playrate-chart, fig.height = 8, fig.width = 12}
+
+data %>%
+  select(matchid, starts_with("faction")) %>%
+  pivot_longer(cols = -matchid, names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  group_by(region_1, region_2) %>% 
+  summarise(match = n(), .groups = "drop") %>% 
+  arrange(-match) %>%
+  mutate(playrate = match / sum(match)) %>% 
+  mutate(logo_1 = paste0(path_logo, region_1, ".png")) %>% 
+  mutate(logo_2 = paste0(path_logo, region_2, ".png")) %>% 
+  unite(col = region_comb, region_1, region_2, sep = " ") %>% 
+  slice_max(n = 10, order_by = match, with_ties = FALSE) %>% 
+  ggplot(aes(x = reorder(region_comb, match))) +
+  geom_col(aes(y = match), fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_text(aes(label = "", y = match+0.03*nrow(data)), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(playrate, accuracy = .1), y = match), size = 6, hjust = -0.5) +
+  geom_image(aes(image = logo_1, y = -0.06*nrow(data)), size = 0.06, asp = 1.5) +
+  geom_image(aes(image = logo_2, y = -0.03*nrow(data)), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(breaks = NULL) +
+  labs(
+    x = "Region Combination", 
+    y = "# of decks", 
+    title = "Playrate by Region Combination", 
+    subtitle = "Only the 10 most frequent region combinations are shown"
+  )
+
+```
+
+### Change
+
+```{r region-combinations-playrate-change, fig.height = 8, fig.width = 12}
+
+data_tot %>%
+  select(date, matchid, starts_with("faction")) %>%
+  pivot_longer(cols = -c(date, matchid), names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  mutate(week = isoweek(date)) %>% 
+  group_by(week, region_1, region_2) %>% 
+  summarise(match = n(), .groups = "drop") %>% 
+  group_by(week) %>% 
+  mutate(playrate = match / sum(match)) %>% 
+  ungroup() %>% 
+  group_by(region_1, region_2) %>% 
+  summarise(change = playrate[week == max(week)] - playrate[week == min(week)], .groups = "drop") %>% 
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>% 
+  mutate(logo_1 = paste0(path_logo, region_1, ".png")) %>% 
+  mutate(logo_2 = paste0(path_logo, region_2, ".png")) %>% 
+  unite(col = region_comb, region_1, region_2, sep = " ") %>%
+  mutate(sign = ifelse(change > 0, "pos", "neg")) %>% 
+  ggplot(aes(x = reorder(region_comb, change))) +
+  geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.006*sign(change)), size = 6) +
+  geom_image(aes(image = logo_1, y = -0.006*sign(change)), size = 0.06, asp = 1.5) +
+  geom_image(aes(image = logo_2, y = -0.015*sign(change)), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) +
+  scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Region Combination", 
+    y = "% Change", 
+    title = "Change in Playrate by Region Combination", 
+    subtitle = "Only the 10 region combinations with the biggest change are shown"
+  )
+
+```
+
+### Full data
+
+```{r region-combinations-playrate-data}
+
+data %>% 
+  select(matchid, starts_with("faction")) %>%
+  pivot_longer(cols = -matchid, names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  group_by(region_1, region_2) %>% 
+  summarise(match = n(), .groups = "drop") %>% 
+  arrange(-match) %>%
+  mutate(playrate = scales::percent(match / sum(match), accuracy = .1)) %>%
+  replace_na(list(region_1 = "", region_2 = "")) %>%
+  rename_with(str_to_title) %>% 
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
+  datatable(rownames = FALSE)
+  
+```
+
+## Region Combinations Winrate {.tabset .tabset-fade .tabset-pills}
+
+### Chart
+
+```{r region-combinations-winrate-chart, fig.height = 8, fig.width = 12}
+
+data %>%
+  select(matchid, starts_with("faction"), starts_with("player"), winner) %>%
+  mutate(winner = if_else(winner == player_1_id, 1, 2)) %>% 
+  select(-starts_with("player")) %>% 
+  pivot_longer(cols = -c(matchid, winner), names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  mutate(win = if_else(winner == player, 1, 0)) %>% 
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  group_by(region_1, region_2) %>% 
+  summarise(match = n(), win = sum(win), .groups = "drop") %>% 
+  arrange(-match) %>%
+  mutate(playrate = match / sum(match)) %>% 
+  mutate(winrate = win / match) %>% 
+  mutate(logo_1 = paste0(path_logo, region_1, ".png")) %>% 
+  mutate(logo_2 = paste0(path_logo, region_2, ".png")) %>% 
+  unite(col = region_comb, region_1, region_2, sep = " ") %>% 
+  filter(playrate > 0.01) %>% # filter to ensure robust data
+  slice_max(n = 10, order_by = winrate, with_ties = FALSE) %>% 
+  ggplot(aes(x = reorder(region_comb, winrate))) +
+  geom_col(aes(y = winrate), fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_text(aes(label = "", y = winrate+0.08), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(winrate, accuracy = .1), y = winrate), size = 6, hjust = -0.5) +
+  geom_image(aes(image = logo_1, y = -0.125), size = 0.06, asp = 1.5) +
+  geom_image(aes(image = logo_2, y = -0.06), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(breaks = NULL) +
+  labs(
+    x = "Region Combination", 
+    y = "Winrate", 
+    title = "Winrate by Region Combination", 
+    subtitle = "Only the 10 region combinations with the highest winrate are shown; combinations with a playrate < 1% are excluded."
+  )
+
+```
+
+### Change
+
+```{r region-combinations-winrate-change, fig.height = 8, fig.width = 12}
+
+data_tot %>%
+  select(date, matchid, starts_with("faction"), starts_with("player"), winner) %>%
+  mutate(winner = if_else(winner == player_1_id, 1, 2)) %>% 
+  select(-starts_with("player")) %>% 
+  pivot_longer(cols = -c(date, matchid, winner), names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  mutate(win = if_else(winner == player, 1, 0)) %>% 
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  mutate(week = isoweek(date)) %>% 
+  group_by(week, region_1, region_2) %>% 
+  summarise(match = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(playrate = match / sum(match)) %>% 
+  mutate(winrate = win / match) %>% 
+  group_by(region_1, region_2) %>% 
+  summarise(change = winrate[week == max(week)] - winrate[week == min(week)], mean_playrate = mean(playrate, na.rm = TRUE), .groups = "drop") %>% 
+  filter(mean_playrate > 0.01) %>% # filter to ensure robust data
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>% 
+  mutate(logo_1 = paste0(path_logo, region_1, ".png")) %>% 
+  mutate(logo_2 = paste0(path_logo, region_2, ".png")) %>% 
+  unite(col = region_comb, region_1, region_2, sep = " ") %>%
+  mutate(sign = ifelse(change > 0, "pos", "neg")) %>% 
+  ggplot(aes(x = reorder(region_comb, change))) +
+  geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.015), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.015), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.008*sign(change)), size = 6) +
+  geom_image(aes(image = logo_1, y = -0.008*sign(change)), size = 0.06, asp = 1.5) +
+  geom_image(aes(image = logo_2, y = -0.016*sign(change)), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) +
+  scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Region Combination", 
+    y = "% Change", 
+    title = "Change in Winrate by Region Combination", 
+    subtitle = "Only the 10 region combinations with the biggest change are shown; combinations with a playrate < 1% are excluded."
+  )
+
+```
+
+### Full data
+
+```{r region-combinations-winrate-data}
+
+data %>% 
+  select(matchid, starts_with("faction"), starts_with("player"), winner) %>%
+  mutate(winner = if_else(winner == player_1_id, 1, 2)) %>% 
+  select(-starts_with("player")) %>% 
+  pivot_longer(cols = -c(matchid, winner), names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  mutate(win = if_else(winner == player, 1, 0)) %>% 
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  group_by(region_1, region_2) %>% 
+  summarise(match = n(), win = sum(win), .groups = "drop") %>%
+  mutate(playrate = match / sum(match)) %>% 
+  mutate(winrate = win / match) %>% 
+  arrange(-winrate) %>%
+  rename_with(str_to_title) %>% 
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
+  datatable(rownames = FALSE) %>% 
+  formatPercentage(columns = c("Playrate", "Winrate"), digits = 1)
+  
+```
+
+# region combinations matchup data
+region_matchup <- data %>%
+  select(matchid, starts_with("faction"), starts_with("player"), winner) %>%
+  mutate(winner = if_else(winner == player_1_id, 1, 2)) %>%
+  select(-starts_with("player")) %>%
+  pivot_longer(cols = -c(matchid, winner), names_to = "key", values_to = "region") %>%
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  unite(col = "deck", region_1, region_2, sep = " ") %>%
+  select(-faction, -player) %>%
+  group_by(matchid) %>%
+  mutate(winner = if_else(winner == 1, deck[1], deck[2])) %>%
+  arrange(matchid, deck) %>% # important! to prevent double matchups
+  mutate(row_id = row_number()) %>%
+  pivot_wider(names_from = row_id, values_from = deck, names_prefix = "deck_") %>%
+  ungroup() %>%
+  select(-matchid) %>%
+  mutate(deck_1_won = if_else(deck_1 == winner, 1, 0)) %>%
+  group_by(deck_1, deck_2) %>%
+  summarise(match = n(), deck_1_winrate = sum(deck_1_won) / match, .groups = "drop") %>%
+  arrange(-match) %>%
+  filter(deck_1 %in% most_frequent_region_combs & deck_2 %in% most_frequent_region_combs) %>%
+  select(-match) %>%
+  arrange(deck_1, deck_2)
+
+## Region Matchups {.tabset .tabset-fade .tabset-pills}
+
+Only the 10 Region Combinations with the highest playrates are shown. 
+
+The value shown in each cell is the winrate that the Region Combination in the row has when playing against the Region Combination in the column.
+
+To check for matchups that are not in this table, use the tab "Full data" and filter for the desired Region Combination (sample sizes might be small).
+
+### Chart
+
+```{r region-matchups-chart, fig.height = 8, fig.width = 12}
+
+tibble(deck_1 = most_frequent_region_combs, deck_2 = most_frequent_region_combs) %>% 
+  expand(deck_1, deck_2) %>%
+  left_join(region_matchup, by = c("deck_1", "deck_2")) %>%
+  mutate(deck_1_winrate = ifelse(deck_1 == deck_2, NA, deck_1_winrate)) %>%
+  pivot_wider(names_from = deck_2, values_from = deck_1_winrate) %>%
+  column_to_rownames(var = "deck_1") %>%
+  fill_matchup_table() %>%
+  rownames_to_column(var = "deck_1") %>% 
+  pivot_longer(cols = -deck_1, names_to = "deck_2", values_to = "deck_1_winrate") %>%
+  mutate(bin = cut(deck_1_winrate, c(0, 0.4, 0.45, 0.55, 0.6, 1), include.lowest = TRUE)) %>% 
+  mutate(across(c(deck_1, deck_2), ~factor(., levels = most_frequent_region_combs, ordered = TRUE))) %>% 
+  ggplot(aes(y = reorder(deck_1, desc(deck_1)), x = deck_2, fill = bin)) + 
+  geom_tile(color = "grey90", size = 1, stat = "identity") +
+  geom_text(aes(label = scales::percent(deck_1_winrate, accuracy = .1)), color = "white", size = 6, na.rm = TRUE) +
+  theme_minimal() +
+  labs(x = element_blank(), y = element_blank()) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10), position = "top") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("[0,0.4]" = "#B81D13", "(0.4,0.45]" = "coral2", "(0.45,0.55]" = "#EFB700", "(0.55,0.6]" = "#149414", "(0.6,1]" = "#046507"), na.value = "grey90")
+
+```
+
+### Full data
+
+```{r region-matchups-data}
+
+data %>%
+  select(matchid, starts_with("faction"), starts_with("player"), winner) %>%
+  mutate(winner = if_else(winner == player_1_id, 1, 2)) %>% 
+  select(-starts_with("player")) %>% 
+  pivot_longer(cols = -c(matchid, winner), names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  replace_na(list(region_2 = "")) %>% 
+  unite(col = "deck", region_1, region_2, sep = " ") %>%
+  select(-faction, -player) %>% 
+  group_by(matchid) %>% 
+  mutate(winner = if_else(winner == 1, deck[1], deck[2])) %>%
+  arrange(matchid, deck) %>% # important! to prevent double matchups
+  mutate(row_id = row_number()) %>% 
+  pivot_wider(names_from = row_id, values_from = deck, names_prefix = "deck_") %>% 
+  ungroup() %>% 
+  select(-matchid) %>%
+  mutate(deck_1_won = if_else(deck_1 == winner, 1, 0)) %>% 
+  group_by(deck_1, deck_2) %>% 
+  summarise(match = n(), deck_1_winrate = sum(deck_1_won) / match, .groups = "drop") %>% 
+  arrange(-match) %>% 
+  filter(deck_1 != deck_2) %>% 
+  rename_with(str_to_title) %>% 
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
+  datatable(rownames = FALSE) %>% 
+  formatPercentage(columns = "Deck 1 winrate", digits = 1)
+
+```
+
+# # card proximity network
+# network <- data %>% 
+#   select(matchid, matches("deck_{1}[1-2]_cards")) %>%
+#   pivot_longer(cols = -matchid) %>% 
+#   mutate(across(value, function(x) map_chr(x, ~reduce(., .f = paste, sep = " ")))) %>% 
+#   unnest_tokens(input = value, output = bigram, to_lower = FALSE, token = 'skip_ngrams', n = 4) %>% 
+#   mutate(num_words = map_int(.x = .$bigram, .f = ~ ngram::wordcount(.x))) %>% 
+#   filter(num_words == 2) %>% 
+#   select(-num_words) %>% 
+#   separate(col = "bigram", into = c("card_1", "card_2"), sep = " ") %>% 
+#   count(card_1, card_2, sort = TRUE, name = "weight") %>% 
+#   filter(weight > 0.03*nrow(data)) %>%
+#   left_join(card_codes %>% select(X, Name_1 = Name), by = c("card_1" = "X")) %>%
+#   left_join(card_codes %>% select(X, Name_2 = Name), by = c("card_2" = "X")) %>% 
+#   select(Name_1, Name_2, weight) %>% 
+#   graph_from_data_frame(directed = FALSE)
+
+
+
+<!-- ### Change -->
+
+<!-- ```{r cards-inclusion-change, fig.height = 8, fig.width = 12} -->
+
+<!-- bind_rows(decks_1, decks_2) %>%  -->
+<!--   mutate(week = isoweek(date)) %>%  -->
+<!--   group_by(week) %>%  -->
+<!--   count(value) %>%  -->
+<!--   ungroup() %>%  -->
+<!--   left_join(card_codes, by = c("value" = "X")) %>%  -->
+<!--   left_join(region_history %>% select(week, region, n), by = c("Region" = "region", "week")) %>%  -->
+<!--   mutate(inclusion = n.x / n.y) %>%  -->
+<!--   group_by(value, Name, Region) %>%  -->
+<!--   summarise(change = inclusion[week == max(week)] - inclusion[week == min(week)], .groups = "drop") %>%  -->
+<!--   slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>%  -->
+<!--   mutate(img = paste0("./images/cards/", value, ".png")) %>% -->
+<!--   mutate(logo = paste0(path_logo, Region, ".png")) %>% -->
+<!--   mutate(sign = ifelse(change > 0, "pos", "neg")) %>%  -->
+<!--   ggplot(aes(x = reorder(Name, change))) + -->
+<!--   geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) + -->
+<!--   geom_text(aes(label = "", y = change+0.05), size = 6) + # add breathing space at the edge of the plot -->
+<!--   geom_text(aes(label = "", y = change-0.05), size = 6) + # add breathing space at the edge of the plot -->
+<!--   geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + max(abs(change))*0.075*sign(change)), size = 6) + -->
+<!--   geom_image(aes(image = img, y = -0.04*sign(change)), size = 0.045, asp = 1.5) + -->
+<!--   geom_image(aes(image = logo, y = -0.09*sign(change)), size = 0.06, asp = 1.5) + -->
+<!--   theme_bw() + -->
+<!--   coord_flip() + -->
+<!--   scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) + -->
+<!--   scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) + -->
+<!--   scale_x_discrete(labels = element_blank()) + -->
+<!--   scale_y_continuous(labels = scales::percent) + -->
+<!--   theme(legend.position = "none") + -->
+<!--   labs( -->
+<!--     x = "Card",  -->
+<!--     y = "% Change",  -->
+<!--     title = "Change in Inclusion Rate by Card",  -->
+<!--     subtitle = "Only the 10 card with the biggest change are shown" -->
+<!--   ) -->
+
+<!-- ``` -->
+
+
+<!-- ## Cards Proximity Network -->
+
+<!-- Interactive network chart where cards who are often played together are connected to each other.  -->
+
+<!-- *I don't find this chart particularly useful and I'll probably delete it soon. I'm open to any feedback about this.* -->
+
+<!-- ```{r cards-network} -->
+
+<!-- # netowrk preprocessing -->
+<!-- V(network)$degree      <- strength(graph = network) # degrees -->
+<!-- E(network)$width       <- E(network)$weight/max(E(network)$weight) # weights -->
+<!-- network.D3             <- igraph_to_networkD3(g = network) # create networkD3 object -->
+<!-- network.D3$nodes       %<>% mutate(Degree = (1E-2)*V(network)$degree) # node size -->
+<!-- network.D3$nodes       %<>% left_join(card_codes %>% select(Name, Group = Region), by = c("name" = "Name")) # color groups -->
+<!-- network.D3$links$Width <- 10*E(network)$width # edges width -->
+
+<!-- # plot network -->
+<!-- forceNetwork( -->
+<!--   Links = network.D3$links,  -->
+<!--   Nodes = network.D3$nodes,  -->
+<!--   Source = 'source',  -->
+<!--   Target = 'target', -->
+<!--   NodeID = 'name', -->
+<!--   Group = 'Group',  -->
+<!--   colourScale = JS( -->
+<!--     'd3.scaleOrdinal(). -->
+<!--     domain(["ShadowIsles", "Noxus", "Shurima", "Freljord", "MtTargon", "Piltover", "Ionia", "Demacia", "Bilgewater"]) -->
+<!--     .range(["#04825d", "#c24a47", "#eee22f", "#a9e6f6", "#8b83e9", "#f4a864", "#d89baf", "#e2d6af", "#c66c22"])' -->
+<!--   ), -->
+<!--   opacity = 0.9, -->
+<!--   Value = 'Width', -->
+<!--   Nodesize = 'Degree',  -->
+<!--   linkWidth = JS("function(d) { return Math.sqrt(d.value); }"),  -->
+<!--   fontSize = 12, -->
+<!--   zoom = TRUE,  -->
+<!--   opacityNoHover = 1 -->
+<!-- ) -->
+
+<!-- ``` -->

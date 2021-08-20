@@ -1,0 +1,1200 @@
+---
+pagetitle: Balco Meta Report
+output: 
+  rmdformats::material:
+    highlight: kate
+    self_contained: true
+    thumbnails: true
+    gallery: true
+    df_print: kable
+    cards: false
+pkgdown:
+  as_is: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print = "75")
+opts_chunk$set(echo = FALSE, cache = FALSE, propmt = FALSE, tidy = FALSE, comment = NA, message = FALSE, warning = FALSE)
+```
+
+```{r main-chunk}
+
+# I. libraries ----
+
+library(DBI)
+library(RMySQL)
+library(httr)
+library(jsonlite)
+library(rvest)
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(ggimage)
+library(DT)
+library(reticulate)
+library(tidytext)
+library(wordcloud)
+library(ggrepel)
+library(gridExtra)
+
+# II. functions ----
+
+# get champion name from card id
+get_name_from_champ <- function(champ){
+  
+  if(is.na(champ)){ return(NA_character_) }
+  
+  champ_codes %>% 
+    filter(X == champ) %>% 
+    pull(Name)
+  
+}
+
+# get player name from PUUID
+get_name_from_id <- function(puuid, with_tag = TRUE){
+  
+  # API Call
+  call <- GET(base.url, path = paste0("riot/account/v1/accounts/by-puuid/", puuid), add_headers("X-Riot-Token" = api_key)) %>% 
+    content()
+  
+  # extract relevant info
+  name <- call %>% extract2("gameName")
+  
+  # if tag is also needed get it otherwise don't
+  if(with_tag) {
+    
+    tag <- call %>% extract2("tagLine")
+    
+    return(paste(name, tag, sep = "#"))
+    
+  } else {
+    
+    return(name)
+    
+  }
+  
+}
+
+# create a nice date from  date object
+nice_date <- function(date, short_month = TRUE){
+  
+  paste(month(date, label = TRUE, abbr = short_month), day(date), sep = " ")
+  
+}
+
+# fill matchup table
+fill_matchup_table <- function(tbl){
+  
+  for(i in 1:nrow(tbl)){
+    
+    for(j in 1:ncol(tbl)){
+      
+      if(i>j){
+
+        tbl[i,j] <- 1 - tbl[j,i]
+        
+      }
+      
+    }
+    
+  }
+  
+  return(tbl)
+  
+}
+
+# scales percent but with a "+" before the number if it's positive
+scales_percent_plus <- function(x, ...){
+  
+  # use scales percent
+  res <- scales::percent(x, ...)
+  
+  # check if number is positive; if it is, add "+" in front
+  if (x > 0){
+    
+    res <- paste0("+", res)
+    
+  }
+  
+  return(res)
+  
+}
+
+# III. parameters ----
+
+# API Key
+base.url <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
+api_key <- "RGAPI-4689d27f-b0b9-4616-86b4-d44687dd6376"
+
+# load python modules
+lor_deckcodes <- import("lor_deckcodes")
+deck <- lor_deckcodes$LoRDeck$from_deckcode
+
+# color of runeterra regions for plots
+region_colors <- c(
+  "ShadowIsles" = "#04825d",
+  "Noxus" = "#c24a47",
+  "Shurima" = "#eee22f",
+  "Freljord" = "#a9e6f6",
+  "MtTargon" = "#8b83e9",
+  "Piltover" = "#f4a864",
+  "Ionia" = "#d89baf",
+  "Demacia" = "#e2d6af",
+  "Bilgewater" = "#c66c22"
+)
+
+# path where region logos (& other images) are stored
+path_logo <- "./images/"
+
+# IV. load data ----
+
+# create connection to database
+con <- dbConnect(
+  MySQL(),
+  db_host = "127.0.0.1",
+  user = "balco",
+  password = "Macosanes0!",
+  dbname = "db_prova"
+)
+
+# read table with all data ( & convert columns to a better format)
+data_tot <- tbl(con, "lor_match_recent") %>% 
+  collect() %>% 
+  mutate(date = ymd(date)) %>% 
+  mutate(across(c(deck_1_cards, deck_2_cards), ~map(., .f = str_split, pattern = " "))) %>%
+  mutate(across(c(deck_1_cards, deck_2_cards), ~map(., .f = 1))) %>% 
+  filter(isoweek(date) >= isoweek(max(date)) - 1) # shouldn't be needed, but just to be extra sure
+
+# keep only most recent week for the report
+data <- data_tot %>% 
+  filter(isoweek(date) == isoweek(max(date)))
+
+# historical playrate by region
+region_history <- tbl(con, "lor_region_play") %>% 
+  collect()
+
+# list of codes of all runeterra champions
+champ_codes <- read_html("https://leagueoflegends.fandom.com/wiki/Champion_(Legends_of_Runeterra)") %>% 
+  html_table(fill = TRUE) %>% 
+  extract2(2) %>% 
+  as_tibble(.name_repair = make.names) %>% 
+  select(1, 2, 5) %>% 
+  filter(nchar(X) <= 8) %>% 
+  mutate(Region = case_when( # same region names as API
+    Region == "Piltover & Zaun" ~ "Piltover",
+    Region == "Shadow Isles" ~ "ShadowIsles",
+    Region == "Targon" ~ "MtTargon", 
+    TRUE ~ Region
+  ))
+
+# list of codes of all runeterra cards
+card_codes <- read_html("https://leagueoflegends.fandom.com/wiki/List_of_cards_from_Legends_of_Runeterra") %>% 
+  html_table(fill = TRUE) %>% 
+  extract2(2) %>% 
+  as_tibble(.name_repair = make.names) %>% 
+  select(1, 2, 5) %>% 
+  filter(nchar(X) <= 8) %>% 
+  mutate(Region = case_when( # same region names as API
+    Region == "Piltover & Zaun" ~ "Piltover",
+    Region == "Shadow Isles" ~ "ShadowIsles",
+    Region == "Targon" ~ "MtTargon", 
+    TRUE ~ Region
+  ))
+
+# names of players in master in EU
+leaderboard <- GET("https://europe.api.riotgames.com/", path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key)) %>%
+  content() %>%
+  extract2("players") %>%
+  map_dfr(as_tibble) %>% 
+  {if(nrow(.) > 0) mutate(., rank = rank+1) else . }
+
+# V. data preparation ----
+
+  # V.I. player info ----
+
+# players who have at least one collected match
+player_collected <- data %>% 
+  select(matchid, date, player_1_id, player_2_id, player_1_name, player_2_name) %>%
+  pivot_longer(cols = -c(matchid, date)) %>% 
+  separate(col = name, into = c("player", "number", "what")) %>% 
+  select(-player) %>% 
+  pivot_wider(names_from = what, values_from = value) %>%
+  group_by(id) %>% 
+  slice_max(n = 1, order_by = date, with_ties = FALSE) %>% 
+  ungroup() %>% 
+  distinct(id, name) %>% 
+  rename(value = id)
+
+# games played by rank of both players
+games_by_rank <- data %>% 
+  transmute(n_master = player_1_is_mst + player_2_is_mst) %>% 
+  count(n_master)
+
+  # V.II region info ----
+
+# region winrates
+region_winrate <- data_tot %>%
+  select(date, starts_with("faction"), starts_with("player"), winner) %>%
+  mutate(winner = if_else(winner == player_1_id, 1, 2)) %>% 
+  select(-starts_with("player")) %>% 
+  pivot_longer(cols = starts_with("faction"), names_to = "key", values_to = "region") %>%
+  mutate(key = gsub(".*[_]([^_]+)[_].*", "\\1", key)) %>% 
+  mutate(win = if_else(winner == key, 1, 0)) %>%
+  mutate(week = isoweek(date), year = year(date)) %>% 
+  group_by(week, year, region) %>% 
+  summarise(n = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(winrate = win / n) %>%
+  drop_na(region)
+
+# 10 most frequent region combinations
+most_frequent_region_combs <- data %>%
+  select(matchid, starts_with("faction")) %>%
+  pivot_longer(cols = -matchid, names_to = "key", values_to = "region") %>% 
+  separate(col = key, into = c("faction", "player", "number"), sep = "_") %>%
+  pivot_wider(names_from = number, values_from = region, names_prefix = "region_") %>%
+  group_by(region_1, region_2) %>% 
+  summarise(match = n(), .groups = "drop") %>% 
+  unite(col = region_comb, region_1, region_2, sep = " ") %>% 
+  slice_max(n = 10, order_by = match, with_ties = FALSE) %>% 
+  pull(region_comb)
+
+  # V.III champion info ----
+
+# get cards played from deck codes
+decks_1 <- data_tot$deck_1_cards %>%
+  set_names(value = paste(data_tot$date, data_tot$matchid, sep = " ")) %>%
+  map_dfr(as_tibble, .id = "matchid") %>%
+  separate(col = matchid, into = c("date", "matchid"), sep = " ") %>% 
+  mutate(deck = 1)
+
+decks_2 <- data_tot$deck_2_cards %>%
+  set_names(value = paste(data_tot$date, data_tot$matchid, sep = " ")) %>%
+  map_dfr(as_tibble, .id = "matchid") %>%
+  separate(col = matchid, into = c("date", "matchid"), sep = " ") %>% 
+  mutate(deck = 2)
+
+# get champions from deck codes
+champs_1 <- decks_1 %>% 
+  filter(value %in% champ_codes$X) %>% 
+  group_by(date, matchid) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = id, values_from = value, names_prefix = "champ_")
+
+champs_2 <- decks_2 %>% 
+  filter(value %in% champ_codes$X) %>% 
+  group_by(date, matchid) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = id, values_from = value, names_prefix = "champ_")
+
+# dataframe with all decks matchup
+decks_matchup <- bind_rows(champs_1, champs_2) %>%
+  arrange(date, matchid) %>%
+  left_join(data_tot %>% select(matchid, starts_with("player_"), winner), by = "matchid") %>%
+  mutate(winner = ifelse(winner == player_1_id, 1, 2)) %>%
+  select(-starts_with("player_")) %>% 
+  pivot_longer(cols = -c(date, matchid, deck, winner)) %>% # to sort champions by index order and prevent permutations
+  arrange(date, matchid, deck, winner, value) %>% 
+  group_by(matchid, deck, winner) %>% 
+  mutate(name = sprintf("champ_%s", row_number())) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = name, values_from = value)
+
+# 10 most frequent champ combinations (used for matchup plot)
+most_frequent_champ_combs <- decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(match = n(), .groups = "drop") %>%
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>%
+  unite(col = deck, starts_with("champ_"), sep = " ", na.rm = TRUE) %>% 
+  slice_max(n = 20, order_by = match, with_ties = FALSE) %>% 
+  pull(deck)
+
+# champions combinations matchups
+decks_matchup_frequent_all <- decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% # LEFT JOIN!!!!
+  unite(col = "champs", starts_with("champ_"), sep = " ", na.rm = TRUE) %>%
+  select(-deck) %>%
+  group_by(matchid) %>%
+  mutate(winner = if_else(winner == 1, champs[1], champs[2])) %>%
+  arrange(matchid, champs) %>% # important! to prevent double matchups
+  mutate(row_id = row_number()) %>%
+  pivot_wider(names_from = row_id, values_from = champs, names_prefix = "deck_") %>%
+  ungroup() %>%
+  select(-matchid) %>%
+  mutate(deck_1_won = if_else(deck_1 == winner, 1, 0)) %>%
+  group_by(deck_1, deck_2) %>%
+  summarise(deck_1_winrate = sum(deck_1_won) / n(), .groups = "drop") 
+
+# only matchups of the 10 most frequent champ combinations (used in matchup plot) [this is slow: can be improved?]
+decks_matchup_frequent <- decks_matchup_frequent_all %>%
+  filter(deck_1 %in% most_frequent_champ_combs[1:10] & deck_2 %in% most_frequent_champ_combs[1:10])
+
+# number of champs in a single deck in the most 10 decks played (used for plots)
+max_champs_play <- decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(n = n(), .groups = "drop") %>% 
+  slice_max(n = 10, order_by = n, with_ties = FALSE) %>% 
+  select(where(~!all(is.na(.x)))) %>% 
+  ncol() - 1
+  
+# number of champs in a single deck in the most 10 decks for winrate (used for plots)
+max_champs_wr <- decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  mutate(win = ifelse(deck == winner, 1, 0)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(n = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(winrate = win / n) %>% 
+  mutate(playrate = n / sum(n)) %>% 
+  filter(playrate > 0.01) %>%  # to ensure robust data
+  slice_max(n = 10, order_by = winrate, with_ties = FALSE) %>% 
+  select(where(~!all(is.na(.x)))) %>% 
+  ncol() - 4
+
+# number of champs in a single deck in the most 10 decks for playrate change (used for plots)
+max_champs_play_change <- decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  group_by(across(c(week, starts_with("champ_")))) %>% 
+  summarise(match = n(), .groups = "drop") %>%
+  group_by(week) %>% 
+  mutate(playrate = match / sum(match)) %>% 
+  ungroup() %>%
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(change = playrate[week == max(week)] - playrate[week == min(week)], .groups = "drop") %>% 
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>% 
+  select_if(~sum(!is.na(.)) > 0) %>% 
+  ncol() - 1
+
+# number of champs in a single deck in the most 10 decks for winrate change (used for plots)
+max_champs_wr_change <- decks_matchup %>% 
+  mutate(win = ifelse(deck == winner, 1, 0)) %>% 
+  mutate(week = isoweek(date)) %>% 
+  group_by(week, across(starts_with("champ_"))) %>% 
+  summarise(n = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(winrate = win / n) %>%
+  group_by(week) %>% 
+  mutate(playrate = n / sum(n)) %>% 
+  ungroup() %>%
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(change = winrate[week == max(week)] - winrate[week == min(week)], mean_playrate = mean(playrate, na.rm = TRUE), .groups = "drop") %>% 
+  filter(mean_playrate > 0.01) %>% # to ensure robust data
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>%
+  select(where(~!all(is.na(.x)))) %>% 
+  ncol() - 2
+
+# playrate frequency of the top 20 champ combinations (used for vs power score)
+top_20_playrate <- decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(n = n(), .groups = "drop") %>% 
+  slice_max(n = 20, order_by = n, with_ties = FALSE) %>%
+  mutate(playrate = n / sum(n)) %>% 
+  select(where(~!all(is.na(.x)))) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  unite(col = champs, starts_with("champ_"), sep = " ", na.rm = TRUE)
+
+# same but winrates
+top_20_winrate <- tibble(deck_1 = most_frequent_champ_combs, deck_2 = most_frequent_champ_combs) %>% 
+  expand(deck_1, deck_2) %>% 
+  left_join(decks_matchup_frequent_all %>% filter(deck_1 %in% most_frequent_champ_combs & deck_2 %in% most_frequent_champ_combs), by = c("deck_1", "deck_2")) %>% 
+  mutate(deck_1_winrate = ifelse(deck_1 == deck_2, NA, deck_1_winrate)) %>%
+  pivot_wider(names_from = deck_2, values_from = deck_1_winrate) %>%
+  column_to_rownames(var = "deck_1") %>%
+  fill_matchup_table() %>%
+  rownames_to_column(var = "deck_1") %>%
+  pivot_longer(cols = -deck_1, names_to = "deck_2", values_to = "deck_1_winrate") %>% 
+  mutate(deck_1_winrate = if_else(deck_1 == deck_2, 0.5, deck_1_winrate))
+
+  # V.IV card info ----
+
+# number of games by region (used for cards inclusion rate)
+region_freq <- data %>% 
+  select(starts_with("faction_")) %>% 
+  pivot_longer(cols = everything()) %>% 
+  count(value)
+
+# data used for the cards report
+cards_data <- data %>% 
+  select(matchid, matches("deck_{1}[1-2]_cards")) %>% 
+  pivot_longer(cols = -matchid) %>% 
+  unnest(value)
+
+# data for wordcloud plot
+wc_data <- cards_data %>% 
+  count(value) %>% 
+  left_join(card_codes, by = c("value" = "X")) %>% 
+  filter(n > 0.125*nrow(data)) %>% 
+  left_join(bind_rows(region_colors) %>% pivot_longer(cols = everything(), values_to = "color"), by = c("Region" = "name"))
+
+```
+
+# I. Data collected
+
+Data used in this report are collected from ranked matches of Master players and players that faced master players in ranked.
+
+All games are from the **EU** shard.
+
+This report analyzes games played by **`r nrow(player_collected)`** different players, of which **`r player_collected %>% filter(name %in% leaderboard$name) %>% nrow()`** are currently in Master (**`r ((player_collected %>% filter(name %in% leaderboard$name) %>% nrow()) / nrow(player_collected)) %>% scales::percent(accuracy = .1)`**).
+
+In total, **`r nrow(data)` matches** are collected, played between **`r min(data$date) %>% nice_date(short_month = FALSE)`** and **`r max(data$date) %>% nice_date(short_month = FALSE)`**.
+
+Of those matches:
+  
+  - **`r games_by_rank$n[games_by_rank$n_master == 2]`** are played between 2 Master players (**`r (games_by_rank$n[games_by_rank$n_master == 2] / nrow(data)) %>% scales::percent(accuracy = .1)`**);
+  - **`r games_by_rank$n[games_by_rank$n_master == 1]`** are played between one Master player and a player below Master (**`r (games_by_rank$n[games_by_rank$n_master == 1] / nrow(data)) %>% scales::percent(accuracy = .1)`**);
+  - **`r games_by_rank$n[games_by_rank$n_master == 0]`** are played between 2 players below Master (**`r (games_by_rank$n[games_by_rank$n_master == 0] / nrow(data)) %>% scales::percent(accuracy = .1)`**).
+
+# II. Regions Report
+
+## Region Playrate {.tabset .tabset-fade}
+
+### History
+
+```{r region-playrate-history, fig.height = 8, fig.width = 12}
+
+region_history %>% 
+  mutate(date = ymd(date)) %>% 
+  mutate(logo = paste0(path_logo, region, ".png")) %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = playrate, color = region, group = region), size = 1) +
+  geom_segment(x = ymd("2021-05-05"), xend = ymd("2021-05-05"), y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+  geom_segment(x = ymd("2021-06-02"), xend = ymd("2021-06-02"), y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+  geom_label(x = ymd("2021-05-05"), y = 0, label = "Guardians of the Ancient \n Patch 2.7") +
+  geom_label(x = ymd("2021-06-02"), y = 0, label = "Balance Changes \n Patch 2.9") +
+  geom_point(aes(x = date, y = playrate, color = region, group = region), size = 3) +
+  theme_bw() +
+  expand_limits(y = 0) +
+  scale_x_continuous(breaks = ymd(unique(region_history$date)), labels = nice_date) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1L)) +
+  scale_color_manual(values = region_colors) +
+  theme(legend.position = "bottom") +
+  labs(x = "Week", y = "Playrate", title = "Historical Playrate by Region", color = "Region") +
+  guides(colour = guide_legend(nrow = 1))
+
+```
+
+### Chart
+
+This chart shows the percentage of decks running a specific region.
+
+The sum of all Regions' Playrate should be close to 200% since almost every deck runs 2 regions. 
+
+```{r region-playrate-chart, fig.height = 8, fig.width = 12}
+
+data %>%
+  select(starts_with("faction")) %>%
+  pivot_longer(cols = everything(), names_to = "key", values_to = "region") %>% 
+  count(region) %>%
+  arrange(-n) %>% 
+  mutate(playrate = n / (nrow(data)*2)) %>% 
+  mutate(logo = paste0(path_logo, region, ".png")) %>% 
+  drop_na(region) %>% 
+  ggplot(aes(x = reorder(region, n))) +
+  geom_col(aes(y = n, fill = region), color = "grey30", alpha = 0.8) +
+  geom_text(aes(label = "", y = n+0.1*nrow(data)), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(playrate, accuracy = .1), y = n), size = 6, hjust = -0.5) +
+  geom_image(aes(image = logo, y = n-0.04*nrow(data)), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_fill_manual(values = region_colors) +
+  theme(legend.position = "none") +
+  labs(x = "Region", y = "# of decks containing the region", title = "Playrate by Region")
+
+```
+
+### Change
+
+```{r region-playrate-change, fig.height = 8, fig.width = 12}
+
+data_tot %>% 
+  select(date, starts_with("faction")) %>%
+  pivot_longer(cols = -date, names_to = "key", values_to = "region") %>% 
+  mutate(week = isoweek(date), year = year(date)) %>%
+  group_by(week, year, region) %>%
+  summarise(n = n(), date = ceiling_date(max(date), unit = "week", week_start = 1) - days(1), .groups = "drop") %>% 
+  filter(date >= max(date) - weeks(1)) %>% 
+  left_join(region_history %>% select(week, year, region, match), by = c("week", "region", "year")) %>% 
+  drop_na(region) %>% 
+  mutate(playrate = n / (match*2)) %>%
+  group_by(region) %>% 
+  summarise(change = playrate[date == max(.$date)] - playrate[date == min(.$date)], .groups = "drop") %>% 
+  mutate(logo = paste0(path_logo, region, ".png")) %>% 
+  ggplot(aes(x = reorder(region, change))) +
+  geom_col(aes(y = change, fill = region), color = "grey30", alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.03), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.03), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.015*sign(change)), size = 6) +
+  geom_image(aes(image = logo, y = -0.015*sign(change)), size = 0.06, asp = 1.5) +
+  theme_bw() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1L)) +
+  scale_fill_manual(values = region_colors) +
+  theme(legend.position = "none") +
+  labs(x = "Region", y = "% Change", title = "Playrate Change vs Last Week by Region")
+
+```
+
+## Region Winrate {.tabset .tabset-fade .tabset-pills}
+
+### Chart
+
+```{r region-winrate-chart, fig.height = 8, fig.width = 12}
+
+region_winrate %>%
+  filter(week == max(week)) %>% 
+  group_by(region) %>%
+  summarise(n = sum(n), win = sum(win), winrate = sum(win) / sum(n), .groups = "drop") %>% 
+  mutate(logo = paste0(path_logo, region, ".png")) %>%
+  ggplot(aes(x = reorder(region, winrate))) +
+  geom_col(aes(y = winrate, fill = region), color = "grey30", alpha = 0.8) +
+  geom_text(aes(label = "", y = winrate+0.05), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(winrate, accuracy = .1), y = winrate), size = 6, hjust = -0.5) +
+  geom_image(aes(image = logo, y = winrate-0.03), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_fill_manual(values = region_colors) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(x = "Region", y = "Winrate", title = "Winrate by Region")
+
+```
+
+### Change
+
+```{r region-winrate-change, fig.height = 8, fig.width = 12}
+
+region_winrate %>% 
+  group_by(region) %>% 
+  mutate(change = winrate[week == max(week)] - winrate[week == min(week)]) %>% 
+  ungroup() %>% 
+  select(region, change) %>% 
+  distinct() %>% 
+  mutate(logo = paste0(path_logo, region, ".png")) %>% 
+  ggplot(aes(x = reorder(region, change))) +
+  geom_col(aes(y = change, fill = region), color = "grey30", alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.005*sign(change)), size = 6) +
+  geom_image(aes(image = logo, y = -0.005*sign(change)), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  scale_fill_manual(values = region_colors) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(x = "Region", y = "% Change", title = "Winrate Change vs Last Week by Region")
+
+```
+
+# III. Champions Report
+
+## Champion Playrate {.tabset .tabset-fade .tabset-pills}
+
+This chart shows the percentage of decks running a specific champion.
+
+The sum of all Champions' Playrate can be anything between 0% (if every deck is a champion-less deck) and 600% (if every deck is a 6-champions deck). Realistically, the real value will be ~200% since most decks run only 2 champions. 
+
+### Chart
+
+```{r champion-playrate-chart, fig.height = 8, fig.width = 12}
+
+decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  select(starts_with("champ")) %>%
+  pivot_longer(cols = everything()) %>%
+  select(-name) %>%
+  drop_na() %>%
+  left_join(champ_codes, by = c("value" = "X")) %>%
+  add_count(Name, sort = TRUE) %>%
+  distinct() %>%
+  mutate(playrate = n / (nrow(data)*2)) %>%
+  slice_max(n = 10, order_by = n, with_ties = FALSE) %>%
+  mutate(img = paste0("./images/cards/", value, ".png")) %>%
+  mutate(logo = paste0(path_logo, Region, ".png")) %>%
+  ggplot(aes(x = reorder(Name, n))) +
+  geom_col(aes(y = n, fill = Region), color = "grey30", alpha = 0.8) +
+  geom_text(aes(label = "", y = n*1.1), size = 6) +
+  geom_text(aes(label = scales::percent(playrate, accuracy = .1), y = n), size = 6, hjust = -0.5) +
+  geom_image(aes(image = img, y = -0.03*nrow(data)), size = 0.045, asp = 1.5) +
+  geom_image(aes(image = logo, y = -0.07*nrow(data)), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = NULL) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_fill_manual(values = region_colors) +
+  theme(legend.position = "none") +
+  labs(x = "Champions", y = "# of decks containing the champions", title = "Playrate by Champion")
+
+```
+
+### Change
+
+```{r champion-playrate-change, fig.height = 8, fig.width = 12}
+
+decks_matchup %>% 
+  select(date, starts_with("champ")) %>%
+  pivot_longer(cols = -date) %>%
+  select(-name) %>%
+  drop_na() %>%
+  mutate(week = isoweek(date)) %>% 
+  select(-date) %>% 
+  left_join(champ_codes, by = c("value" = "X")) %>%
+  group_by(week) %>% 
+  add_count(Name, sort = TRUE) %>%
+  ungroup() %>% 
+  distinct() %>%
+  left_join(region_history %>% select(week, match) %>% distinct(), by = "week") %>% 
+  mutate(playrate = n / (match*2)) %>%
+  group_by(value, Name, Region) %>%
+  summarise(change = playrate[week == max(week)] - playrate[week == min(week)], .groups = "drop") %>% 
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>%
+  mutate(img = paste0("./images/cards/", value, ".png")) %>%
+  mutate(logo = paste0(path_logo, Region, ".png")) %>%
+  mutate(sign = ifelse(change > 0, "pos", "neg")) %>% 
+  ggplot(aes(x = reorder(Name, change))) +
+  geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.006*sign(change)), size = 6) +
+  geom_image(aes(image = img, y = -0.006*sign(change)), size = 0.045, asp = 1.5) +
+  geom_image(aes(image = logo, y = -0.016*sign(change)), size = 0.06, asp = 1.5) +
+  theme_bw() +
+  coord_flip() +
+  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) +
+  scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Champion", 
+    y = "% Change", 
+    title = "Change in Playrate by Champion", 
+    subtitle = "Only the 10 champions with the biggest change are shown"
+  )
+
+```
+
+### Full data
+
+```{r champion-playrate-data}
+
+decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  mutate(won = ifelse(deck == winner, 1, 0)) %>%
+  select(starts_with("champ"), won) %>%
+  pivot_longer(cols = -won) %>%
+  select(-name) %>%
+  drop_na() %>%
+  left_join(champ_codes, by = c("value" = "X")) %>%
+  group_by(Name, Region, value) %>%
+  summarise(match = n(), win = sum(won), .groups = "drop") %>%
+  mutate(playrate = match / (nrow(data)*2)) %>%
+  mutate(winrate = win / match) %>%
+  select(-value) %>%
+  arrange(-match,-winrate) %>% 
+  rename_with(str_to_title) %>%
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>%
+  datatable(rownames = FALSE) %>%
+  formatPercentage(columns = c("Playrate", "Winrate"), digits = 1)
+
+```
+
+## Champion Combinations Playrate {.tabset .tabset-fade .tabset-pills}
+
+### Chart
+
+```{r champion-combinations-playrate-chart, fig.height = 8, fig.width = 12}
+
+decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(n = n(), .groups = "drop") %>% 
+  mutate(playrate = n / sum(n)) %>% 
+  slice_max(n = 10, order_by = n, with_ties = FALSE) %>%
+  select(where(~!all(is.na(.x)))) %>% 
+  mutate(across(starts_with("champ_"), .fns = list(img = ~paste0("./images/cards/", ., ".png")), .names = "{fn}_{col}")) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  unite(col = champs, starts_with("champ_"), sep = " ", na.rm = TRUE) %>% 
+  ggplot(aes(x = reorder(champs, n))) +
+  geom_col(aes(y = n), fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_text(aes(label = "", y = 1.1*n), size = 6) +
+  geom_text(aes(label = scales::percent(playrate, accuracy = .1), y = n), size = 6, hjust = -0.5) +
+  {if(max_champs_play > 0) geom_image(aes(image = img_champ_1, y = -(0.027*max_champs_play)*nrow(data)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play > 1) geom_image(aes(image = img_champ_2, y = -(0.027*(max_champs_play-1))*nrow(data)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play > 2) geom_image(aes(image = img_champ_3, y = -(0.027*(max_champs_play-2))*nrow(data)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play > 3) geom_image(aes(image = img_champ_4, y = -(0.027*(max_champs_play-3))*nrow(data)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play > 4) geom_image(aes(image = img_champ_5, y = -(0.027*(max_champs_play-4))*nrow(data)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play > 5) geom_image(aes(image = img_champ_6, y = -(0.027*(max_champs_play-5))*nrow(data)), size = 0.045, asp = 1.5) } +
+  theme_bw() +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(breaks = NULL) +
+  coord_flip() +
+  labs(
+    x = "Champion Combination", 
+    y = "Playrate", 
+    title = "Playrate by Champion Combination", 
+    subtitle = "Only the 10 champion combinations with the highest playrate are shown."
+  )
+
+```
+
+### Change
+
+```{r champion-combinations-playrate-change, fig.height = 8, fig.width = 12}
+
+decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  group_by(across(c(week, starts_with("champ_")))) %>% 
+  summarise(match = n(), .groups = "drop") %>%
+  group_by(week) %>% 
+  mutate(playrate = match / sum(match)) %>% 
+  ungroup() %>%
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(change = playrate[week == max(week)] - playrate[week == min(week)], .groups = "drop") %>% 
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>% 
+  select_if(~sum(!is.na(.)) > 0) %>% 
+  mutate(sign = ifelse(change > 0, "pos", "neg")) %>% 
+  mutate(across(starts_with("champ_"), .fns = list(img = ~paste0("./images/cards/", ., ".png")), .names = "{fn}_{col}")) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  unite(col = champs, starts_with("champ_"), sep = " ", na.rm = TRUE) %>% 
+  ggplot(aes(x = reorder(champs, change))) +
+  geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.01), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.005*sign(change)), size = 6) +
+  {if(max_champs_play_change > 0) geom_image(aes(image = img_champ_1, y = -0.006*sign(change)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play_change > 1) geom_image(aes(image = img_champ_2, y = -0.006*sign(change)*2), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play_change > 2) geom_image(aes(image = img_champ_3, y = -0.006*sign(change)*3), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play_change > 3) geom_image(aes(image = img_champ_4, y = -0.006*sign(change)*4), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play_change > 4) geom_image(aes(image = img_champ_5, y = -0.006*sign(change)*5), size = 0.045, asp = 1.5) } +
+  {if(max_champs_play_change > 5) geom_image(aes(image = img_champ_6, y = -0.006*sign(change)*6), size = 0.045, asp = 1.5) } +
+  coord_flip() +
+  theme_bw() +
+  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) +
+  scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Champion Combination", 
+    y = "% Change", 
+    title = "Change in Playrate by Champion Combination", 
+    subtitle = "Only the 10 champion combinations with the biggest change are shown"
+  )
+
+```
+
+### Full data
+
+```{r champion-combinations-playrate-data}
+
+decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(match = n(), .groups = "drop") %>%
+  mutate(playrate = match / sum(match)) %>% 
+  arrange(-match) %>%
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  rename_with(str_to_title) %>%
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>%
+  datatable(rownames = FALSE) %>%
+  formatPercentage(columns = "Playrate", digits = 1)
+
+```
+
+## Champion Combinations Winrate {.tabset .tabset-fade .tabset-pills}
+
+### Chart
+
+```{r champion-combinations-winrate-chart, fig.height = 8, fig.width = 12}
+
+decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  mutate(win = ifelse(deck == winner, 1, 0)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(n = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(winrate = win / n) %>% 
+  mutate(playrate = n / sum(n)) %>% 
+  filter(playrate > 0.01) %>% # to ensure robust data
+  slice_max(n = 10, order_by = winrate, with_ties = FALSE) %>%
+  select(where(~!all(is.na(.x)))) %>% 
+  mutate(across(starts_with("champ_"), .fns = list(img = ~paste0("./images/cards/", ., ".png")), .names = "{fn}_{col}")) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  unite(col = champs, starts_with("champ_"), sep = " ", na.rm = TRUE) %>% 
+  ggplot(aes(x = reorder(champs, winrate))) +
+  geom_col(aes(y = winrate), fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_text(aes(label = "", y = winrate+0.1), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(winrate, accuracy = .1), y = winrate), size = 6, hjust = -0.5) +
+  {if(max_champs_wr > 0) geom_image(aes(image = img_champ_1, y = -(0.07*max_champs_wr)), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr > 1) geom_image(aes(image = img_champ_2, y = -(0.07*(max_champs_wr-1))), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr > 2) geom_image(aes(image = img_champ_3, y = -(0.07*(max_champs_wr-2))), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr > 3) geom_image(aes(image = img_champ_4, y = -(0.07*(max_champs_wr-3))), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr > 4) geom_image(aes(image = img_champ_5, y = -(0.07*(max_champs_wr-4))), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr > 5) geom_image(aes(image = img_champ_6, y = -(0.07*(max_champs_wr-5))), size = 0.045, asp = 1.5) } +
+  theme_bw() +
+  coord_flip() +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(breaks = NULL) +
+  labs(
+    x = "Champion Combination", 
+    y = "Winrate", 
+    title = "Winrate by Champion Combination", 
+    subtitle = "Only the 10 champion combinations with the highest winrate are shown; combinations with a playrate < 1% are excluded."
+  )
+
+```
+
+### Change
+
+```{r champion-combinations-winrate-change, fig.height = 8, fig.width = 12}
+
+decks_matchup %>% 
+  mutate(win = ifelse(deck == winner, 1, 0)) %>% 
+  mutate(week = isoweek(date)) %>% 
+  group_by(week, across(starts_with("champ_"))) %>% 
+  summarise(n = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(winrate = win / n) %>%
+  group_by(week) %>% 
+  mutate(playrate = n / sum(n)) %>% 
+  ungroup() %>%
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(change = winrate[week == max(week)] - winrate[week == min(week)], mean_playrate = mean(playrate, na.rm = TRUE), .groups = "drop") %>% 
+  filter(mean_playrate > 0.01) %>% # to ensure robust data
+  slice_max(n = 10, order_by = abs(change), with_ties = FALSE) %>%
+  select(where(~!all(is.na(.x)))) %>% 
+  mutate(sign = ifelse(change > 0, "pos", "neg")) %>% 
+  mutate(across(starts_with("champ_"), .fns = list(img = ~paste0("./images/cards/", ., ".png")), .names = "{fn}_{col}")) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  unite(col = champs, starts_with("champ_"), sep = " ", na.rm = TRUE) %>% 
+  ggplot(aes(x = reorder(champs, change))) +
+  geom_col(aes(y = change, color = sign, fill = sign), alpha = 0.8) +
+  geom_text(aes(label = "", y = change+0.015), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = "", y = change-0.015), size = 6) + # add breathing space at the edge of the plot
+  geom_text(aes(label = scales::percent(change, accuracy = .1, prefix = ifelse(change > 0, "+", "")), y = change + 0.015*sign(change)), size = 6) +
+  {if(max_champs_wr_change > 0) geom_image(aes(image = img_champ_1, y = -0.02*sign(change)),   size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr_change > 1) geom_image(aes(image = img_champ_2, y = -0.02*sign(change)*2), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr_change > 2) geom_image(aes(image = img_champ_3, y = -0.02*sign(change)*3), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr_change > 3) geom_image(aes(image = img_champ_4, y = -0.02*sign(change)*4), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr_change > 4) geom_image(aes(image = img_champ_5, y = -0.02*sign(change)*5), size = 0.045, asp = 1.5) } +
+  {if(max_champs_wr_change > 5) geom_image(aes(image = img_champ_6, y = -0.02*sign(change)*6), size = 0.045, asp = 1.5) } +
+  coord_flip() +
+  theme_bw() +
+  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2")) +
+  scale_fill_manual(values = c("pos" = "#046507", "neg" = "#B81D13")) +
+  scale_x_discrete(labels = element_blank()) +
+  scale_y_continuous(labels = scales::percent) +
+  theme(legend.position = "none") +
+  labs(
+    x = "Champion Combination", 
+    y = "% Change", 
+    title = "Change in Winrate by Champion Combination", 
+    subtitle = "Only the 10 champion combinations with the biggest change are shown; combinations with a playrate < 1% are excluded."
+  )
+
+```
+
+### Full data
+
+```{r champion-combinations-winrate-data}
+
+decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  mutate(win = ifelse(deck == winner, 1, 0)) %>% 
+  group_by(across(starts_with("champ_"))) %>% 
+  summarise(match = n(), win = sum(win), .groups = "drop") %>% 
+  mutate(winrate = win / match) %>% 
+  mutate(playrate = match / sum(match)) %>% 
+  arrange(-winrate, -match) %>%
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  rename_with(str_to_title) %>%
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>%
+  datatable(rownames = FALSE) %>%
+  formatPercentage(columns = c("Playrate", "Winrate"), digits = 1)
+
+```
+
+## Champion Matchups {.tabset .tabset-fade .tabset-pills}
+
+Only the 10 Champion Combinations with the highest playrates are shown. 
+
+The value shown in each cell is the winrate that the Champion Combination in the row has when playing against the Champion Combination in the column.
+
+To check for matchups that are not in this table, use the tab "Full data" and filter for the desired Champion Combination (sample sizes might be small).
+
+### Chart
+
+```{r champion-matchup-chart, fig.height = 8, fig.width = 12}
+
+tibble(deck_1 = most_frequent_champ_combs[1:10], deck_2 = most_frequent_champ_combs[1:10]) %>% 
+  expand(deck_1, deck_2) %>% 
+  left_join(decks_matchup_frequent, by = c("deck_1", "deck_2")) %>% 
+  mutate(deck_1_winrate = ifelse(deck_1 == deck_2, NA, deck_1_winrate)) %>%
+  pivot_wider(names_from = deck_2, values_from = deck_1_winrate) %>%
+  column_to_rownames(var = "deck_1") %>%
+  fill_matchup_table() %>%
+  rownames_to_column(var = "deck_1") %>%
+  pivot_longer(cols = -deck_1, names_to = "deck_2", values_to = "deck_1_winrate") %>%
+  mutate(bin = cut(deck_1_winrate, c(0, 0.4, 0.45, 0.55, 0.6, 1), include.lowest = TRUE)) %>%
+  mutate(across(c(deck_1, deck_2), ~factor(., levels = most_frequent_champ_combs[1:10], ordered = TRUE))) %>%
+  ggplot(aes(y = reorder(deck_1, desc(deck_1)), x = deck_2, fill = bin)) +
+  geom_tile(color = "grey90", size = 1, stat = "identity") +
+  geom_text(aes(label = scales::percent(deck_1_winrate, accuracy = .1)), color = "white", size = 6, na.rm = TRUE) +
+  theme_minimal() +
+  labs(x = element_blank(), y = element_blank()) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10), position = "top") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("[0,0.4]" = "#B81D13", "(0.4,0.45]" = "coral2", "(0.45,0.55]" = "#EFB700", "(0.55,0.6]" = "#149414", "(0.6,1]" = "#046507"), na.value = "grey90")
+ 
+```
+
+### Full data
+
+```{r champion-matchup-data}
+
+decks_matchup %>%
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>%
+  unite(col = "champs", starts_with("champ_"), sep = " ", na.rm = TRUE) %>%
+  select(-deck) %>%
+  group_by(matchid) %>%
+  mutate(winner = if_else(winner == 1, champs[1], champs[2])) %>%
+  arrange(matchid, champs) %>% # important! to prevent double matchups
+  mutate(row_id = row_number()) %>%
+  pivot_wider(names_from = row_id, values_from = champs, names_prefix = "deck_") %>%
+  ungroup() %>%
+  select(-matchid) %>%
+  mutate(deck_1_won = if_else(deck_1 == winner, 1, 0)) %>%
+  group_by(deck_1, deck_2) %>%
+  summarise(match = n(), deck_1_winrate = sum(deck_1_won) / match, .groups = "drop") %>%
+  arrange(-match) %>%
+  filter(deck_1 != deck_2) %>%
+  rename_with(str_to_title) %>%
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>%
+  datatable(rownames = FALSE) %>%
+  formatPercentage(columns = c("Deck 1 winrate"), digits = 1)
+
+```
+
+## Power Rankings {.tabset .tabset-fade}
+
+This chart shows the power rankings for the 20 most played champion combinations.
+
+*"Power ranking"* is defined in the "*Vicious Syndicate* way"; explanation taken from their website: 
+
+**Q: What is the meaning of the Power Rankings and how do you compute Power Ranking scores?**
+
+*The Power Ranking scores are each deck’s weighted win rate against the field. We calculate a deck’s Power Ranking score by weighting its matchups against other archetypes, factoring each archetype’s frequency.*
+
+This means that the Power ranking of a deck is not their observed winrate, but the winrate they should have according to their matchups winrate and the observed frequency of other region combinations.
+
+*NB: if in the data collected there are no games between 2 specific champion combinations, I use 50% winrate as a default value in these calculations. Since here I am filtering the most played combinations, this should never happen; but just in case, I'm adding this as a disclaimer.*
+*Due to the small sample size, using Bayesian Averages might be a better option. I'll think about it. In the meantime, I'm blaming Riot for the ridiculously low API rate limit.*
+
+### Chart
+
+```{r vs-power-ranking, fig.height = 7, fig.width = 7, fig.align='center'}
+
+top_20_winrate %>% 
+  left_join(top_20_playrate, by = c("deck_2" = "champs")) %>% 
+  replace_na(list(deck_1_winrate = 0.5)) %>% # if i have 0 games of a particular matchup, assume its 50-50
+  mutate(deck_power = deck_1_winrate*playrate) %>%
+  group_by(deck_1) %>% 
+  summarise(deck_power = sum(deck_power), .groups = "drop") %>% 
+  arrange(-deck_power) %>% 
+  left_join(top_20_playrate, by = c("deck_1" = "champs")) %>%
+  mutate(freq_score = playrate*100 / max(playrate)) %>% 
+  mutate(power_score = ((deck_power + max(deck_power) - 1) * 100) / (2*max(deck_power) - 1)) %>% 
+  mutate(meta_score = (power_score + freq_score) / 2) %>% 
+  select(deck = deck_1, deck_power, power_score, freq_score, meta_score) %>% 
+  mutate(across(ends_with("_score"), scales::comma, accuracy = .1)) %>% 
+  mutate(across(deck_power, scales::comma, accuracy = .001)) %>% 
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
+  rename_with(str_to_title) %>%
+  grid.table(rows = NULL)
+
+```
+
+### Deck Codes
+
+Here are collected the 3 most played deck codes for each of the 20 most frequent champion combinations:
+
+```{r deck-codes}
+
+decks_matchup %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  select(where(~!all(is.na(.x)))) %>% 
+  mutate(across(starts_with("champ_"), ~map_chr(.x = ., .f = get_name_from_champ))) %>% 
+  unite(col = champs, starts_with("champ_"), sep = " ", na.rm = TRUE) %>% 
+  filter(champs %in% most_frequent_champ_combs) %>% 
+  left_join(data %>% 
+              select(matchid, deck_1, deck_2) %>% 
+              pivot_longer(cols = -matchid, names_to = "deck", values_to = "code") %>% 
+              mutate(deck = str_remove_all(deck, pattern = "deck_") %>% as.numeric()),
+            by = c("matchid", "deck")) %>% 
+  group_by(champs, code) %>% 
+  summarise(match = n(),
+            win = sum(deck == winner),
+            .groups = "drop_last") %>%
+  slice_max(n = 3, order_by = match, with_ties = FALSE) %>% 
+  ungroup() %>% 
+  left_join(top_20_playrate %>% select(champs, total_match = n), by = c("champs")) %>% 
+  mutate(winrate = win / match) %>% 
+  arrange(-total_match, -match) %>% 
+  relocate(total_match, .after = code) %>% 
+  mutate(code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%1$s" target="_blank">%1$s</a>', code)) %>% 
+  #mutate(code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%1$s" target="_blank" class="btn btn-primary">%1$s</a>', code)) %>% 
+  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
+  rename_with(str_to_title) %>% 
+  datatable(rownames = FALSE, escape = FALSE) %>% 
+  formatPercentage(columns = "Winrate", digits = 1)
+
+```
+
+## Power Score
+
+This chart shows the position in the meta for the 20 most played champ combinations, in terms of Winrate and Playrate. This one is also an exact copy of *Vicious Sindycate*'s Power Score chart. From the FAQs on their website:
+
+**Q: What is the meaning of the Meta Score and how do you compute it?**
+
+*The Meta Score is a supplementary metric that measures each archetype’s relative standing in the meta, based on both win rate and prevalence, and in comparison to the theoretical “best deck”.*
+
+  -  *We take the highest win rate recorded by a current archetype in a specific rank group, and set it to a fixed value of 100. We then determine the fixed value of 0 by deducting the highest win rate from 100%. For example, if the highest win rate recorded is 53%, a win rate of 47% will be set as the fixed value of 0. This is a deck’s Power Score. The range of 47% – 53%, whose power score ranges from 0 to 100, will contain “viable” decks. The length of this range will vary depending on the current state of the meta. Needless to say, it is possible for a deck to have a negative power score, but it can never have a power score that exceeds 100.*
+  
+  - *We take the highest frequency recorded by a current archetype in a specific rank group, and set it to a fixed value of 100. The fixed value of 0 will then always be 0% popularity. This is a deck’s Frequency Score. A deck’s frequency score cannot be a negative number.*
+  
+  - *We calculate the simple average of a deck’s Power Score and Frequency Score to find its vS Meta Score. The vS Meta Score is a deck’s relative distance to the hypothetical strongest deck in the game. Think of Power Score and Frequency Score as the coordinates (x, y) of a deck within a Scatter Plot. The Meta Score represents its relative placement in the plane between the fixed values of (0, 0) and (100,100).*
+  
+  - *If a deck records both the highest popularity and the highest win rate, its Meta Score will be 100. It will be, undoubtedly, the best deck in the game.*
+
+```{r vs-power-score, fig.height = 8, fig.width = 12}
+
+top_20_winrate %>% 
+  left_join(top_20_playrate, by = c("deck_2" = "champs")) %>% 
+  replace_na(list(deck_1_winrate = 0.5)) %>% # if i have 0 games of a particular matchup, assume its 50-50
+  mutate(deck_power = deck_1_winrate*playrate) %>%
+  group_by(deck_1) %>% 
+  summarise(deck_power = sum(deck_power), .groups = "drop") %>% 
+  arrange(-deck_power) %>% 
+  left_join(top_20_playrate, by = c("deck_1" = "champs")) %>%
+  mutate(freq_score = playrate*100 / max(playrate)) %>% 
+  mutate(power_score = ((deck_power + max(deck_power) - 1) * 100) / (2*max(deck_power) - 1)) %>% 
+  mutate(meta_score = (power_score + freq_score) / 2) %>% 
+  select(deck = deck_1, deck_power, power_score, freq_score, meta_score) %>%
+  slice_max(n = 12, order_by = freq_score, with_ties = FALSE) %>% 
+  ggplot(aes(x = power_score, y = freq_score)) +
+  geom_point(aes(size = meta_score), fill = "steelblue", color = "grey30", pch = 21) +
+  geom_text_repel(aes(label = paste(scales::comma(meta_score, accuracy = .1), deck, sep = " \n ")), point.padding = 25, min.segment.length = Inf) +
+  geom_segment(aes(x = 7.5, y = 100, xend = 100, yend = 100), arrow = arrow(length = unit(0.03, "npc"))) +
+  geom_label(aes(x = 7.5, y = 100, alpha = "semitransparent"), label = "Meta Peak \n Theoretical best deck whose \n frequency and power are \n both the highest.", size = 4, fill = "#FDCE2A") +
+  theme_bw() +
+  expand_limits(x = c(0,100), y = c(0,105)) +
+  scale_alpha_manual(values = c("semitransparent" = 0.5)) +
+  theme(legend.position = "none") +
+  scale_size_continuous(range = c(10,25)) +
+  labs(x = "Power Score", y = "Frequency Score", title = "Meta Score", subtitle = "This chart shows only the 12 most frequent champions combinations")
+
+```
+
+# IV. Cards Report
+
+## Cards Inclusion Rate {.tabset .tabset-fade .tabset-pills}
+
+Only the 10 Cards with the highest inclusion rate in their respective region are shown. 
+
+The value shown for each card is the percentage of decks that include at least one copy of that specific card when playing the region the card belongs to.
+
+To check for specific cards that are not in this chart, or for the most included cards in every region, use the tab "Full data" and filter for the desired Region using the "search" box.
+
+### Chart
+
+```{r cards-inclusion-chart, fig.height = 8, fig.width = 12}
+
+bind_rows(decks_1, decks_2) %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  count(value) %>% 
+  left_join(card_codes, by = c("value" = "X")) %>% 
+  left_join(region_freq, by = c("Region" = "value")) %>% 
+  mutate(inclusion = n.x / n.y) %>% 
+  slice_max(n = 10, order_by = inclusion, with_ties = FALSE) %>% 
+  mutate(img = paste0("./images/cards/", value, ".png")) %>%
+  mutate(logo = paste0(path_logo, Region, ".png")) %>%
+  ggplot(aes(x = reorder(Name, inclusion))) +
+  geom_col(aes(y = inclusion, fill = Region), color = "grey30") +
+  geom_text(aes(label = "", y = inclusion+0.1), size = 6) + # add breathing space
+  geom_text(aes(label = scales::percent(inclusion, accuracy = .1), y = inclusion), size = 6, hjust = -0.5) +
+  geom_image(aes(image = img, y = -0.06), size = 0.045, asp = 1.5) +
+  geom_image(aes(image = logo, y = -0.14), size = 0.06, asp = 1.5) +
+  coord_flip() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = NULL) +
+  scale_fill_manual(values = region_colors) +
+  theme(legend.position = "none") +
+  labs(x = "Card", y = "% of decks including the card", title = "Card Inclusion", subtitle = "Percentage of decks playing that region that include the card.")
+
+```
+
+### Full data
+
+```{r cards-inclusion-data}
+
+bind_rows(decks_1, decks_2) %>% 
+  mutate(week = isoweek(date)) %>% 
+  filter(week == max(week)) %>% 
+  select(-c(week, date)) %>% 
+  count(value) %>% 
+  left_join(card_codes, by = c("value" = "X")) %>% 
+  left_join(region_freq, by = c("Region" = "value")) %>% 
+  mutate(inclusion = n.x / n.y) %>% 
+  arrange(-inclusion) %>% 
+  select(Name, Region, "# of Decks including the card" = n.x, "# of Decks playing the Region" = n.y, Inclusion = inclusion) %>% 
+  datatable(rownames = FALSE) %>% 
+  formatPercentage(columns = "Inclusion", digits = 1)
+
+```
+
+## Cards Frequency Wordcloud
+
+This chart shows the most frequently played cards; font size scales with the number of decks playing at least one copy of the card (*i.e.* the bigger the name of a card is, the higher the number of decks playing that card).
+
+*There are probably better ways to visualize this information, but I find wordclouds really cool.*
+*I'll probably add more standard charts abut this topic, maybe...*
+
+```{r cards-wordcloud, fig.height = 9, fig.width = 9}
+
+wordcloud(words = wc_data$Name, freq = wc_data$n, ordered.colors = TRUE, colors = wc_data$color, scale = c(3,0.3))
+
+```
