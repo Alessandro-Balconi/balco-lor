@@ -16,7 +16,6 @@ suppressPackageStartupMessages(library(htmlwidgets)) # save tables
 
 # date from which extract matches
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date() - days(7)))
-end_date <- as_datetime("3000-01-01T00:00:00") # this parameter is not even needed but idk let's just leave it...
 
 # color of Runeterra regions for plots
 region_colors <- c(
@@ -58,7 +57,7 @@ data_asia <- tbl(con, "lor_match_info_asia") %>%
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
   collect()
 
-data_tot <- bind_rows("europe" = data_eu, "americas" = data_na, "asia" = data_asia, .id = "shard")
+data <- bind_rows("europe" = data_eu, "americas" = data_na, "asia" = data_asia, .id = "shard")
 
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
@@ -193,9 +192,9 @@ img_uri <- function(x, size = 1, custom_size = FALSE){
 # 5. make report ----
 
 # keep only recent data (this week + past one)
-data <- data_tot %>%
+data <- data %>%
   mutate(game_start_time_utc = as_datetime(game_start_time_utc)) %>% 
-  filter(game_start_time_utc >= start_date-days(7) & game_start_time_utc <= end_date)
+  filter(game_start_time_utc >= start_date-days(7))
 
 # add flag for "current" or "last" week
 data <- data %>% 
@@ -347,7 +346,6 @@ weekly_decks <- data %>%
 
 data_history_new <- data %>% 
   select(week, game_start_time_utc, starts_with("faction_")) %>% 
-  filter(game_start_time_utc <= end_date) %>% 
   pivot_longer(cols = starts_with("faction_")) %>%
   drop_na(value) %>% 
   count(week, value) %>% 
