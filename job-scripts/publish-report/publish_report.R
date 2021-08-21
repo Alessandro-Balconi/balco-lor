@@ -13,7 +13,7 @@ template_file_2 <- "/home/balco/dev/lor-meta-report/templates/report_pt2.md" # t
 p_report_number <- "8"
 p_full_art      <- "05BC001T1"
 p_emote         <- "taric"
-p_subtitle      <- "Patch 2.13 - Week 4"
+p_subtitle      <- "Patch 2.13 - Week 4 - Bandle City Waiting Room"
 
 # 3. functions ----
 
