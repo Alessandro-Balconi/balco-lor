@@ -149,7 +149,7 @@ while(TRUE){
     matches <- setdiff(x = matches, y = m_match$distinct("metadata.match_id"))
     
     # print message to console
-    if(i %% 100 == 0){ print(sprintf("Number of games to analyze: %s ; cycle progress: %s / %s", length(matches), i, length(puuid_list))) }
+    if(i %% 100 == 0){ print(sprintf("Cycle progress: %s / %s", i, length(puuid_list))) }
     
     # get info from new matches
     match_list <- lapply(
