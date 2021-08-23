@@ -16,4 +16,5 @@ tryCatch({
     title = "Daily database update",
     body = "There was an error during the database update. Manual intervention required."
   )
+  print(e)
 })

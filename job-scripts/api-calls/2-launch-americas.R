@@ -7,4 +7,5 @@ tryCatch({
     title = "LoR-Meta AMERICAS server", 
     body = "There was an error during API calls for AMERICAS server. Manual restart required."
   )
+  print(e)
 })

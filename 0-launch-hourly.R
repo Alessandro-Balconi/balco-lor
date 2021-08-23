@@ -7,4 +7,5 @@ tryCatch({
     title = "Hourly leaderboard update",
     body = "There was an error during the leaderboard update. Manual intervention required."
   )
+  print(e)
 })

@@ -12,4 +12,5 @@ tryCatch({
     title = "Weekly Report Release",
     body = "There was an error during the relase of the report. Manual intervention required."
   )
+  print(e)
 })
