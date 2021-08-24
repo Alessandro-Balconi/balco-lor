@@ -45,8 +45,8 @@ update_leaderboard <- function(region){
     )
     
     # connect to databases
-    m_lb      <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = db_collection)
-    m_lb_upd  <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = dbu_collection)
+    m_lb      <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = db_collection)
+    m_lb_upd  <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = dbu_collection)
     
     # update leaderboard to db
     m_lb$remove(query = "{}")
@@ -68,7 +68,9 @@ update_leaderboard <- function(region){
 
 # 3. set parameters ----
 
-api_key <- "RGAPI-ae4106eb-969c-4957-ba08-724b72ad70ac"
+api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
+
+db_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
 
 # 4. launch function calls ----
 
