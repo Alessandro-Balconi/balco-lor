@@ -1,10 +1,10 @@
 # 1. libraries ----
 
-library(tidyverse)
-library(mongolite)
-library(httr)
-library(jsonlite)
-library(lubridate)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(mongolite))
+suppressPackageStartupMessages(library(httr))
+suppressPackageStartupMessages(library(jsonlite))
+suppressPackageStartupMessages(library(lubridate))
 
 # 2. connect to db & load data ----
 
