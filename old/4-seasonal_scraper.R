@@ -185,8 +185,8 @@ leaderboard <- GET("https://europe.api.riotgames.com/", path = "/lor/ranked/v1/l
 con <- dbConnect(
   MySQL(),
   db_host = "127.0.0.1",
-  user = "balco",
-  password = "Macosanes0!",
+  user = "X",
+  password = "X",
   dbname = "db_prova"
 )
 
@@ -239,8 +239,8 @@ while(TRUE){
     con <- dbConnect(
       MySQL(),
       db_host = "127.0.0.1",
-      user = "balco",
-      password = "Macosanes0!",
+      user = "X",
+      password = "X",
       dbname = "db_prova"
     )
 

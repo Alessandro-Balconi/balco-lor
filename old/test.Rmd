@@ -24,7 +24,7 @@ library(ggrepel)
 # 2. connect to db & load data ----
 
 # connect to db
-m_match <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info")
+m_match <- mongo(url = "mongodb://X:X@localhost:27017/admin", collection = "lor_match_info")
 
 # convert "game_start_time_utc" to MongoDB class Date [ THIS IS SUBOPTIMAL ]
 m_match$update(

@@ -41,7 +41,7 @@ lor_deckcodes <- reticulate::import("lor_deckcodes")
 # 3. connect to db & load data ----
 
 # connect to db
-m_match <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info")
+m_match <- mongo(url = "mongodb://X:X@localhost:27017/admin", collection = "lor_match_info")
 
 # import match data (only from ranked games)
 data_tot <- m_match$find(

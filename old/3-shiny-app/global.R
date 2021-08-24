@@ -43,8 +43,8 @@ if(exists("con")) { dbDisconnect(con) }
 con <- DBI::dbConnect(
   RMySQL::MySQL(),
   db_host = "127.0.0.1",
-  user = "balco",
-  password = "Macosanes0!",
+  user = "X",
+  password = "X",
   dbname = "db_prova"
 )
 
