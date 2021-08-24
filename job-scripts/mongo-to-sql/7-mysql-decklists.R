@@ -14,6 +14,9 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 
 # 4. connect to db & load data ----
 
+# load mysql db credentials
+db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
+
 # close previous connections to MySQL database (if any)
 if(exists("con")){ DBI::dbDisconnect(con) }
 
@@ -21,8 +24,8 @@ if(exists("con")){ DBI::dbDisconnect(con) }
 con <- DBI::dbConnect(
   RMySQL::MySQL(),
   db_host = "127.0.0.1",
-  user = "balco",
-  password = "Macosanes0!",
+  user = db_creds$uid,
+  password = db_creds$pwd,
   dbname = "db_prova"
 )
 

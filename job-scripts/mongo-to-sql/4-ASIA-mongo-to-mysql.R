@@ -17,11 +17,15 @@ suppressPackageStartupMessages(library(httr))      # http requests
 # import python deck decoder
 lor_deckcodes <- reticulate::import("lor_deckcodes")
 
+# load db credentials
+mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
+mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
+
 # 3. functions ----
 # 4. connect to db & load data ----
 
 # connect to MongoDB
-m_db <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info_asia") # db with match to prepare
+m_db <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
 
 # close previous connections to MySQL database (if any)
 if(exists("con")){ DBI::dbDisconnect(con) }
@@ -30,8 +34,8 @@ if(exists("con")){ DBI::dbDisconnect(con) }
 con <- DBI::dbConnect(
   RMySQL::MySQL(),
   db_host = "127.0.0.1",
-  user = "balco",
-  password = "Macosanes0!",
+  user = mysql_creds$uid,
+  password = mysql_creds$pwd,
   dbname = "db_prova"
 )
 

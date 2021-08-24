@@ -12,15 +12,18 @@ suppressPackageStartupMessages(library(mongolite)) # connect to MongoDB
 
 # 2. connect to database ----
 
+# load mongodb credentials
+db_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
+
 # current dbs
-m_db1 <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info")
-m_db2 <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info_na")
-m_db3 <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info_asia")
+m_db1 <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info")
+m_db2 <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_na")
+m_db3 <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_asia")
 
 # "old" dbs
-m_db1_old <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info_old")
-m_db2_old <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info_na_old")
-m_db3_old <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info_asia_old")
+m_db1_old <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_old")
+m_db2_old <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_na_old")
+m_db3_old <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_asia_old")
 
 # 3. extract old matches from dbs ----
 

@@ -14,6 +14,9 @@ suppressPackageStartupMessages(library(lubridate)) # working with dates
 # date from which weeks are counted in the report
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date()))
 
+# load mysql db credentials
+db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
+
 # 3. functions ----
 
 # 4. connect to db & load data ----
@@ -25,8 +28,8 @@ if(exists("con")){ DBI::dbDisconnect(con) }
 con <- DBI::dbConnect(
   RMySQL::MySQL(),
   db_host = "127.0.0.1",
-  user = "balco",
-  password = "Macosanes0!",
+  user = db_creds$uid,
+  password = db_creds$pwd,
   dbname = "db_prova"
 )
 
