@@ -26,8 +26,7 @@ update_leaderboard <- function(region){
     leaderboard <- get_leaderboard %>% content() %>% unname() %>% bind_rows()
     
     # fix rank (it starts from 0, should start from 1)
-    leaderboard <- leaderboard %>% 
-      mutate(rank = rank + 1)
+    if(nrow(leaderboard) > 0){ leaderboard <- leaderboard %>% mutate(rank = rank + 1) }
     
     # name of the collection to update
     db_collection <- switch(
