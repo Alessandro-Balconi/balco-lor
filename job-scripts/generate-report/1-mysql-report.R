@@ -388,7 +388,7 @@ data_archetype_pr <- data %>%
   slice_max(n = 10, order_by = current, with_ties = FALSE) %>%
   mutate(change = current - last) %>% 
   mutate(image = archetype) %>% 
-  mutate(image = str_replace_all(image, set_names(data_champs$cardCode, data_champs$name))) %>% 
+  mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
   mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
   mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "x")) %>%

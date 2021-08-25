@@ -79,8 +79,8 @@ data_decks <- data %>%
   mutate(match = sum(c_across(where(is.numeric)))) %>% 
   ungroup() %>% 
   filter(match >= 5) %>% 
-  mutate(winrate = win / match) %>% 
-  select(archetype, deck_code, match, winrate)
+  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
+  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
 
 # 6. save to MySQL db ----
 
