@@ -79,7 +79,7 @@ if(length(old_matchid_eu) > 0){
     filter(match_id %in% old_matchid_eu) %>% 
     collect()
   
-  DBI::dbWriteTable(con, "lor_match_info_old_eu", value = old_asia, append = TRUE, row.names = FALSE)
+  DBI::dbWriteTable(con, "lor_match_info_old_eu", value = old_eu, append = TRUE, row.names = FALSE)
   
   delete_query <- paste0("DELETE FROM lor_match_info WHERE (match_id IN ('", paste0(old_matchid_eu, collapse = "','"), "'));")
   
