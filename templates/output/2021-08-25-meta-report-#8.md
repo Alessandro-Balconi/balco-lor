@@ -1,10 +1,10 @@
 ---
 layout: post
-title: "Meta Report #7"
-subtitle: "Patch 2.13 - Week 3"
-cover-img: /assets/img/full-art/05BC194-full.png
-thumbnail-img: /assets/img/lor-emotes/karma.png
-share-img: /assets/img/full-art/05BC194-full.png
+title: "Meta Report #8"
+subtitle: "Patch 2.13 - Week 4 - Bandle City Waiting Room"
+cover-img: /assets/img/full-art/05BC001T1-full.png
+thumbnail-img: /assets/img/lor-emotes/taric.png
+share-img: /assets/img/full-art/05BC001T1-full.png
 tags: [meta-report]
 head-extra: adsense.html
 ---
@@ -13,7 +13,7 @@ head-extra: adsense.html
 
 Data used in this report are collected from ranked matches of Master players in the Europe, Americas and Asia shard.
 
-<img src="/assets/meta-report/mr7/data.png">
+<img src="/assets/meta-report/mr8/data.png">
 
 ### Region Playrate
 
@@ -21,11 +21,11 @@ This chart shows the percentage of decks running a specific region.
 
 *The sum of all Regions’ Playrate should be close to 200% since almost every deck runs 2 regions.*
 
-![](/assets/meta-report/mr7/region_pr.png)
+![](/assets/meta-report/mr8/region_pr.png)
 
 ### Weekly Region Playrate
 
-![image info](/assets/meta-report/mr7/region_hist.png)
+![image info](/assets/meta-report/mr8/region_hist.png)
 
 ### Champions Playrate
 
@@ -42,7 +42,7 @@ This chart shows the percentage of decks running a specific champion.
 
 <br><br>
 
-    <img src="/assets/meta-report/mr7/champs_pr.png">
+    <img src="/assets/meta-report/mr8/champs_pr.png">
 
     </div>
 
@@ -56,7 +56,7 @@ Here you can check the full data for all champions.
 
 <br><br>
 
-   <iframe src="/assets/meta-report/mr7/champs_pr.html" 
+   <iframe src="/assets/meta-report/mr8/champs_pr.html" 
 	width="100%"
         height="575px"   
 	style="border:1px solid transparent">
@@ -80,13 +80,13 @@ Here you can check the full data for all champions.
 
     <div id="disp-pr" class="tabcontent">
 
-       <img src="/assets/meta-report/mr7/arch_pr.png">
+       <img src="/assets/meta-report/mr8/arch_pr.png">
 
     </div>
 
     <div id="disp-wr" class="tabcontent">
 
-       <img src="/assets/meta-report/mr7/arch_wr.png">
+       <img src="/assets/meta-report/mr8/arch_wr.png">
 
     </div>
 
@@ -96,7 +96,7 @@ Here you can check the full data for all archetypes.
 
 <br><br>
 
-   <iframe src="/assets/meta-report/mr7/arch_wr.html" 
+   <iframe src="/assets/meta-report/mr8/arch_wr.html" 
 	width="100%"
         height="575px"   
 	style="border:1px solid transparent">
@@ -119,13 +119,13 @@ Here you can check the full data for all archetypes.
 
      The value shown in each cell is the winrate that the Archetype in the row has when playing against the Archetype in the column.
  
-     <img src="/assets/meta-report/mr7/matchup_tbl.png">
+     <img src="/assets/meta-report/mr8/matchup_tbl.png">
 
     </div>
 
     <div id="disp-data3" class="tabcontent">
 
-   <iframe src="/assets/meta-report/mr7/matchup_tbl.html" 
+   <iframe src="/assets/meta-report/mr8/matchup_tbl.html" 
 	width="100%"
         height="575px"
 	style="border:1px solid transparent">
@@ -149,7 +149,7 @@ This means that the Power ranking of a deck is not their observed winrate, but t
 
 *NB: if in the data collected there are no games between 2 specific archetypes, I use 50% winrate as a default value in these calculations. Since here I am filtering the most played archetypes, this should never happen; but just in case, I’m adding this as a disclaimer. Due to the small sample size, using Bayesian Averages might be a better option. I’ll think about it. In the meantime, I’m blaming Riot for the ridiculously low API rate limit.*
 
-![](/assets/meta-report/mr7/meta_score1.png)
+![](/assets/meta-report/mr8/meta_score1.png)
 
 ## Meta Score
 
@@ -167,7 +167,7 @@ This chart shows the position in the meta for the 10 most played archetypes, in 
 
   - *If a deck records both the highest popularity and the highest win rate, its Meta Score will be 100. It will be, undoubtedly, the best deck in the game.*
 
-![](/assets/meta-report/mr7/meta_score2.png)
+![](/assets/meta-report/mr8/meta_score2.png)
 
 ### Featured Decks of the Week
 
@@ -177,7 +177,7 @@ Netdeck to your heart's content ;)
 
 *To show up in this chart, a player needs to have played at least 30 games with a specific deck list in the last 7 days, with a winrate greater than 66%*
 
-   <iframe src="/assets/meta-report/mr7/best_players.html" 
+   <iframe src="/assets/meta-report/mr8/best_players.html" 
 	width="100%"
         height="575px"   
 	style="border:1px solid transparent">
@@ -187,7 +187,7 @@ Netdeck to your heart's content ;)
 
 If you didn't find anything interesting in the previous list of decks, here are shown ALL decklists with at least 50 games played in the last week in ladder.
 
-   <iframe src="/assets/meta-report/mr7/deck_codes.html" 
+   <iframe src="/assets/meta-report/mr8/deck_codes.html" 
 	width="100%"
         height="575px"   
 	style="border:1px solid transparent">
@@ -201,7 +201,7 @@ This table shows the players with the highest winrate in the last 7 days.
 
 *This is kinda useless so I might remove it soon...*
 
-   <iframe src="/assets/meta-report/mr7/player_leaderboard.html" 
+   <iframe src="/assets/meta-report/mr8/player_leaderboard.html" 
 	width="100%"
         height="600px"   
 	style="border:1px solid transparent">
