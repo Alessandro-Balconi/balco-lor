@@ -31,11 +31,14 @@ con <- DBI::dbConnect(
 
 # 5. prepare table ----
 
-# latest patch with data available
+# latest patch with data available (with at least 2k games in NA)
 current_patch <- tbl(con, "lor_match_info_na") %>% 
-  distinct(game_version) %>%
+  count(game_version) %>%
   collect() %>% 
-  mutate(across(game_version, ~word(string = ., start = 2, end = -2, sep = "_"))) %>% 
+  mutate(across(game_version, ~word(string = ., start = 2, end = -2, sep = "_"))) %>%
+  group_by(game_version) %>% 
+  summarise(n = sum(n), .groups = "drop") %>%
+  {if(max(.$n)>2000) filter(., n > 5000) else .} %>% 
   separate(col = game_version, into = c("version", "patch"), sep = "\\_", convert = TRUE) %>% 
   mutate(last_patch = version*100+patch) %>% 
   slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
