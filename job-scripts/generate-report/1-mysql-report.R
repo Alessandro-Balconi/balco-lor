@@ -366,6 +366,8 @@ p <- data_history %>%
   geom_label(x = ymd("2021-06-30")+1, y = 0, label = "Rise of the Underworlds \n Patch 2.11", size = 5) +
   geom_segment(x = ymd("2021-07-14")+1, xend = ymd("2021-07-14")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-07-14")+1, y = 0, label = "Sentinels of Light \n Patch 2.12", size = 5) +
+  geom_segment(x = ymd("2021-08-25")+1, xend = ymd("2021-08-25")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+  geom_label(x = ymd("2021-08-25")+1, y = 0, label = "Beyond the Bundlewood \n Patch 2.14", size = 5) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
   theme_bw(base_size = 15) +
   expand_limits(y = 0) +
