@@ -8,4 +8,7 @@ tryCatch({
     body = "There was an error during API calls for EUROPE server. Manual restart required."
   )
   print(e)
+}, finally = {
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/api-calls/main-scripts/3-EUROPE-mongo-scraper.R")
 })
