@@ -39,8 +39,16 @@ con <- DBI::dbConnect(
   dbname = "db_prova"
 )
 
-# read data from MongoDB
-data <- m_db$find(query = '{"info.game_type":"Ranked"}')
+# get matches already in sql
+already_in_sql <- tbl(con, "lor_match_info_asia") %>% 
+  distinct(match_id) %>% 
+  collect() %>% 
+  pull() %>%
+  paste0(collapse = '\", \"') %>% 
+  paste0("\"", ., "\"")
+
+# read new data from MongoDB
+data <- m_db$find(query = sprintf('{"info.game_type":"Ranked", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
 
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
