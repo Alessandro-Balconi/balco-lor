@@ -96,6 +96,82 @@ if(mysql_patch == last_patch){
         slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
         mutate(change = 1)
       
+    # if they have the same number of sets, check if they have a different number of cards  
+    } else{
+      
+      latest_set <- patch_list$get_json[[1]] %>% 
+        content(encoding = "UTF-8") %>% 
+        fromJSON() %>% 
+        .[["sets"]] %>% 
+        mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
+        mutate(set = as.numeric(set)) %>% 
+        summarise(max(set, na.rm = TRUE)) %>% 
+        pull()
+      
+      patch_list <- patch_list %>% 
+        mutate(data_json = sprintf("https://dd.b.pvp.net/%s/set%2$s/en_us/data/set%2$s-en_us.json", live_patch, latest_set)) %>% 
+        mutate(get_json = map(.x = data_json, .f = GET)) %>% 
+        mutate(status_code = get_json %>% map_int("status_code"))
+      
+      # if all returned code 200, check differences
+      if(length(setdiff(unique(patch_list$status_code), 200)) != 0){
+        
+        stop(sprintf("There was an error in the GET. Received status codes: %s", paste0(unique(patch_list$status_code), collapse = ", ")))
+        
+      } else {
+       
+        # number of cards in every patch
+        n_cards <- patch_list %>% 
+          mutate(content = map(.x = get_json, .f = ~content(., encoding = "UTF-8"))) %>% 
+          mutate(content = map(.x = content, .f = fromJSON)) %>% 
+          mutate(ncards = map_dbl(content, nrow)) %>% 
+          distinct(ncards)
+        
+        # if they have a different number of sets, it means there is a change in the data
+        if(nrow(n_cards) > 1){
+          
+          data <- patch_list %>% 
+            select(value, last_patch) %>% 
+            slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
+            mutate(change = 1)
+          
+        # if they have the same number of cards, check if there was a balance change  
+        } else{
+         
+          # this returns 1 if no balance change, 2 if balance change
+          balance_change <- patch_list %>% 
+            mutate(content = map(.x = get_json, .f = ~content(., encoding = "UTF-8"))) %>% 
+            mutate(content = map(.x = content, .f = fromJSON)) %>% 
+            select(value, last_patch, content) %>% 
+            unnest(col = content) %>% 
+            select(value, last_patch, cardCode, attack, cost, health, spellSpeed) %>% 
+            group_by(cardCode) %>% 
+            summarise(n = n_distinct(attack, cost, health, spellSpeed), .groups = "drop") %>% 
+            summarise(max = max(n)) %>% 
+            pull()
+          
+          # if there was a balance change, it means there is a change in the data
+          if(balance_change > 1){
+            
+            data <- patch_list %>% 
+              select(value, last_patch) %>% 
+              slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
+              mutate(change = 1)
+            
+            # if they have the same number of cards, check if there was a balance change  
+          } else{
+            
+            data <- patch_list %>% 
+              select(value, last_patch) %>% 
+              slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
+              mutate(change = 0)
+            
+          }
+            
+        }
+         
+      }
+      
     }
     
   }
