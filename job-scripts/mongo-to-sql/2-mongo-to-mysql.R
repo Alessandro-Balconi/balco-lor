@@ -181,8 +181,8 @@ if(nrow(data) >  0){
 
 tictoc::toc()
 
-RPushbullet::pbPost(
-  "note", 
-  title = "EUROPE - Daily database update", 
-  body = sprintf("The daily update was performed correctly. Added %s games.", nrow(data)/2)
-)
+# RPushbullet::pbPost(
+#   "note", 
+#   title = "EUROPE - Daily database update", 
+#   body = sprintf("The daily update was performed correctly. Added %s games.", nrow(data)/2)
+# )
