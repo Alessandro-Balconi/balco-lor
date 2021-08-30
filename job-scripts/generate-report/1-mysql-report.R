@@ -16,6 +16,7 @@ suppressPackageStartupMessages(library(htmlwidgets)) # save tables
 
 # date from which extract matches
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date() - days(7)))
+mysql_start_date <- (start_date - days(7)) %>% as.character()
 
 # color of Runeterra regions for plots
 region_colors <- c(
@@ -46,15 +47,18 @@ con <- DBI::dbConnect(
 )
 
 # import match data (only from ranked games)
-data_eu   <- tbl(con, "lor_match_info") %>%
+data_eu <- tbl(con, "lor_match_info") %>%
+  filter(game_start_time_utc >= mysql_start_date) %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
   collect()
 
-data_na   <- tbl(con, "lor_match_info_na") %>% 
+data_na <- tbl(con, "lor_match_info_na") %>% 
+  filter(game_start_time_utc >= mysql_start_date) %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
   collect()
 
 data_asia <- tbl(con, "lor_match_info_asia") %>%
+  filter(game_start_time_utc >= mysql_start_date) %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
   collect()
 
