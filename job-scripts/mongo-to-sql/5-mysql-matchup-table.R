@@ -103,6 +103,9 @@ if(nrow(data_matchup) >  0){
   
   data_matchup %>% 
     DBI::dbWriteTable(conn = con, name = "lor_matchup_table", value = ., overwrite = TRUE, row.names = FALSE) 
+
+  Sys.time() %>% 
+    DBI::dbWriteTable(conn = con, name = "lor_update_time", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 
