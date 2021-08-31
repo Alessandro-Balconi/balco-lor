@@ -91,7 +91,6 @@ data_champs <- map_dfr(
 ) %>% 
   filter(rarity == "Champion") %>% 
   select(name, cardCode, regionRefs) %>%
-  unnest(col = assets) %>% 
   filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
 
 # regions names / abbreviations / logos from global JSON
