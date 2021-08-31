@@ -22,6 +22,24 @@ mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
 mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # 3. functions ----
+
+# extract region from monoregion champs
+get_monoregion <- function(champs){
+  
+  # split champions
+  champs <- str_split(champs, pattern = " ") %>% unlist()
+  
+  # get monoregions
+  data_champs %>% 
+    filter(cardCode %in% champs) %>% 
+    mutate(n_regions = map_int(regionRefs, length)) %>% 
+    filter(n_regions == 1) %>% 
+    pull(cardCode) %>%
+    paste0(collapse = " ") %>% 
+    str_remove_all(pattern = "[0-9]")
+  
+}
+
 # 4. connect to db & load data ----
 
 # connect to MongoDB
@@ -61,7 +79,7 @@ last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>%
   summarise(max(set, na.rm = TRUE)) %>% 
   pull()
 
-# champions names / codes / images from set JSONs
+# champions names / codes / regions from set JSONs
 data_champs <- map_dfr(
   .x = 1:last_set,
   .f = function(x) {
@@ -74,7 +92,7 @@ data_champs <- map_dfr(
   .id = "set"
 ) %>% 
   filter(rarity == "Champion") %>% 
-  select(assets, name, cardCode) %>%
+  select(name, cardCode, regionRefs) %>%
   unnest(col = assets) %>% 
   filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
 
@@ -133,7 +151,8 @@ data <- data %>%
     cards = map_chr(cards_list, str_flatten, collapse = " "),
     champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
     champs = map_chr(champs, str_flatten, collapse = " "),
-    champs_factions = str_remove_all(champs, "[0-9]")) %>% 
+    champs_factions = map_chr(champs, get_monoregion)
+  ) %>% 
   left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
   left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
   unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 

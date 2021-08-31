@@ -21,6 +21,24 @@ mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
 mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # 3. functions ----
+
+# extract region from monoregion champs
+get_monoregion <- function(champs){
+  
+  # split champions
+  champs <- str_split(champs, pattern = " ") %>% unlist()
+  
+  # get monoregions
+  data_champs %>% 
+    filter(cardCode %in% champs) %>% 
+    mutate(n_regions = map_int(regionRefs, length)) %>% 
+    filter(n_regions == 1) %>% 
+    pull(cardCode) %>%
+    paste0(collapse = " ") %>% 
+    str_remove_all(pattern = "[0-9]")
+  
+}
+
 # 4. connect to db & load data ----
 
 # connect to MongoDB
@@ -131,7 +149,8 @@ data <- data %>%
     cards = map_chr(cards_list, str_flatten, collapse = " "),
     champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
     champs = map_chr(champs, str_flatten, collapse = " "),
-    champs_factions = str_remove_all(champs, "[0-9]")) %>% 
+    champs_factions = map_chr(champs, get_monoregion)
+  ) %>% 
   left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
   left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
   unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
