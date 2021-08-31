@@ -90,19 +90,6 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
 
 # 5. convert from BSON to tabular ----
 
-# get already saved matches
-already_in_db <- tbl(con, "lor_match_info") %>% 
-  select(match_id) %>% 
-  distinct() %>% 
-  collect() %>% 
-  pull()
-
-# keep only new matches
-data <- data %>% 
-  filter(!metadata$match_id %in% already_in_db)
-
-sprintf("New games to add on %s: %s", Sys.Date(), nrow(data))
-
 # unpack data & remove useless column
 data <- data %>%
   unpack(cols = everything()) %>% 
