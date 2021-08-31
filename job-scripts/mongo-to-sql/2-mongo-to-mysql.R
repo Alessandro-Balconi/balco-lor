@@ -60,7 +60,7 @@ last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>%
   summarise(max(set, na.rm = TRUE)) %>% 
   pull()
 
-# champions names / codes / images from set JSONs
+# champions names / codes / regions from set JSONs
 data_champs <- map_dfr(
   .x = 1:last_set,
   .f = function(x) {
@@ -73,8 +73,7 @@ data_champs <- map_dfr(
   .id = "set"
 ) %>% 
   filter(rarity == "Champion") %>% 
-  select(assets, name, cardCode) %>%
-  unnest(col = assets) %>% 
+  select(name, cardCode, regionRefs) %>%
   filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
 
 # regions names / abbreviations / logos from global JSON
