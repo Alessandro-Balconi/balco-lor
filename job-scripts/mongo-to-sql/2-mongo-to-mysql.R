@@ -2,8 +2,6 @@
 
 # This task is performed with daily frequency at 16.30 UTC
 
-tictoc::tic()
-
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
@@ -183,8 +181,6 @@ if(nrow(data) >  0){
     DBI::dbWriteTable(conn = con, name = "lor_match_info", value = ., append = TRUE, row.names = FALSE) 
   
 }
-
-tictoc::toc()
 
 # RPushbullet::pbPost(
 #   "note", 

@@ -1,6 +1,7 @@
 #Runs analysis + shows error if anything happens
 tryCatch({
-  cat(sprintf("--- %s --- \n", Sys.Date()))
+  if(lubridate::hour(Sys.time()) == 0) { cat(sprintf("--- %s --- \n", Sys.Date())) }
+  tictoc::tic()
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/4-ASIA-mongo-to-mysql.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/3-AMERICAS-mongo-to-mysql.R")
@@ -10,6 +11,7 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/5-mysql-matchup-table.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/7-mysql-decklists.R")
+  tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
     "note",
