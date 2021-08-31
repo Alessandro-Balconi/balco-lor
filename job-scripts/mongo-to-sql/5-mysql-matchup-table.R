@@ -41,24 +41,44 @@ current_patch <- tbl(con, "lor_match_info_na") %>%
   mutate(last_patch = version*100+patch) %>% 
   slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
   unite(col = value, version, patch, sep = "_") %>%
+  pull(value)
+
+patches_to_analyze <- tbl(con, "lor_patch_history") %>% 
+  collect() %>% 
+  arrange(-last_patch) %>% 
+  mutate(cum_change = cumsum(change)) %>% 
+  filter(cum_change == min(cum_change)) %>% 
   pull(value) %>% 
-  paste0("live_", ., "_")
+  str_replace_all(pattern = "\\.", replacement = "_")
+
+if(current_patch %in% patches_to_analyze){
+  
+  current_patch <- patches_to_analyze %>% 
+    paste0("live_", ., "_") %>% 
+    paste0(collapse = "|")
+  
+} else {
+  
+  current_patch <- current_patch %>% 
+    paste0("live_", ., "_")
+  
+}
 
 # extract data from MySQL
 data_na <- tbl(con, "lor_match_info_na") %>%
-  filter(game_version %like% paste0(current_patch, "%")) %>% 
+  filter(str_detect(game_version, current_patch)) %>% 
   select(match_id, game_outcome, archetype) %>% 
   collect()
 
 # extract data from MySQL
 data_eu <- tbl(con, "lor_match_info") %>%
-  filter(game_version %like% paste0(current_patch, "%")) %>% 
+  filter(str_detect(game_version, current_patch)) %>% 
   select(match_id, game_outcome, archetype) %>% 
   collect()
 
 # extract data from MySQL
 data_asia <- tbl(con, "lor_match_info_asia") %>%
-  filter(game_version %like% paste0(current_patch, "%")) %>% 
+  filter(str_detect(game_version, current_patch)) %>% 
   select(match_id, game_outcome, archetype) %>% 
   collect()
 
