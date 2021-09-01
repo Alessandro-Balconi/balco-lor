@@ -371,7 +371,7 @@ p <- data_history %>%
   geom_segment(x = ymd("2021-07-14")+1, xend = ymd("2021-07-14")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-07-14")+1, y = 0, label = "Sentinels of Light \n Patch 2.12", size = 5) +
   geom_segment(x = ymd("2021-08-25")+1, xend = ymd("2021-08-25")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-08-25")+1, y = 0, label = "Beyond the Bundlewood \n Patch 2.14", size = 5) +
+  geom_label(x = ymd("2021-08-25")+1, y = 0, label = "Beyond the Bandlewood \n Patch 2.14", size = 5) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
   theme_bw(base_size = 15) +
   expand_limits(y = 0) +
@@ -380,7 +380,7 @@ p <- data_history %>%
   scale_color_manual(values = region_colors) +
   theme(legend.position = "bottom") +
   labs(x = "Week", y = "Playrate", title = "Weekly Region Playrate", color = "Region") +
-  guides(colour = guide_legend(nrow = 1))
+  guides(colour = guide_legend(nrow = 2))
 
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/region_hist.png", plot = p, width = 12, height = 8, dpi = 180)
 
@@ -396,6 +396,10 @@ data_archetype_pr <- data %>%
   mutate(change = current - last) %>% 
   mutate(image = archetype) %>% 
   mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
+  separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
+  mutate(tmp2 = str_replace_all(tmp2, pattern = " ", replacement = "x_x")) %>% 
+  mutate(tmp2 = ifelse(is.na(tmp2), tmp2, paste0("(", tmp2))) %>% 
+  unite(col = image, tmp1, tmp2, sep = "", na.rm = TRUE) %>% 
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
   mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
   mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "x")) %>%
@@ -456,12 +460,16 @@ data_archetype_wr <- data %>%
   mutate(image = archetype) %>% 
   mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
   mutate(image = str_trim(image, side = "left")) %>% 
+  separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
+  mutate(tmp2 = str_replace_all(tmp2, pattern = " ", replacement = "_")) %>% 
+  mutate(tmp2 = ifelse(is.na(tmp2), tmp2, paste0("(", tmp2))) %>% 
+  unite(col = image, tmp1, tmp2, sep = "", na.rm = TRUE) %>%
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
   mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
   mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "")) %>%
   mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
   mutate(playrate = n / tot) %>%
-  separate(col = image, into = sprintf("image_%s", 1:7), fill = "right", sep ="_") %>% 
+  separate(col = image, into = sprintf("image_%s", 1:8), fill = "right", sep ="_") %>% 
   select(where(function(x) any(!is.na(x))), -tot) %>%
   mutate(across(starts_with("image_"), function(x) ifelse(nchar(x) < 3, paste0("x", x, "x"), x))) %>% 
   mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_champs$gameAbsolutePath, data_champs$cardCode)))) %>% 
