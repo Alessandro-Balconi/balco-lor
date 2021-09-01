@@ -51,7 +51,7 @@ api_key <- "RGAPI-ae4106eb-969c-4957-ba08-724b72ad70ac"
 while(TRUE){
   
   # at the start of each cycle, initialize list of players to extract match from
-  # if there are >100 masters, get their match; else get last season masters (if I still have them stored); else just get who played ranked recently
+  # if there are >50 masters, get their match; else get last season masters (if I still have them stored); else just get who played ranked recently
   if(i == 1){
     
     # print message to console
@@ -74,8 +74,8 @@ while(TRUE){
       master_players <- leaderboard %>% 
         {if(nrow(.) > 0) pull(., name) else NA_character_ }
       
-      # if I have at least 100 players in master I collect their data; else i collect from players that recently played ranked matches
-      if(length(master_players) >= 100){
+      # if I have at least 50 players in master I collect their data; else i collect from players that recently played ranked matches
+      if(length(master_players) >= 50){
         
         # print message to console
         print(sprintf("There are %s master players; collecting match data from them.", length(master_players)))
@@ -105,7 +105,7 @@ while(TRUE){
         # print message to console
         print(sprintf("There are only %s master players; collecting match data from people who recently played ranked games.", length(master_players)))
         
-        # if there are less than 100 master in the leaderboard, just use all players that we have collected from data
+        # if there are less than 50 master in the leaderboard, just use all players that we have collected from data
         player_data <- m_match$find(
           query = '{"info.game_type":"Ranked"}', 
           fields = '{"info.players.puuid" : true, "info.game_start_time_utc" : true, "_id": false}'
