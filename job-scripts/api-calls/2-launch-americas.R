@@ -10,5 +10,5 @@ tryCatch({
   print(e)
 }, finally = {
   rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/api-calls/main-scripts/2-AMERICAS-mongo-scraper.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/api-calls/2-launch-americas.R")
 })
