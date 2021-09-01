@@ -172,7 +172,7 @@ while(TRUE){
     
     if(sum(valid_json == TRUE) != length(match_content)){
       
-      print(sprintf("%s invalid match JSONs collected; removing them."), length(match_content) - sum(valid_json == TRUE))
+      print(sprintf("%s invalid match JSONs collected; removing them.", length(match_content) - sum(valid_json == TRUE)))
       
     }
     
