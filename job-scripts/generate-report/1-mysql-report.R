@@ -28,7 +28,7 @@ region_colors <- c(
   "Piltover" = "#f4a864",
   "Ionia" = "#d89baf",
   "Demacia" = "#e2d6af",
-  "BandleCity" = "#bbcb1c",
+  "BandleCity" = "#93a908", #"#bbcb1c",
   "Bilgewater" = "#c66c22"
 )
 
