@@ -442,8 +442,7 @@ p <- data_archetype_pr %>%
   labs(
     x = "Archetype", 
     y = "Playrate", 
-    title = "Archetype Playrate", 
-    subtitle = "Only the 10 archetypes with the highest playrate are shown."
+    title = "TOP 10 Archetype Playrate"
   )
 
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/arch_pr.png", plot = p, width = 12, height = 8, dpi = 180)
@@ -511,8 +510,8 @@ p <- data_archetype_wr %>%
   labs(
     x = "Archetype", 
     y = "Winrate", 
-    title = "Archetype Winrate",
-    subtitle = "Archetypes with a playrate < 1% are excluded."
+    title = "TOP 10 Archetype Winrate",
+    subtitle = "Only archtypes with a playrate >1% are considered."
   )
 
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/arch_wr.png", plot = p, width = 12, height = 8, dpi = 180)
