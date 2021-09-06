@@ -10,7 +10,9 @@ suppressPackageStartupMessages(library(ggimage))     # add images to ggplot
 suppressPackageStartupMessages(library(gridExtra))   # display tables as pictures
 suppressPackageStartupMessages(library(ggrepel))     # repel geom_text
 suppressPackageStartupMessages(library(DT))          # display nice tables
+suppressPackageStartupMessages(library(reactable))   # display nice tables
 suppressPackageStartupMessages(library(htmlwidgets)) # save tables
+suppressPackageStartupMessages(library(htmltools))   # use HTML functions in R
 
 # 2. set parameters ----
 
@@ -108,6 +110,13 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
   ))
 
 # 4. define functions ----
+
+# Render a bar chart with a label on the left
+bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+  bar <- div(style = list(background = fill, width = width, height = height))
+  chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+  div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
 
 # create a nice date from  date object
 nice_date <- function(date, short_month = TRUE){
@@ -787,12 +796,43 @@ tbl <- data %>%
   mutate(across(where(is.numeric), function(x) ifelse(is.na(x), 0, x))) %>%
   mutate(winrate = win / match) %>% 
   arrange(-match) %>%
-  mutate(deck_code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>%
   select(archetype, deck_code, match, winrate) %>% 
-  rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
-  rename_with(str_to_title) %>% 
-  datatable(rownames = FALSE, escape = FALSE, options = list(pageLength = 10, lengthChange = FALSE)) %>% 
-  formatPercentage(columns = c("Winrate"), digits = 1)
+  reactable(
+    columns = list(
+      archetype = colDef(
+        name = "Archetype"
+      ),
+      winrate = colDef(
+        name = "Winrate",
+        defaultSortOrder = "desc",
+        cell = function(value) {
+          value <- paste0(format(value * 100, digits = 3, nsmall = 1), "%")
+          bar_chart(value, width = value, fill = "#fc5185", background = "#e1e1e1")
+        },
+        align = "left"
+      ),
+      match = colDef(
+        name = "Match",
+        defaultSortOrder = "desc",
+        cell = function(value) {
+          width <- paste0(value * 100 / max(.$match), "%")
+          value <- format(value, big.mark = ",")
+          bar_chart(value, width = width, fill = "#3fc1c9")
+        },
+        align = "left"
+      ),
+      deck_code = colDef(
+        name = "Deck Code",
+        html = TRUE, 
+        cell = function(value) {
+          sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, value)
+        })
+    ),
+    wrap = FALSE,
+    resizable = TRUE,
+    searchable = TRUE, 
+    minRows = 10
+  )
 
 tbl$width  <- "100%"
 tbl$height <- "500px"
