@@ -370,11 +370,11 @@ p <- data_history %>%
   ggplot(aes(x = week)) +
   geom_line(aes(y = playrate, group = value, color = value), size = 2) +
   geom_segment(x = ymd("2021-06-30")+1, xend = ymd("2021-06-30")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-06-30")+1, y = 0, label = "Rise of the \n Underworlds \n Patch 2.11", size = 4) +
+  geom_label(x = ymd("2021-06-30")+1, y = 0, label = "RotU \n Patch 2.11", size = 4) +
   geom_segment(x = ymd("2021-07-14")+1, xend = ymd("2021-07-14")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-07-14")+1, y = 0, label = "Sentinels \n of Light \n Patch 2.12", size = 4) +
+  geom_label(x = ymd("2021-07-14")+1, y = 0, label = "SoL \n Patch 2.12", size = 4) +
   geom_segment(x = ymd("2021-08-25")+1, xend = ymd("2021-08-25")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-08-25")+1, y = 0, label = "Beyond the \n Bandlewood \n Patch 2.14", size = 4) +
+  geom_label(x = ymd("2021-08-25")+1, y = 0, label = "BtB \n Patch 2.14", size = 4) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
   theme_bw(base_size = 15) +
   expand_limits(y = 0) +
