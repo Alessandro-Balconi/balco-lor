@@ -111,7 +111,7 @@ Here you can check the full data for all archetypes.
 <div id="code-box-3">
     <div class="tab">
         <button class="tablinks" onclick="openTab(event, 'disp-chart3','code-box-3')" id="defaultOpen-3">Chart</button>
-        <button class="tablinks" onclick="openTab(event, 'disp-data3','code-box-3')">Full Data</button>
+        <button class="tablinks" onclick="openTab(event, 'disp-data3','code-box-3')">More Data</button>
         <div class="spacer"></div>
     </div>
 

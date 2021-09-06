@@ -381,7 +381,7 @@ p <- data_history %>%
   geom_segment(x = ymd("2021-06-30")+1, xend = ymd("2021-06-30")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-06-30")+1, y = 0, label = "RotU \n Patch 2.11", size = 4) +
   geom_segment(x = ymd("2021-07-14")+1, xend = ymd("2021-07-14")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-07-14")+1, y = 0, label = "SoL \n Patch 2.12", size = 4) +
+  geom_label(x = ymd("2021-07-14")+1, y = 0, label = "SoL Event \n Patch 2.12", size = 4) +
   geom_segment(x = ymd("2021-08-25")+1, xend = ymd("2021-08-25")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-08-25")+1, y = 0, label = "BtB \n Patch 2.14", size = 4) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
@@ -598,6 +598,7 @@ tbl <- data_matchup1 %>%
   ungroup() %>% 
   arrange(-tot_match, archetype_1, -n) %>% 
   select(-tot_match) %>%
+  filter(n >= 5) %>% # FILTERING ONLY MATCHUPS WITH AT LEAST 5 GAMES
   mutate(across(starts_with("archetype_"), as.factor)) %>%
   mutate(winrate = round(winrate*100, digits = 1)) %>% # nicer filter
   rename(player = archetype_1, opponent = archetype_2, match = n) %>% 
