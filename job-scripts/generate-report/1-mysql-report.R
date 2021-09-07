@@ -826,7 +826,7 @@ tbl <- data %>%
         name = "Deck Code",
         html = TRUE, 
         cell = function(value) {
-          sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, value)
+          sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, str_trunc(deck_code, width = 18))
         })
     ),
     wrap = FALSE,
