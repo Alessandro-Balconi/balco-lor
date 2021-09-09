@@ -155,7 +155,7 @@ while(TRUE){
     match_list <- lapply(
       X = matches,
       FUN = function(x){
-        Sys.sleep(36)
+        Sys.sleep(1)
         GET(base.url, path = paste0(path_match_info, x), add_headers("X-Riot-Token" = api_key))
       }
     )
@@ -227,6 +227,6 @@ while(TRUE){
   }
   
   # wait to prevent too many calls (more if there were no matches analyzed)
-  if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03) } else { Sys.sleep(18) }
+  if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03 + 18 - length(matches)) } else { Sys.sleep(0.03 + 18) }
   
 }
