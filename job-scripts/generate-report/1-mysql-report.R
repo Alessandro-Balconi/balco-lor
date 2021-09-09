@@ -829,7 +829,6 @@ tbl <- data %>%
           sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, str_trunc(value, width = 18))
         })
     ),
-    wrap = FALSE,
     resizable = TRUE,
     searchable = TRUE, 
     minRows = 10
