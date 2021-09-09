@@ -55,7 +55,7 @@ while(TRUE){
   if(i == 1){
     
     # print message to console
-    cat(sprintf("New cycle: %s UTC \n", Sys.time()))
+    cat(sprintf("New cycle: %s UTC", Sys.time()))
     
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
@@ -78,7 +78,7 @@ while(TRUE){
       if(length(master_players) >= 50){
         
         # print message to console
-        print(sprintf("There are %s master players; collecting match data from them.", length(master_players)))
+        cat(sprintf(" - There are %s master players; collecting match data from them. \n", length(master_players)))
         
         # get puuid of players from "m_player" database
         player_data <- m_player$find() %>% 
@@ -89,21 +89,15 @@ while(TRUE){
           filter(gameName %in% master_players) %>% 
           pull(puuid)
         
-        # print message to console
-        print(sprintf("Players to analyze: %s", length(puuid_list)))
-        
       } else if(exists("puuid_list")){
         
         # print message to console
-        print(sprintf("There are only %s master players; collecting match data from previous season' masters.", length(master_players)))
-        
-        # print message to console
-        print(sprintf("Players to analyze: %s", length(puuid_list)))
+        cat(sprintf(" - There are only %s master players; collecting match data from previous season' masters. \n", length(master_players)))
         
       } else {
         
         # print message to console
-        print(sprintf("There are only %s master players; collecting match data from people who recently played ranked games.", length(master_players)))
+        cat(sprintf(" - There are only %s master players; collecting match data from people who recently played ranked games. \n", length(master_players)))
         
         # if there are less than 50 master in the leaderboard, just use all players that we have collected from data
         player_data <- m_match$find(
@@ -123,9 +117,6 @@ while(TRUE){
           bind_rows() %>% 
           distinct(puuid) %>% 
           pull()
-        
-        # print message to console
-        print(sprintf("Players to analyze: %s", length(puuid_list)))
         
       }
       
@@ -216,10 +207,6 @@ while(TRUE){
     
     # update i
     if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
-    
-  } else {
-    
-    print(sprintf("Error %s while trying to get matches. Retrying...", get_matches$status_code))
     
   }
   
