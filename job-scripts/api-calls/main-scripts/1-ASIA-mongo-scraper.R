@@ -224,6 +224,6 @@ while(TRUE){
   }
   
   # wait to prevent too many calls (more if there were no matches analyzed)
-  if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03 + 18 - length(matches)) } else { Sys.sleep(0.03 + 18) }
+  if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03 + max(0, 18 - length(matches))) } else { Sys.sleep(0.03 + 18) }
   
 }
