@@ -55,7 +55,7 @@ while(TRUE){
   if(i == 1){
     
     # print message to console
-    print(sprintf("Starting new cycle: %s (CET/CEST is UTC+1/2)", Sys.time()))
+    cat(sprintf("New cycle: %s UTC \n", Sys.time()))
     
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
@@ -147,9 +147,6 @@ while(TRUE){
     
     # check if we have already analyzed any of those
     matches <- setdiff(x = matches, y = m_match$distinct("metadata.match_id"))
-    
-    # print message to console
-    if(i %% 100 == 0){ print(sprintf("Cycle progress: %s / %s", i, length(puuid_list))) }
     
     # get info from new matches
     match_list <- lapply(
