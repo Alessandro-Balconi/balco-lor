@@ -62,7 +62,7 @@ while(TRUE){
     m_match$remove('{"status.status_code":{"$exists": true}}')
     
     # get leaderboard
-    get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key))
+    get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
     
     # if status == 200 (good response)
     if(get_leaderboard$status_code == 200){
@@ -128,7 +128,7 @@ while(TRUE){
   puuid_i <- puuid_list[i]
   
   # collect matches
-  get_matches <- GET(base.url, path = paste0(path_match_history, puuid_i, "/ids") , add_headers("X-Riot-Token" = api_key))
+  get_matches <- GET(base.url, path = paste0(path_match_history, puuid_i, "/ids") , add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
   
   # if status == 200 (good response)
   if(get_matches$status_code == 200){
@@ -144,7 +144,7 @@ while(TRUE){
       X = matches,
       FUN = function(x){
         Sys.sleep(1)
-        GET(base.url, path = paste0(path_match_info, x), add_headers("X-Riot-Token" = api_key))
+        GET(base.url, path = paste0(path_match_info, x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
       }
     )
     
@@ -194,7 +194,7 @@ while(TRUE){
       # call API to get new players name+tag 
       get_new_players <- map(
         .x = new_puuids,
-        .f = function(x) GET(base.url, path = paste0("/riot/account/v1/accounts/by-puuid/", x), add_headers("X-Riot-Token" = api_key))
+        .f = function(x) GET(base.url, path = paste0("/riot/account/v1/accounts/by-puuid/", x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
       )
       
       # extract content in JSON format
