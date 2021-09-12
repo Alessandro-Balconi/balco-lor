@@ -693,7 +693,7 @@ top_players <- data %>%
   rowwise() %>% 
   mutate(match = sum(c_across(where(is.numeric)))) %>% 
   ungroup() %>%
-  filter(match >= 50) %>% 
+  filter(match >= 70) %>% 
   mutate(winrate = win / match) %>% 
   filter(winrate >= 0.6) %>% 
   select(shard, player = puuid, match, winrate)
@@ -754,7 +754,7 @@ tbl <- data %>%
   ungroup() %>%
   filter(match >= 30) %>% 
   mutate(winrate = win / match) %>% 
-  filter(winrate >= 0.66) %>% 
+  filter(winrate >= 0.7) %>% 
   select(shard, player = puuid, archetype, deck_code, match, winrate) %>%
   arrange(-winrate, -match, archetype) %>% 
   mutate(player = map2_chr(.x = player, .y = shard, .f = ~from_puuid_to_riotid(puuid = .x, shard = .y))) %>% 

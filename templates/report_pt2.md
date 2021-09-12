@@ -38,7 +38,7 @@ In this table you can find a selection of decks piloted with great success in th
 
 Netdeck to your heart's content ;)
 
-*To show up in this chart, a player needs to have played at least 30 games with a specific deck list in the last 7 days, with a winrate greater than 66%%*
+*To show up in this chart, a player needs to have played at least 30 games with a specific deck list in the last 7 days, with a winrate greater than 70%%*
 
    <iframe src="/assets/meta-report/mr%1$s/best_players.html" 
 	width="100%%"
@@ -60,7 +60,7 @@ If you didn't find anything interesting in the previous list of decks, here are 
 
 This table shows the players with the highest winrate in the last 7 days.
 
-*To show up in this chart, a player needs to have played at least 50 games in the last week, with a winrate greater than 60%%*
+*To show up in this chart, a player needs to have played at least 70 games in the last week, with a winrate greater than 60%%*
 
    <iframe src="/assets/meta-report/mr%1$s/player_leaderboard.html" 
 	width="100%%"
