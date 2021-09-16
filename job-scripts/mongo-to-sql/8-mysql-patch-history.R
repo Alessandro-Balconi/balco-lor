@@ -141,8 +141,13 @@ if(mysql_patch == last_patch){
          
           # this returns 1 if no balance change, 2 if balance change
           balance_change <- patch_list %>% 
-            mutate(content = map(.x = get_json, .f = ~content(., encoding = "UTF-8"))) %>% 
-            mutate(content = map(.x = content, .f = fromJSON)) %>% 
+            mutate(all_data_json = map(
+              .x = live_patch, 
+              .f = ~sprintf("https://dd.b.pvp.net/%1$s/set%2$s/en_us/data/set%2$s-en_us.json", rep(.x, latest_set) , 1:latest_set))
+            ) %>% 
+            mutate(all_get_json = map(.x = all_data_json, .f = ~map(.x = ., .f = GET))) %>% 
+            mutate(content = map(.x = all_get_json, .f = ~map(.x = ., .f = ~content(., encoding = "UTF-8")))) %>% 
+            mutate(content = map(.x = content, .f = ~map_dfr(.x = ., .f = fromJSON))) %>% 
             select(value, last_patch, content) %>% 
             unnest(col = content) %>% 
             select(value, last_patch, cardCode, attack, cost, health, spellSpeed) %>% 
