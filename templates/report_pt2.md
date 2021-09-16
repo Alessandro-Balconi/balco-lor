@@ -10,8 +10,6 @@ This chart shows the power rankings for the 10 most played archetypes.
 
 This means that the Power ranking of a deck is not their observed winrate, but the winrate they should have according to their matchups winrate and the observed frequency of other archetypes.
 
-*NB: if in the data collected there are no games between 2 specific archetypes, I use 50%% winrate as a default value in these calculations. Since here I am filtering the most played archetypes, this should never happen; but just in case, I’m adding this as a disclaimer. Due to the small sample size, using Bayesian Averages might be a better option. I’ll think about it. In the meantime, I’m blaming Riot for the ridiculously low API rate limit.*
-
 ![](/assets/meta-report/mr%1$s/meta_score1.png)
 
 ## Meta Score
