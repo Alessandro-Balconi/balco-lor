@@ -63,6 +63,13 @@ already_in_sql <- tbl(con, "lor_match_info_asia") %>%
   paste0(collapse = '\", \"') %>% 
   paste0("\"", ., "\"")
 
+# convert "game_start_time_utc" to MongoDB class Date 
+m_db$update(
+  query  = '{}',
+  update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', 
+  multiple = TRUE
+)
+
 # read new data from MongoDB
 data <- m_db$find(query = sprintf('{"info.game_type":"Ranked", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
 
@@ -111,6 +118,10 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
 data <- data %>%
   unpack(cols = everything()) %>% 
   select(-participants)
+
+# remove matches that have wrong game_start_time_utc format (should be few and will get added later on anyway)
+data <- data %>% 
+  filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-"))
 
 # unnest "players" column
 data <- data %>% 
