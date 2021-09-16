@@ -47,7 +47,8 @@ last_patch <- patch_list %>%
 
 # latest saved patch
 mysql_patch <- tbl(con, "lor_patch_history") %>% 
-  select(value) %>% 
+  filter(last_patch == max(last_patch, na.rm = TRUE)) %>% 
+  distinct(value) %>% # should be just one anyway...
   collect() %>% 
   pull()
 
@@ -158,7 +159,7 @@ if(mysql_patch == last_patch){
               slice_max(n = 1, order_by = last_patch, with_ties = FALSE) %>% 
               mutate(change = 1)
             
-            # if they have the same number of cards, check if there was a balance change  
+            # if they there was no balance change, it means the patches are the same
           } else{
             
             data <- patch_list %>% 
