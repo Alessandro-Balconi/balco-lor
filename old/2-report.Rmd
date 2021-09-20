@@ -1072,8 +1072,8 @@ decks_matchup %>%
   mutate(winrate = win / match) %>% 
   arrange(-total_match, -match) %>% 
   relocate(total_match, .after = code) %>% 
-  mutate(code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%1$s" target="_blank">%1$s</a>', code)) %>% 
-  #mutate(code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%1$s" target="_blank" class="btn btn-primary">%1$s</a>', code)) %>% 
+  mutate(code = sprintf('<a href="https://runeterra.ar/decks/code/%1$s" target="_blank">%1$s</a>', code)) %>% 
+  #mutate(code = sprintf('<a href="https://runeterra.ar/decks/code/%1$s" target="_blank" class="btn btn-primary">%1$s</a>', code)) %>% 
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
   rename_with(str_to_title) %>% 
   datatable(rownames = FALSE, escape = FALSE) %>% 

@@ -758,7 +758,7 @@ tbl <- data %>%
   select(shard, player = puuid, archetype, deck_code, match, winrate) %>%
   arrange(-winrate, -match, archetype) %>% 
   mutate(player = map2_chr(.x = player, .y = shard, .f = ~from_puuid_to_riotid(puuid = .x, shard = .y))) %>% 
-  mutate(deck_code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>% 
+  mutate(deck_code = sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>% 
   mutate(get_call = sprintf("https://runeterra.ar/Users/get/country/%s/%s", shard, sub('#[^#]*$', '', player))) %>% 
   mutate(get_call = utils::URLencode(get_call)) %>% 
   mutate(get = map(.x = get_call, .f = get_slowly)) %>% 
@@ -826,7 +826,7 @@ tbl <- data %>%
         name = "Deck Code",
         html = TRUE, 
         cell = function(value) {
-          sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, str_trunc(value, width = 18))
+          sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, str_trunc(value, width = 18))
         })
     ),
     resizable = TRUE,

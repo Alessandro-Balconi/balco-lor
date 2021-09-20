@@ -565,7 +565,7 @@ tbl <- data %>%
   arrange(-winrate) %>%
   mutate(archetype = str_replace_all(archetype, set_names(champ_codes$Name, champ_codes$X))) %>%
   mutate(archetype = ifelse(grepl("^( )", archetype), paste0("No Champions", archetype), archetype)) %>% 
-  mutate(deck_code = sprintf('<a href="https://lor.runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>%
+  mutate(deck_code = sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>%
   select(archetype, deck_code, match, winrate) %>% 
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
   rename_with(str_to_title) %>% 
