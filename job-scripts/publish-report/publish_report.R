@@ -55,11 +55,3 @@ writeLines(weekly_report, sprintf("/home/balco/dev/lor-meta-report/templates/out
 system("scp -r /home/balco/dev/lor-meta-report/templates/output/* balco@lor-meta.com:/home/balco/www/_posts/")
 
 tictoc::toc()
-
-# send notification
-RPushbullet::pbPost(
-  "note", 
-  title = "Weekly Report Uploaded", 
-  body = "The weekly report was uploaded correctly."
-)
-

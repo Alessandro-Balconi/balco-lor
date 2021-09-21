@@ -89,9 +89,3 @@ if(nrow(data) >  0){
 }
 
 tictoc::toc()
-
-RPushbullet::pbPost(
-  "note", 
-  title = "Weekly historical region playrate table update", 
-  body = "The weekly update was performed correctly."
-)
