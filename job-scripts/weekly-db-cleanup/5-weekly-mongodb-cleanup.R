@@ -55,11 +55,3 @@ if(nrow(old_asia) > 0){
 }
 
 tictoc::toc()
-
-# send notification
-RPushbullet::pbPost(
-  "note", 
-  title = "Weekly database cleanup", 
-  body = sprintf("The weekly MongoDB cleanup was performed correctly. Removed %s games from Europe, %s from Americas, %s from Asia.", 
-                 nrow(old_eu), nrow(old_na), nrow(old_asia))
-)

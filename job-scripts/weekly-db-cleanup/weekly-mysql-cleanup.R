@@ -102,11 +102,3 @@ if(length(old_matchid_asia) > 0){
 }
 
 tictoc::toc()
-
-# send notification
-RPushbullet::pbPost(
-  "note", 
-  title = "Weekly database cleanup", 
-  body = sprintf("The weekly MySQL cleanup was performed correctly. Removed %s games from Europe, %s from Americas, %s from Asia.", 
-                 length(old_matchid_eu), length(old_matchid_na), length(old_matchid_asia))
-)
