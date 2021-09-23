@@ -205,10 +205,18 @@ while(TRUE){
       
     }
     
+    # update i
+    if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
+    
   }
   
-  # update i
-  if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
+  # if status == 500 skip the player (there's a problem with Riot API, he'll keep failing, so let's just move on)
+  if(get_matches$status_code == 500){
+    
+    # update i
+    if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
+    
+  }
   
   # wait to prevent too many calls (more if there were no matches analyzed)
   if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03 + max(0, 18 - length(matches))) } else { Sys.sleep(0.03 + 18) }
