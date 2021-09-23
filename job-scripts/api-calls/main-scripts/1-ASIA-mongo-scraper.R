@@ -205,10 +205,10 @@ while(TRUE){
       
     }
     
-    # update i
-    if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
-    
   }
+  
+  # update i
+  if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
   
   # wait to prevent too many calls (more if there were no matches analyzed)
   if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03 + max(0, 18 - length(matches))) } else { Sys.sleep(0.03 + 18) }
