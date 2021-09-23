@@ -10,10 +10,10 @@ template_file_1 <- "/home/balco/dev/lor-meta-report/templates/report_pt1.md" # t
 template_file_2 <- "/home/balco/dev/lor-meta-report/templates/report_pt2.md" # this should not be changed
 
 # this should be changed every week
-p_report_number <- "12"
-p_full_art      <- "04SI018"
-p_emote         <- "mf"
-p_subtitle      <- "Patch 2.15 - Week 2"
+p_report_number <- "13"
+p_full_art      <- "04SH062T1"
+p_emote         <- "asol"
+p_subtitle      <- "Patch 2.16 - Week 1"
 
 # 3. functions ----
 
