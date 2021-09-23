@@ -46,8 +46,10 @@ current_patch <- tbl(con, "lor_match_info_na") %>%
 patches_to_analyze <- tbl(con, "lor_patch_history") %>% 
   collect() %>% 
   arrange(-last_patch) %>% 
-  mutate(cum_change = cumsum(change)) %>% 
-  filter(cum_change == min(cum_change)) %>% 
+  mutate(new_change = lag(change)) %>% 
+  replace_na(list(new_change = 0)) %>% 
+  mutate(cum_change = cumsum(new_change)) %>% 
+  filter(cum_change == min(cum_change)) %>%
   pull(value) %>% 
   str_replace_all(pattern = "\\.", replacement = "_")
 
