@@ -4,6 +4,8 @@ tictoc::tic()
 
 # 1. libraries ----
 
+suppressPackageStartupMessages(library(tidyverse))   # all purposes package
+
 # 2. parameters ----
 
 template_file_1 <- "/home/balco/dev/lor-meta-report/templates/report_pt1.md" # this should not be changed
@@ -26,32 +28,58 @@ make_report <- function(template, report_number = "0", full_art = "03IO006", emo
 
 # 4. publish report ----
 
-# read template
-template <- map(
-  .x = list(template_file_1, template_file_2),
-  .f = ~readChar(., file.info(.)$size)
-)
+# check which report is the last available (to make sure we updated the parameters this week)
+reports <- system('ssh balco@lor-meta.com "ls -d /home/balco/www/_posts/*"', intern = TRUE)
 
-# add this week's parameter to the report
-suppressWarnings(
-  weekly_report <- map(
-    .x = template,
-    .f = ~make_report(template = .x, report_number = p_report_number, full_art = p_full_art, emote = p_emote, subtitle = p_subtitle)
+latest <- reports %>% 
+  str_extract(pattern = "\\#[0-9]+") %>% 
+  parse_number() %>% 
+  max()
+
+if(as.numeric(p_report_number) != latest+1){
+  
+  RPushbullet::pbPost(
+    "note", 
+    title = "Weekly Report Publishing", 
+    body = "Report parameters where not updated this week. Failed to publish the report."
   )
-)
-
-weekly_report <- str_flatten(weekly_report)
-
-# name of the report
-file_name <- sprintf("%s-meta-report-#%s.md", Sys.Date(), p_report_number)
-
-# remove previously stored reports
-do.call(file.remove, list(list.files("/home/balco/dev/lor-meta-report/templates/output/", full.names = TRUE)))
-
-# save report locally
-writeLines(weekly_report, sprintf("/home/balco/dev/lor-meta-report/templates/output/%s", file_name))
-
-# push to "lor-meta.com" and bundle exec jekyll build
-system("scp -r /home/balco/dev/lor-meta-report/templates/output/* balco@lor-meta.com:/home/balco/www/_posts/")
+  
+} else {
+  
+  # read template
+  template <- map(
+    .x = list(template_file_1, template_file_2),
+    .f = ~readChar(., file.info(.)$size)
+  )
+  
+  # add this week's parameter to the report
+  suppressWarnings(
+    weekly_report <- map(
+      .x = template,
+      .f = ~make_report(template = .x, report_number = p_report_number, full_art = p_full_art, emote = p_emote, subtitle = p_subtitle)
+    )
+  )
+  
+  weekly_report <- str_flatten(weekly_report)
+  
+  # name of the report
+  file_name <- sprintf("%s-meta-report-#%s.md", Sys.Date(), p_report_number)
+  
+  # remove previously stored reports
+  do.call(file.remove, list(list.files("/home/balco/dev/lor-meta-report/templates/output/", full.names = TRUE)))
+  
+  # save report locally
+  writeLines(weekly_report, sprintf("/home/balco/dev/lor-meta-report/templates/output/%s", file_name))
+  
+  # push to "lor-meta.com" and bundle exec jekyll build
+  system("scp -r /home/balco/dev/lor-meta-report/templates/output/* balco@lor-meta.com:/home/balco/www/_posts/")
+  
+  RPushbullet::pbPost(
+    "note", 
+    title = "Weekly Report Uploaded", 
+    body = "The weekly report was uploaded correctly."
+  )
+  
+}
 
 tictoc::toc()
