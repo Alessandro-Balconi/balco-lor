@@ -22,7 +22,7 @@ if(exists("con")){ DBI::dbDisconnect(con) }
 
 # create connection to MySQL database
 con <- DBI::dbConnect(
-  RMySQL::MySQL(),
+  RMariaDB::MariaDB(),
   db_host = "127.0.0.1",
   user = "X",
   password = "X",
