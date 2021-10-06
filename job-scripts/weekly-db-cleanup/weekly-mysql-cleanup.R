@@ -101,4 +101,6 @@ if(length(old_matchid_asia) > 0){
   
 }
 
+DBI::dbDisconnect(con)
+
 tictoc::toc()

@@ -117,3 +117,5 @@ if(nrow(data_decks) >  0){
     DBI::dbWriteTable(conn = con, name = "lor_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
+
+DBI::dbDisconnect(con)

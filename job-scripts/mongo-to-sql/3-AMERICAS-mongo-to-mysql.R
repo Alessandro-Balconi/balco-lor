@@ -198,6 +198,8 @@ if(nrow(data) >  0){
   
 }
 
+DBI::dbDisconnect(con)
+
 # RPushbullet::pbPost(
 #   "note", 
 #   title = "AMERICAS - Daily database update", 

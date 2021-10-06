@@ -88,4 +88,6 @@ if(nrow(data) >  0){
   
 }
 
+DBI::dbDisconnect(con)
+
 tictoc::toc()

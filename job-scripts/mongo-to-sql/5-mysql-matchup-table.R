@@ -129,3 +129,5 @@ if(nrow(data_matchup) >  0){
     DBI::dbWriteTable(conn = con, name = "lor_update_time", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
+
+DBI::dbDisconnect(con)

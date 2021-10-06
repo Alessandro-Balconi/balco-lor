@@ -193,6 +193,8 @@ if(nrow(data) >  0){
   
 }
 
+DBI::dbDisconnect(con)
+
 # RPushbullet::pbPost(
 #   "note", 
 #   title = "EUROPE - Daily database update", 
