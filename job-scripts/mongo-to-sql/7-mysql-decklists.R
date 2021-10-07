@@ -87,16 +87,20 @@ data_asia <- tbl(con, "lor_match_info_asia") %>%
 # bind data from different servers together
 data <- bind_rows(data_na, data_eu, data_asia) %>% ungroup()
 
-# calculate information & keep only relevant deckcodes (deck_code at least 5 matches, archetype at least 800 matches)
+# calculate information & keep only relevant deckcodes (deck_code at least 5 matches, archetype at least 900 matches)
 data_decks <- data %>% 
   group_by(archetype) %>% 
   summarise(tot_n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
-  filter(tot_n >= 800) %>% 
-  select(-tot_n) %>% 
+  filter(tot_n >= 900) %>% 
+  select(-tot_n) 
+
+data_decks <- data_decks %>% 
   left_join(data, by = "archetype") %>% 
   group_by(game_outcome, archetype, deck_code) %>% 
   summarise(n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
-  pivot_wider(names_from = game_outcome, values_from = n) %>% 
+  pivot_wider(names_from = game_outcome, values_from = n)
+
+data_decks <- data_decks %>% 
   mutate(across(where(is.numeric), replace_na, 0)) %>% 
   rowwise() %>% 
   mutate(match = sum(c_across(where(is.numeric)))) %>% 
