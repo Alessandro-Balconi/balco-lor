@@ -180,6 +180,14 @@ data <- data %>%
   mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
   mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
 
+# # merge archetypes according to mapping
+# archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
+# 
+# data <- data %>% 
+#   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
+#   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
+#   select(-new_name)
+
 # 6. save to MySQL db ----
 
 # first initialization of database

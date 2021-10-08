@@ -217,6 +217,14 @@ data <- data %>%
 data <- data %>% 
   mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
 
+# # merge archetypes according to mapping
+# archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
+# 
+# data <- data %>% 
+#   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
+#   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
+#   select(-new_name)
+
 # 6. images to save ----
 
 # 6.0 data info ----

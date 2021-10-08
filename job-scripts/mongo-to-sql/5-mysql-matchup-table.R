@@ -87,6 +87,14 @@ data_asia <- tbl(con, "lor_match_info_asia") %>%
 # bind data from different servers together
 data <- bind_rows(data_na, data_eu, data_asia)
 
+# # merge archetypes according to mapping
+# archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
+# 
+# data <- data %>% 
+#   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
+#   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
+#   select(-new_name)
+
 # calculate matchup information
 data_matchup <- data %>%
   group_by(match_id) %>%
