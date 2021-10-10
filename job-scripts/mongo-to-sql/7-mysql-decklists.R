@@ -66,26 +66,22 @@ if(current_patch %in% patches_to_analyze){
   
 }
 
-# extract data from MySQL
-data_na <- tbl(con, "lor_match_info_na") %>%
+archetypes <- tbl(con, "lor_match_info_na") %>% 
+  union_all(tbl(con, "lor_match_info")) %>% 
+  union_all(tbl(con, "lor_match_info_asia")) %>% 
   filter(str_detect(game_version, current_patch)) %>% 
+  count(archetype) %>% 
+  filter(n >= 900) %>% 
+  collect() %>% 
+  pull(archetype)
+  
+# extract data from MySQL
+data <- tbl(con, "lor_match_info_na") %>%
+  union_all(tbl(con, "lor_match_info")) %>% 
+  union_all(tbl(con, "lor_match_info_asia")) %>% 
+  filter(str_detect(game_version, current_patch), archetype %in% archetypes) %>% 
   count(game_outcome, archetype, deck_code) %>% 
   collect()
-
-# extract data from MySQL
-data_eu <- tbl(con, "lor_match_info") %>%
-  filter(str_detect(game_version, current_patch)) %>% 
-  count(game_outcome, archetype, deck_code) %>% 
-  collect()
-
-# extract data from MySQL
-data_asia <- tbl(con, "lor_match_info_asia") %>%
-  filter(str_detect(game_version, current_patch)) %>% 
-  count(game_outcome, archetype, deck_code) %>% 
-  collect()
-
-# bind data from different servers together
-data <- bind_rows(data_na, data_eu, data_asia) %>% ungroup()
 
 # # merge archetypes according to mapping
 # archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
@@ -95,21 +91,11 @@ data <- bind_rows(data_na, data_eu, data_asia) %>% ungroup()
 #   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
 #   select(-new_name)
 
-# calculate information & keep only relevant deckcodes (deck_code at least 5 matches, archetype at least 900 matches)
+# calculate information
 data_decks <- data %>% 
-  group_by(archetype) %>% 
-  summarise(tot_n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
-  filter(tot_n >= 900) %>% 
-  select(-tot_n) 
+  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
 
 data_decks <- data_decks %>% 
-  left_join(data, by = "archetype") %>% 
-  group_by(game_outcome, archetype, deck_code) %>% 
-  summarise(n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
-  pivot_wider(names_from = game_outcome, values_from = n)
-
-data_decks <- data_decks %>% 
-  mutate(across(where(is.numeric), replace_na, 0)) %>% 
   rowwise() %>% 
   mutate(match = sum(c_across(where(is.numeric)))) %>% 
   ungroup() %>% 

@@ -67,25 +67,12 @@ if(current_patch %in% patches_to_analyze){
 }
 
 # extract data from MySQL
-data_na <- tbl(con, "lor_match_info_na") %>%
+data <- tbl(con, "lor_match_info_na") %>%
+  union_all(tbl(con, "lor_match_info")) %>% 
+  union_all(tbl(con, "lor_match_info_asia")) %>% 
   filter(str_detect(game_version, current_patch)) %>% 
   select(match_id, game_outcome, archetype) %>% 
   collect()
-
-# extract data from MySQL
-data_eu <- tbl(con, "lor_match_info") %>%
-  filter(str_detect(game_version, current_patch)) %>% 
-  select(match_id, game_outcome, archetype) %>% 
-  collect()
-
-# extract data from MySQL
-data_asia <- tbl(con, "lor_match_info_asia") %>%
-  filter(str_detect(game_version, current_patch)) %>% 
-  select(match_id, game_outcome, archetype) %>% 
-  collect()
-
-# bind data from different servers together
-data <- bind_rows(data_na, data_eu, data_asia)
 
 # # merge archetypes according to mapping
 # archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
