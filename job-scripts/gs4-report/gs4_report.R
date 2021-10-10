@@ -113,10 +113,10 @@ deck_info <- y %>%
 ss_id <- "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E"
 
 # update all sheets of the spreadsheet
-sheet_write(data = x_wr,      ss = ss_id, sheet = "Winrate")
-sheet_write(data = x_n,       ss = ss_id, sheet = "Number of Games")
-sheet_write(data = deck_info, ss = ss_id, sheet = "Decks Information")
-sheet_write(data = info,      ss = ss_id, sheet = "Data Information")
+with_gs4_quiet(sheet_write(data = x_wr,      ss = ss_id, sheet = "Winrate"))
+with_gs4_quiet(sheet_write(data = x_n,       ss = ss_id, sheet = "Number of Games"))
+with_gs4_quiet(sheet_write(data = deck_info, ss = ss_id, sheet = "Decks Information"))
+with_gs4_quiet(sheet_write(data = info,      ss = ss_id, sheet = "Data Information"))
 
 # names of the spreadsheet to update
 ss_names <- sheet_names(ss_id)
@@ -124,7 +124,7 @@ ss_names <- sheet_names(ss_id)
 # adjust spacing of columns in the spreadsheet
 map(
   .x = ss_names,
-  .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns")
+  .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
 )
 
 DBI::dbDisconnect(con)
