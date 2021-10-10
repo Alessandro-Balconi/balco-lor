@@ -1,6 +1,6 @@
 #Runs analysis + shows error if anything happens
 tryCatch({
-  if(lubridate::hour(Sys.time()) == 0) { cat(sprintf("--- %s --- \n", Sys.Date())) }
+  cat(sprintf("--- %s --- \n", Sys.time()))
   tictoc::tic()
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/4-ASIA-mongo-to-mysql.R")
   tictoc::toc()
