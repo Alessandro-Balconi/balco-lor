@@ -15,6 +15,8 @@
 
 - "mongo-to-sql": daily script that reads BSON data from MongoDB and preprocess it, convert to tabular and saves in MySQL. Also saves a table with matchup information.
 
+-"gs4-report": google spreadsheet with matchup table for the 25 most played archetypes.
+
 # WEEKLY
 
 - "mongo-to-sql": this folder also contains a weekly job that saves historical region playrate in a MySQL table. DONE ON WEDNESDAY MORNING.
