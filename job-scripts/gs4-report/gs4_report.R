@@ -35,7 +35,9 @@ patches <- patch %>%
 
 # most 25 played archetypes
 top25 <- tbl(con, "lor_matchup_table") %>% 
-  count(archetype_1, sort = TRUE) %>% 
+  group_by(archetype_1) %>%
+  summarise(n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
+  arrange(desc(n)) %>% 
   head(n = 25) %>% 
   select(archetype_1) %>% 
   collect() %>% 
