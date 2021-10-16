@@ -71,7 +71,7 @@ archetypes <- tbl(con, "lor_match_info_na") %>%
   union_all(tbl(con, "lor_match_info_asia")) %>% 
   filter(str_detect(game_version, current_patch)) %>% 
   count(archetype) %>% 
-  filter(n >= 900) %>% 
+  filter(n >= 950) %>% 
   collect() %>% 
   pull(archetype)
   
