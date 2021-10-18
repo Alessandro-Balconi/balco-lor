@@ -5,7 +5,7 @@ tryCatch({
   RPushbullet::pbPost(
     "note", 
     title = "LoR-Meta EUROPE server", 
-    body = "There was an error during API calls for EUROPE server. Manual restart required."
+    body = e
   )
   print(e)
 }, finally = {
