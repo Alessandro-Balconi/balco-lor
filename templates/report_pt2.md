@@ -66,6 +66,10 @@ This table shows the players with the highest winrate in the last 7 days.
 	style="border:1px solid transparent">
    </iframe>
 
+### Support me!
+
+If you like these reports and want to help me pay the server costs for collecting the data from Riot API and generating the reports, please consider donating at to my *[Ko-fi page](https://www.ko-fi.com/lormeta)*!
+
 <script>
 
 document.getElementById("defaultOpen-1").click();
