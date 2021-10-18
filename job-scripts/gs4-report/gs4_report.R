@@ -1,5 +1,3 @@
-tictoc::tic()
-
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
 
@@ -130,5 +128,3 @@ map(
 )
 
 DBI::dbDisconnect(con)
-
-tictoc::toc()
