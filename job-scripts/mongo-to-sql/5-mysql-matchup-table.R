@@ -66,11 +66,25 @@ if(current_patch %in% patches_to_analyze){
   
 }
 
+# start collecting matches only 24 hours after the patch
+min_date <- tbl(con, "lor_match_info_na") %>% 
+  union_all(tbl(con, "lor_match_info")) %>% 
+  union_all(tbl(con, "lor_match_info_asia")) %>% 
+  filter(str_detect(game_version, current_patch)) %>%
+  select(game_start_time_utc) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
+  collect() %>% 
+  mutate(min_date = min_date + lubridate::days(1)) %>% 
+  pull()
+
 # extract data from MySQL
 data <- tbl(con, "lor_match_info_na") %>%
   union_all(tbl(con, "lor_match_info")) %>% 
   union_all(tbl(con, "lor_match_info_asia")) %>% 
   filter(str_detect(game_version, current_patch)) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  filter(game_start_time_utc >= min_date) %>% 
   select(match_id, game_outcome, archetype) %>% 
   collect()
 
