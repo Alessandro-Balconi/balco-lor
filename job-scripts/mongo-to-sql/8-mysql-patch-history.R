@@ -202,3 +202,5 @@ if(mysql_patch == last_patch){
 }
 
 tictoc::toc()
+
+DBI::dbDisconnect(con)
