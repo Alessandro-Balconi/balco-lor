@@ -1,0 +1,18 @@
+THIS SCRIPTS PERFORM SCHEDULED JOBS TO MOVE DATA ACROSS DIFFERENT TABLES:
+
+MONGO TO SQL: 2,3,4
+These scripts save ranked data from MongoDB to MySQL. Used only in backend + the "Export data" page (but that one is ok if it breaks) +
+the weekly report generation.
+
+FRONTEND TABLES: 5,7
+These tables are created from aggregations of the previous ones, and are used to display data on lor-meta.com
+
+UTILITIES: 6,8
+These are tables that address a specific problem; specifically:
+  - 6: used only on the weekly report, contains historical values for region playrates.
+  - 8: used for 5,7 and for the frontend: tells from which patch should we read data from.
+  
+OTHER: 9
+Stuff that doesn't belong in the above categories; specifically:
+  - 9: generates a google spreadsheet with matchup tables for Ba1ance.
+
