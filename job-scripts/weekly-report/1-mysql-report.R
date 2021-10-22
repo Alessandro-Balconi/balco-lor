@@ -107,6 +107,9 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     TRUE ~ nameRef
   ))
 
+# mapping champion-region combinations to archetypes aggregations
+agg_archetypes <- read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
+
 # 4. define functions ----
 
 # Render a bar chart with a label on the left
@@ -216,8 +219,6 @@ data <- data %>%
   mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
 
 # # merge archetypes according to mapping
-# archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
-# 
 # data <- data %>% 
 #   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
 #   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
@@ -390,6 +391,8 @@ p <- data_history %>%
   geom_label(x = ymd("2021-07-14")+1, y = 0, label = "SoL Event \n Patch 2.12", size = 4) +
   geom_segment(x = ymd("2021-08-25")+1, xend = ymd("2021-08-25")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-08-25")+1, y = 0, label = "BtB \n Patch 2.14", size = 4) +
+  geom_segment(x = ymd("2021-10-20")+1, xend = ymd("2021-10-20")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+  geom_label(x = ymd("2021-10-20")+1, y = 0, label = "Balance Change \n Patch 2.18", size = 4) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
   theme_bw(base_size = 15) +
   expand_limits(y = 0) +
@@ -404,14 +407,22 @@ ggsave(filename = "/home/balco/dev/lor-meta-report/output/region_hist.png", plot
 
 # 6.4 archetype playrate ----
 
+most_played_version <- data %>% 
+  count(new_name, archetype) %>% 
+  group_by(new_name) %>% 
+  slice_max(n = 1, order_by = n, with_ties = FALSE) %>% 
+  ungroup() %>% 
+  select(new_name, archetype)
+
 data_archetype_pr <- data %>% 
-  count(week, archetype, sort = "TRUE") %>%
+  count(week, new_name, sort = "TRUE") %>%
   left_join(games_by_week, by = "week") %>%
   mutate(playrate = n / tot) %>%
   select(-c(n, tot)) %>% 
   pivot_wider(names_from = week, values_from = playrate) %>% 
   slice_max(n = 10, order_by = current, with_ties = FALSE) %>%
-  mutate(change = current - last) %>% 
+  mutate(change = current - last) %>%
+  left_join(most_played_version, by = 'new_name') %>% 
   mutate(image = archetype) %>% 
   mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
   separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
@@ -421,19 +432,18 @@ data_archetype_pr <- data %>%
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
   mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
   mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "x")) %>%
-  mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
   separate(col = image, into = sprintf("image_%s", 1:7), fill = "right", sep = "_") %>% 
-  select(archetype, last, current, change, where(function(x) any(!is.na(x)))) %>% 
+  select(new_name, last, current, change, where(function(x) any(!is.na(x)))) %>% 
   mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_champs$gameAbsolutePath, data_champs$cardCode)))) %>% 
   mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_regions$iconAbsolutePath, paste0("x", data_regions$abbreviation, "x"))))) 
 
-max_champs_play <- ncol(data_archetype_pr) - 4
+max_champs_play <- ncol(data_archetype_pr) - 5
 
 p <- data_archetype_pr %>% 
   rowwise() %>% 
   mutate(disp_images = sum(!is.na(c_across(starts_with("image_"))))) %>%
   ungroup() %>% 
-  ggplot(aes(x = reorder(archetype, current))) +
+  ggplot(aes(x = reorder(new_name, current))) +
   geom_col(aes(y = current), fill = "#13294b", color = "steelblue", alpha = 0.9) +
   geom_text(aes(label = "", y = 1.1*current), size = 6) +
   geom_text(aes(label = scales::percent(current, accuracy = .1), y = current), size = 6, hjust = -0.5, vjust = -0.5) +
@@ -446,7 +456,7 @@ p <- data_archetype_pr %>%
   {if(max_champs_play > 4) geom_image(aes(image = image_5, y = -(max_champs_play-2)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_play > 5) geom_image(aes(image = image_6, y = -(max_champs_play-3)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_play > 6) geom_image(aes(image = image_7, y = -(max_champs_play-4)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
-  ggfittext::geom_fit_text(aes(label = archetype, ymin = -((max(current)/4)+((max_champs_play-disp_images)*max(current)/10)), ymax = 0), 
+  ggfittext::geom_fit_text(aes(label = new_name, ymin = -((max(current)/4)+((max_champs_play-disp_images)*max(current)/10)), ymax = 0), 
                            size = 18, reflow = TRUE, padding.x = grid::unit(3, "mm"), padding.y = grid::unit(3, "mm"), place = "right") +
   theme_classic(base_size = 18) +
   coord_flip() +
@@ -467,13 +477,14 @@ ggsave(filename = "/home/balco/dev/lor-meta-report/output/arch_pr.png", plot = p
 data_archetype_wr <- data %>% 
   filter(week == "current") %>%
   left_join(games_by_week, by = "week") %>% 
-  count(archetype, game_outcome, tot, name = "nn") %>%
-  group_by(archetype, tot) %>% 
+  count(new_name, game_outcome, tot, name = "nn") %>%
+  group_by(new_name, tot) %>% 
   mutate(n = sum(nn)) %>% 
   ungroup() %>% 
   pivot_wider(names_from = game_outcome, values_from = nn) %>%
   mutate(across(where(is.numeric), function(x) ifelse(is.na(x), 0, x))) %>% 
   mutate(winrate = win / n) %>%
+  left_join(most_played_version, by = 'new_name') %>% 
   mutate(image = archetype) %>% 
   mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
   mutate(image = str_trim(image, side = "left")) %>% 
@@ -483,8 +494,7 @@ data_archetype_wr <- data %>%
   unite(col = image, tmp1, tmp2, sep = "", na.rm = TRUE) %>%
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
   mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
-  mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "")) %>%
-  mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
+  mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "")) %>% 
   mutate(playrate = n / tot) %>%
   separate(col = image, into = sprintf("image_%s", 1:8), fill = "right", sep ="_") %>% 
   select(where(function(x) any(!is.na(x))), -tot) %>%
@@ -505,7 +515,7 @@ p <- data_archetype_wr %>%
   rowwise() %>% 
   mutate(disp_images = sum(!is.na(c_across(starts_with("image_"))))) %>%
   ungroup() %>% 
-  ggplot(aes(x = reorder(archetype, winrate))) +
+  ggplot(aes(x = reorder(new_name, winrate))) +
   geom_col(aes(y = winrate), fill = "#13294b", color = "steelblue", alpha = 0.9) +
   geom_text(aes(label = "", y = 1.1*winrate), size = 6) +
   geom_text(aes(label = scales::percent(winrate, accuracy = .1), y = winrate), size = 6, hjust = -0.5) +
@@ -516,7 +526,7 @@ p <- data_archetype_wr %>%
   {if(max_champs_win > 4) geom_image(aes(image = image_5, y = -(max_champs_win-2)*max(winrate)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_win > 5) geom_image(aes(image = image_6, y = -(max_champs_win-3)*max(winrate)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_win > 6) geom_image(aes(image = image_7, y = -(max_champs_win-4)*max(winrate)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
-  ggfittext::geom_fit_text(aes(label = archetype, ymin = -((max(winrate)/4)+((max_champs_win-disp_images)*max(winrate)/10)), ymax = 0), 
+  ggfittext::geom_fit_text(aes(label = new_name, ymin = -((max(winrate)/4)+((max_champs_win-disp_images)*max(winrate)/10)), ymax = 0), 
                            size = 18, reflow = TRUE, padding.x = grid::unit(3, "mm"), padding.y = grid::unit(3, "mm"), place = "right") +
   theme_classic(base_size = 18) +
   coord_flip() +
@@ -531,8 +541,8 @@ p <- data_archetype_wr %>%
 
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/arch_wr.png", plot = p, width = 12, height = 8, dpi = 180)
 
-tbl <- data_archetype_wr %>% 
-  select(archetype, match = n, win, playrate, winrate) %>%
+tbl <- data_archetype_wr %>%  
+  select(archetype = new_name, match = n, win, playrate, winrate) %>%
   arrange(-playrate, -winrate) %>% 
   rename_with(str_to_title) %>% 
   datatable(rownames = FALSE, options = list(pageLength = 10, lengthChange = FALSE)) %>% 
@@ -548,12 +558,12 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/arch_wr.html", backgroun
 
 data_matchup <- data %>%
   filter(week == "current") %>% 
-  select(match_id, game_outcome, archetype) %>%
+  select(match_id, game_outcome, new_name) %>%
   group_by(match_id) %>%
-  arrange(match_id, archetype) %>% 
+  arrange(match_id, new_name) %>% 
   mutate(id = row_number()) %>% 
   mutate(winner = case_when(id == 1 & game_outcome == "win" ~ 1, id == 2 & game_outcome == "win" ~ 2, TRUE ~ 0)) %>% 
-  pivot_wider(names_from = id, values_from = archetype, names_prefix = "archetype_") %>% 
+  pivot_wider(names_from = id, values_from = new_name, names_prefix = "archetype_") %>% 
   fill(starts_with("archetype_"), .direction = "updown") %>% 
   ungroup() %>% 
   filter(winner != 0) %>%
@@ -562,7 +572,7 @@ data_matchup <- data %>%
   mutate(a1_wr = ifelse(archetype_1 == archetype_2, NA_real_, wins / n)) 
 
 p <- data_matchup %>% 
-  filter(archetype_1 %in% data_archetype_pr$archetype & archetype_2 %in% data_archetype_pr$archetype) %>% 
+  filter(archetype_1 %in% data_archetype_pr$new_name & archetype_2 %in% data_archetype_pr$new_name) %>% 
   select(-c(n, wins)) %>% 
   pivot_wider(names_from = archetype_2, values_from = a1_wr) %>%
   column_to_rownames(var = "archetype_1") %>%
@@ -570,7 +580,7 @@ p <- data_matchup %>%
   rownames_to_column(var = "archetype_1") %>% 
   pivot_longer(cols = -archetype_1, names_to = "archetype_2", values_to = "a1_wr") %>%
   mutate(bin = cut(a1_wr, c(0, 0.4, 0.45, 0.55, 0.6, 1), include.lowest = TRUE)) %>%
-  mutate(across(c(archetype_1, archetype_2), ~factor(., levels = data_archetype_pr$archetype, ordered = TRUE))) %>%
+  mutate(across(c(archetype_1, archetype_2), ~factor(., levels = data_archetype_pr$new_name, ordered = TRUE))) %>%
   ggplot(aes(y = reorder(archetype_1, desc(archetype_1)), x = archetype_2)) +
   geom_tile(aes(fill = bin), color = "grey90", size = 1, stat = "identity") +
   shadowtext::geom_shadowtext(aes(label = scales::percent(a1_wr, accuracy = .1)), color = "white", size = 6, na.rm = TRUE) +
@@ -622,13 +632,13 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/matchup_tbl.html", backg
 
 data_score1 <- data %>%
   filter(week == "current") %>% 
-  select(match_id, game_outcome, archetype) %>%
-  mutate(archetype = ifelse(archetype %in% data_archetype_pr$archetype, archetype, "Other")) %>% 
-  arrange(match_id, archetype) %>% 
+  select(match_id, game_outcome, new_name) %>%
+  mutate(new_name = ifelse(new_name %in% data_archetype_pr$new_name, new_name, "Other")) %>% 
+  arrange(match_id, new_name) %>% 
   group_by(match_id) %>%
   mutate(id = row_number()) %>% 
   mutate(winner = case_when(id == 1 & game_outcome == "win" ~ 1, id == 2 & game_outcome == "win" ~ 2, TRUE ~ 0)) %>% 
-  pivot_wider(names_from = id, values_from = archetype, names_prefix = "archetype_") %>% 
+  pivot_wider(names_from = id, values_from = new_name, names_prefix = "archetype_") %>% 
   fill(starts_with("archetype_"), .direction = "updown") %>% 
   ungroup() %>% 
   filter(winner != 0) %>% 
@@ -647,7 +657,7 @@ data_score2 <- tibble(
 data_score <- data_score1 %>% 
   filter(archetype_1 != archetype_2) %>% 
   bind_rows(data_score2) %>% 
-  left_join(data_archetype_pr %>% select(archetype, playrate = current), by = c("archetype_2" = "archetype")) %>%
+  left_join(data_archetype_pr %>% select(new_name, playrate = current), by = c("archetype_2" = "new_name")) %>%
   group_by(archetype_1) %>% 
   mutate(playrate = ifelse(is.na(playrate), 1 - sum(playrate, na.rm = TRUE), playrate)) %>% 
   ungroup() %>% 
@@ -657,7 +667,7 @@ data_score <- data_score1 %>%
   summarise(deck_power = sum(deck_power), .groups = "drop") %>% 
   filter(archetype_1 != "Other") %>% 
   arrange(-deck_power) %>% 
-  left_join(data_archetype_pr %>% select(archetype, playrate = current), by = c("archetype_1" = "archetype")) %>% 
+  left_join(data_archetype_pr %>% select(new_name, playrate = current), by = c("archetype_1" = "new_name")) %>% 
   mutate(freq_score = playrate*100 / max(playrate)) %>% 
   select(-playrate) %>% 
   mutate(power_score = ((deck_power + max(deck_power) - 1) * 100) / (2*max(deck_power) - 1)) %>% 
@@ -703,10 +713,10 @@ top_players <- data %>%
   mutate(winrate = win / match) %>% 
   filter(winrate >= 0.6) %>% 
   select(shard, player = puuid, match, winrate)
-  
+
 favorite_deck <- data %>% 
   filter(week == "current", puuid %in% top_players$player) %>% 
-  count(puuid, archetype) %>% 
+  count(puuid, new_name) %>% 
   group_by(puuid) %>% 
   slice_max(n = 1, order_by = n, with_ties = FALSE) %>% 
   select(-n)
@@ -722,7 +732,7 @@ tbl <- top_players %>%
   mutate(content = map(.x = get, .f = content)) %>% 
   mutate(country = ifelse(status == 200, content, NA_character_)) %>% 
   mutate(country = map_chr(country, str_flatten, collapse = " ")) %>% 
-  select(player, region = shard, country, most_played_deck = archetype, match, winrate) %>% 
+  select(player, region = shard, country, most_played_deck = new_name, match, winrate) %>% 
   mutate(region = str_to_title(region)) %>% 
   mutate(country = ifelse(!is.na(country), sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), country)) %>% 
   mutate(pos = row_number()) %>% 
@@ -741,18 +751,18 @@ tbl <- top_players %>%
     options = list(pageLength = 10, lengthChange = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all")))
   ) %>% 
   formatPercentage(col = "Winrate", digits = 1)
-  
+
 tbl$width  <- "100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
-  
+
 saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/player_leaderboard.html", background = "inherit")
 
 # 6.9 best players ----
 
 tbl <- data %>% 
   filter(week == "current") %>% 
-  count(archetype, deck_code, puuid, game_outcome, shard) %>% 
+  count(new_name, deck_code, puuid, game_outcome, shard) %>% 
   pivot_wider(names_from = game_outcome, values_from = n) %>% 
   mutate(across(where(is.numeric), replace_na, 0)) %>% 
   rowwise() %>% 
@@ -761,7 +771,7 @@ tbl <- data %>%
   filter(match >= 30) %>% 
   mutate(winrate = win / match) %>% 
   filter(winrate >= 0.7) %>% 
-  select(shard, player = puuid, archetype, deck_code, match, winrate) %>%
+  select(shard, player = puuid, archetype = new_name, deck_code, match, winrate) %>%
   arrange(-winrate, -match, archetype) %>% 
   mutate(player = map2_chr(.x = player, .y = shard, .f = ~from_puuid_to_riotid(puuid = .x, shard = .y))) %>% 
   mutate(deck_code = sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>% 
@@ -794,7 +804,7 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/best_players.html", back
 
 tbl <- data %>% 
   filter(week == "current") %>% 
-  count(archetype, deck_code, game_outcome) %>% 
+  count(new_name, deck_code, game_outcome) %>% 
   group_by(deck_code) %>% 
   mutate(match = sum(n)) %>% 
   ungroup() %>% 
@@ -803,7 +813,7 @@ tbl <- data %>%
   mutate(across(where(is.numeric), function(x) ifelse(is.na(x), 0, x))) %>%
   mutate(winrate = win / match) %>% 
   arrange(-match) %>%
-  select(archetype, deck_code, match, winrate) %>% 
+  select(archetype = new_name, deck_code, match, winrate) %>% 
   reactable(
     columns = list(
       archetype = colDef(

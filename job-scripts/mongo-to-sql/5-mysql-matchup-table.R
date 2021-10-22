@@ -65,13 +65,13 @@ data <- tbl(con, "lor_match_info_na") %>%
   select(match_id, game_outcome, archetype) %>% 
   collect()
 
-# # merge archetypes according to mapping
-# archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
-# 
-# data <- data %>% 
-#   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
-#   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
-#   select(-new_name)
+# merge archetypes according to mapping
+archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
+
+data <- data %>%
+  left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
+  mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
+  select(-new_name)
 
 # calculate matchup information
 data_matchup <- data %>%
