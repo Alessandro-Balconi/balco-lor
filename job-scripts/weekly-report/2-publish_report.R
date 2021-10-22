@@ -1,7 +1,5 @@
 # Publish weekly report on lor-meta.com
 
-tictoc::tic()
-
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse))   # all purposes package
@@ -12,10 +10,10 @@ template_file_1 <- "/home/balco/dev/lor-meta-report/templates/report_pt1.md" # t
 template_file_2 <- "/home/balco/dev/lor-meta-report/templates/report_pt2.md" # this should not be changed
 
 # this should be changed every week
-p_report_number <- "16"
+p_report_number <- "17"
 p_full_art      <- "03IO006"
-p_emote         <- "idk"
-p_subtitle      <- "Patch 2.17 - Week 2"
+p_emote         <- "zoe"
+p_subtitle      <- "Patch 2.18 - Week 1"
 
 # 3. functions ----
 
@@ -81,5 +79,3 @@ if(as.numeric(p_report_number) != latest+1){
   )
   
 }
-
-tictoc::toc()

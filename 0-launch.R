@@ -17,7 +17,7 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/7-mysql-decklists.R")
   tictoc::toc()
   rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/gs4-report/gs4_report.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/9-gs4_report.R")
 }, error = function(e) {
   RPushbullet::pbPost(
     "note",

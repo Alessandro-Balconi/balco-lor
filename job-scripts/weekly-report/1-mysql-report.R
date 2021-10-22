@@ -1,5 +1,3 @@
-tictoc::tic()
-
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse))   # all purposes package
@@ -859,5 +857,3 @@ latest <- reports %>%
 
 system(sprintf('ssh balco@lor-meta.com "mkdir -p /home/balco/www/assets/meta-report/mr%s"', latest+1))
 system(sprintf("scp -r /home/balco/dev/lor-meta-report/output/* balco@lor-meta.com:/home/balco/www/assets/meta-report/mr%s", latest+1))
-
-tictoc::toc()

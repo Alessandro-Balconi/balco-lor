@@ -3,9 +3,11 @@
 tryCatch({
   cat(sprintf("--- %s --- \n", Sys.Date()))
   Sys.setenv(RSTUDIO_PANDOC = "/usr/lib/rstudio-server/bin/pandoc")
-  source("/home/balco/dev/lor-meta-report/job-scripts/generate-report/1-mysql-report.R")
+  tictoc::tic()
+  source("/home/balco/dev/lor-meta-report/job-scripts/weekly-report/1-mysql-report.R")
   rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/publish-report/publish_report.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/weekly-report/2-publish_report.R")
+  tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
     "note",
