@@ -89,11 +89,31 @@ while(TRUE){
           filter(gameName %in% master_players) %>% 
           pull(puuid)
         
+        # save masters (for when next season hits)
+        saveRDS(object = puuid_list, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
+        
       } else if(exists("puuid_list")){
         
         # print message to console
         cat(sprintf(" - There are only %s master players; collecting match data from previous season' masters. \n", length(master_players)))
 
+      } else if(file.exists("/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")){
+        
+        # print message to console
+        cat(sprintf(" - There are only %s master players; using .rds with previous season' masters. \n", length(master_players)))
+        
+        # last season master players
+        old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
+        
+        # get puuid of players from "m_player" database
+        player_data <- m_player$find() %>% 
+          as_tibble()
+        
+        # filter only master players
+        puuid_list <- player_data %>% 
+          filter(gameName %in% old_master_players) %>% 
+          pull(puuid)
+        
       } else {
         
         # print message to console
