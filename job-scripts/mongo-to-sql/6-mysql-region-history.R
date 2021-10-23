@@ -35,23 +35,29 @@ con <- DBI::dbConnect(
 
 # 5. prepare table ----
 
-# extract data from MySQL
-data_na <- tbl(con, "lor_match_info_na") %>%
+# # extract data from MySQL
+# data_na <- tbl(con, "lor_match_info_na") %>%
+#   select(match_id, game_start_time_utc, starts_with("faction_")) %>% 
+#   collect()
+# 
+# # extract data from MySQL
+# data_eu <- tbl(con, "lor_match_info") %>%
+#   select(match_id, game_start_time_utc, starts_with("faction_")) %>% 
+#   collect()
+# 
+# # extract data from MySQL
+# data_asia <- tbl(con, "lor_match_info_asia") %>%
+#   select(match_id, game_start_time_utc, starts_with("faction_")) %>% 
+#   collect()
+# 
+# # bind data from different servers together
+# data <- bind_rows(data_na, data_eu, data_asia)
+
+data <- tbl(con, "lor_match_info_na") %>%
+  union_all(tbl(con, "lor_match_info")) %>% 
+  union_all(tbl(con, "lor_match_info_asia"))
   select(match_id, game_start_time_utc, starts_with("faction_")) %>% 
   collect()
-
-# extract data from MySQL
-data_eu <- tbl(con, "lor_match_info") %>%
-  select(match_id, game_start_time_utc, starts_with("faction_")) %>% 
-  collect()
-
-# extract data from MySQL
-data_asia <- tbl(con, "lor_match_info_asia") %>%
-  select(match_id, game_start_time_utc, starts_with("faction_")) %>% 
-  collect()
-
-# bind data from different servers together
-data <- bind_rows(data_na, data_eu, data_asia)
 
 # prepare data
 data <- data %>% 
