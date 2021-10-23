@@ -66,7 +66,7 @@ data <- tbl(con, "lor_match_info_na") %>%
   collect()
 
 # merge archetypes according to mapping
-archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
+archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
 
 data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
