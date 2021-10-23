@@ -6,8 +6,9 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 
 # 2. parameters ----
 
-# date of 7 days ago in MySQL format
-mysql_start_date <- (Sys.time() - lubridate::days(7))
+# date of 3/7 days ago
+last3_date <- (Sys.time() - lubridate::days(3))
+last7_date <- (Sys.time() - lubridate::days(7))
 
 # 3. functions ----
 
@@ -74,24 +75,44 @@ data <- tbl(con, "lor_match_info_na") %>%
   filter(str_detect(game_version, current_patch), archetype %in% archetypes) %>% 
   mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
-  mutate(last_7d = case_when(game_start_time_utc >= mysql_start_date ~ 1, TRUE ~ 0)) %>% 
+  mutate(last_d = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
   count(game_outcome, archetype, deck_code, last_7d) %>% 
   collect()
 
 # merge archetypes according to mapping
-archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
+#archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
+archetypes_map <- googlesheets4::with_gs4_quiet(googlesheets4::read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
 
 data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
   select(-new_name)
 
-# 5.1 table of last 7 days ----
+# 5.1 table of last 3 days ----
+
+# keep only data for last 3 days
+data_3d <- data %>% 
+  filter(last_d > 1) %>% 
+  select(-last_d)
+
+# calculate information
+data_decks_3d <- data_3d %>% 
+  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
+
+data_decks_3d <- data_decks_3d %>% 
+  rowwise() %>% 
+  mutate(match = sum(c_across(where(is.numeric)))) %>% 
+  ungroup() %>% 
+  filter(match >= 5) %>% 
+  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
+  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
+
+# 5.2 table of last 7 days ----
 
 # keep only data for last 7 days
 data_7d <- data %>% 
-  filter(last_7d == 1) %>% 
-  select(-last_7d)
+  filter(last_d > 0) %>% 
+  select(-last_d)
 
 # calculate information
 data_decks_7d <- data_7d %>% 
@@ -105,7 +126,7 @@ data_decks_7d <- data_decks_7d %>%
   {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
   {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
 
-# 5.2 table of current patch ----
+# 5.3 table of current patch ----
 
 # remove last 7 days information
 data <- data %>% 
@@ -126,10 +147,6 @@ data_decks <- data_decks %>%
 
 # 6. save to MySQL db ----
 
-# first initialization of database
-#DBI::dbWriteTable(conn = con, name = "lor_decklists", value = data_decks, row.names = FALSE)
-
-# save matches to db
 if(nrow(data_decks) >  0){
   
   data_decks %>% 
@@ -137,6 +154,9 @@ if(nrow(data_decks) >  0){
   
   data_decks_7d %>% 
     DBI::dbWriteTable(conn = con, name = "lor_decklists_7d", value = ., overwrite = TRUE, row.names = FALSE) 
+  
+  data_decks_3d %>% 
+    DBI::dbWriteTable(conn = con, name = "lor_decklists_3d", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 
