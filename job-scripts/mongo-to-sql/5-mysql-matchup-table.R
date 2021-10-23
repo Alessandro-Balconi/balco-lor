@@ -11,6 +11,9 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
+# date of 7 days ago in MySQL format
+mysql_start_date <- (Sys.time() - lubridate::days(7))
+
 # 3. functions ----
 
 # 4. connect to db & load data ----
@@ -62,7 +65,8 @@ data <- tbl(con, "lor_match_info_na") %>%
   filter(str_detect(game_version, current_patch)) %>% 
   mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
-  select(match_id, game_outcome, archetype) %>% 
+  mutate(last_7d = case_when(game_start_time_utc >= mysql_start_date ~ 1, TRUE ~ 0)) %>% 
+  select(match_id, game_outcome, archetype, last_7d) %>% 
   collect()
 
 # merge archetypes according to mapping
@@ -72,6 +76,45 @@ data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
   select(-new_name)
+
+# 5.1 table of last 7 days ----
+
+# keep only data for last 7 days
+data_7d <- data %>% 
+  filter(last_7d == 1) %>% 
+  select(-last_7d)
+
+# calculate matchup information
+data_matchup_7d <- data_7d %>%
+  group_by(match_id) %>%
+  arrange(match_id, archetype) %>% 
+  mutate(id = row_number()) %>% 
+  mutate(winner = case_when(id == 1 & game_outcome == "win" ~ 1, id == 2 & game_outcome == "win" ~ 2, TRUE ~ 0)) %>% 
+  pivot_wider(names_from = id, values_from = archetype, names_prefix = "archetype_") %>% 
+  fill(starts_with("archetype_"), .direction = "updown") %>% 
+  ungroup() %>% 
+  filter(winner != 0) %>%
+  group_by(across(starts_with("archetype_"))) %>% 
+  summarise(n = n(), wins = sum(winner == 1), .groups = "drop") %>% 
+  mutate(winrate = ifelse(archetype_1 == archetype_2, 0.5, wins / n)) 
+
+# also calculate the matchup information from the opponent's POV
+data_matchup2_7d <- tibble(
+  archetype_1 = data_matchup_7d$archetype_2,
+  archetype_2 = data_matchup_7d$archetype_1,
+  n = data_matchup_7d$n,
+  winrate = 1- data_matchup_7d$winrate
+)
+
+data_matchup_7d <- data_matchup_7d %>% 
+  select(-wins) %>% 
+  bind_rows(data_matchup2_7d)
+
+# 5.2 table of current patch ----
+
+# remove last 7 days information
+data <- data %>% 
+  select(-last_7d)
 
 # calculate matchup information
 data_matchup <- data %>%
@@ -110,6 +153,9 @@ if(nrow(data_matchup) >  0){
   data_matchup %>% 
     DBI::dbWriteTable(conn = con, name = "lor_matchup_table", value = ., overwrite = TRUE, row.names = FALSE) 
 
+  data_matchup_7d %>% 
+    DBI::dbWriteTable(conn = con, name = "lor_matchup_table_7d", value = ., overwrite = TRUE, row.names = FALSE) 
+  
   Sys.time() %>%
     as_tibble() %>% 
     DBI::dbWriteTable(conn = con, name = "lor_update_time", value = ., overwrite = TRUE, row.names = FALSE) 

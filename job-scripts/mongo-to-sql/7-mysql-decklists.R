@@ -1,12 +1,13 @@
 # Creates a MySQL table with decklists information for the current patch (from data of MySQL databases)
 
-# This task is performed with daily frequency at 16.30 UTC
-
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 
 # 2. parameters ----
+
+# date of 7 days ago in MySQL format
+mysql_start_date <- (Sys.time() - lubridate::days(7))
 
 # 3. functions ----
 
@@ -73,7 +74,8 @@ data <- tbl(con, "lor_match_info_na") %>%
   filter(str_detect(game_version, current_patch), archetype %in% archetypes) %>% 
   mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
-  count(game_outcome, archetype, deck_code) %>% 
+  mutate(last_7d = case_when(game_start_time_utc >= mysql_start_date ~ 1, TRUE ~ 0)) %>% 
+  count(game_outcome, archetype, deck_code, last_7d) %>% 
   collect()
 
 # merge archetypes according to mapping
@@ -83,6 +85,32 @@ data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
   select(-new_name)
+
+# 5.1 table of last 7 days ----
+
+# keep only data for last 7 days
+data_7d <- data %>% 
+  filter(last_7d == 1) %>% 
+  select(-last_7d)
+
+# calculate information
+data_decks_7d <- data_7d %>% 
+  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
+
+data_decks_7d <- data_decks_7d %>% 
+  rowwise() %>% 
+  mutate(match = sum(c_across(where(is.numeric)))) %>% 
+  ungroup() %>% 
+  filter(match >= 5) %>% 
+  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
+  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
+
+# 5.2 table of current patch ----
+
+# remove last 7 days information
+data <- data %>% 
+  group_by(game_outcome, archetype, deck_code) %>% 
+  summarise(n = sum(n), .groups = "drop")
 
 # calculate information
 data_decks <- data %>% 
@@ -106,6 +134,9 @@ if(nrow(data_decks) >  0){
   
   data_decks %>% 
     DBI::dbWriteTable(conn = con, name = "lor_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
+  
+  data_decks_7d %>% 
+    DBI::dbWriteTable(conn = con, name = "lor_decklists_7d", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 
