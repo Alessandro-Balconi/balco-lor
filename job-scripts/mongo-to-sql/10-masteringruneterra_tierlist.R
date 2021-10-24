@@ -137,3 +137,5 @@ htmlwidgets::saveWidget(reactbl, "/home/balco/dev/lor-meta-report/templates/tier
 system('ssh balco@lor-meta.com "mkdir -p /home/balco/www/assets/tierlist"')
 system("scp -r /home/balco/dev/lor-meta-report/templates/tierlist.html balco@lor-meta.com:/home/balco/www/assets/tierlist")
 system("scp -r /home/balco/dev/lor-meta-report/templates/tierlist.html balco@lor-meta.com:/home/balco/www/_site/assets/tierlist")
+
+DBI::dbDisconnect(con)

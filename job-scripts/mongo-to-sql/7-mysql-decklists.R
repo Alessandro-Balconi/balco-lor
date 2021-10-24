@@ -3,8 +3,12 @@
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
+suppressPackageStartupMessages(library(googlesheets4)) # working with google spreadsheets
 
 # 2. parameters ----
+
+options(gargle_oauth_email = "Balco21@outlook.it")
+options(googlesheets4_quiet = TRUE)
 
 # date of 3/7 days ago
 last3_date <- (Sys.time() - lubridate::days(3))
@@ -76,12 +80,12 @@ data <- tbl(con, "lor_match_info_na") %>%
   mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
   mutate(last_d = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
-  count(game_outcome, archetype, deck_code, last_7d) %>% 
+  count(game_outcome, archetype, deck_code, last_d) %>% 
   collect()
 
 # merge archetypes according to mapping
 #archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
-archetypes_map <- googlesheets4::with_gs4_quiet(googlesheets4::read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
+archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
 
 data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
@@ -112,7 +116,8 @@ data_decks_3d <- data_decks_3d %>%
 # keep only data for last 7 days
 data_7d <- data %>% 
   filter(last_d > 0) %>% 
-  select(-last_d)
+  group_by(game_outcome, archetype, deck_code) %>% 
+  summarise(n = sum(n), .groups = "drop")
 
 # calculate information
 data_decks_7d <- data_7d %>% 
