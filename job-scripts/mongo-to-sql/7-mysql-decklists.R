@@ -84,7 +84,6 @@ data <- tbl(con, "lor_match_info_na") %>%
   collect()
 
 # merge archetypes according to mapping
-#archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
 archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
 
 data <- data %>%
