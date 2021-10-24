@@ -11,8 +11,12 @@ suppressPackageStartupMessages(library(DT))          # display nice tables
 suppressPackageStartupMessages(library(reactable))   # display nice tables
 suppressPackageStartupMessages(library(htmlwidgets)) # save tables
 suppressPackageStartupMessages(library(htmltools))   # use HTML functions in R
+suppressPackageStartupMessages(library(googlesheets4)) # working with google spreadsheets
 
 # 2. set parameters ----
+
+options(gargle_oauth_email = "Balco21@outlook.it")
+options(googlesheets4_quiet = TRUE)
 
 # date from which extract matches
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date() - days(7)))
@@ -108,7 +112,7 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
   ))
 
 # mapping champion-region combinations to archetypes aggregations
-agg_archetypes <- read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv", col_types = "cc")
+agg_archetypes <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
 
 # 4. define functions ----
 
@@ -219,10 +223,9 @@ data <- data %>%
   mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
 
 # # merge archetypes according to mapping
-# data <- data %>% 
-#   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
-#   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
-#   select(-new_name)
+data <- data %>%
+  left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
+  mutate(new_name = coalesce(new_name, archetype))
 
 # 6. images to save ----
 
