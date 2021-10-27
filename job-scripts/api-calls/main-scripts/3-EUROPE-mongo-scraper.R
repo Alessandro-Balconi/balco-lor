@@ -101,7 +101,7 @@ while(TRUE){
         filter(gameName %in% c(master_players, old_master_players)) %>% 
         pull(puuid)
       
-      cat(sprintf("Analyzing %s players (%s masters, %s plat+). \n", length(puuid_list), length(master_players), length(old_master_players)))
+      cat(sprintf(" - Analyzing %s players (%s masters, %s plat+). \n", length(puuid_list), length(master_players), length(old_master_players)))
       
     }
     
