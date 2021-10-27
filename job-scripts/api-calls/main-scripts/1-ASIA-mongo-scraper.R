@@ -97,13 +97,16 @@ while(TRUE){
         # print message to console
         cat(sprintf(" - There are only %s master players; collecting match data from previous season' masters. \n", length(master_players)))
 
-      } else if(file.exists("/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")){
+        # save previous season masters
+        saveRDS(object = puuid_list, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
+        
+      } else if(file.exists("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")){
         
         # print message to console
         cat(sprintf(" - There are only %s master players; using .rds with previous season' masters. \n", length(master_players)))
         
         # last season master players
-        old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
+        old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
         
         # get puuid of players from "m_player" database
         player_data <- m_player$find() %>% 
