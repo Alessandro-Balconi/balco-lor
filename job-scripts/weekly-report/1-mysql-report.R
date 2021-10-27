@@ -20,6 +20,7 @@ options(googlesheets4_quiet = TRUE)
 
 # date from which extract matches
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date() - days(7)))
+start_date_char <- as.character(start_date)
 mysql_start_date <- (start_date - days(7)) %>% as.character()
 
 # color of Runeterra regions for plots
@@ -57,7 +58,7 @@ con <- DBI::dbConnect(
 count_master_match <- tbl(con, "lor_match_info") %>% 
   union_all(tbl(con, "lor_match_info_na")) %>% 
   union_all(tbl(con, "lor_match_info_asia")) %>%
-  filter(game_start_time_utc >= mysql_start_date) %>% 
+  filter(game_start_time_utc >= start_date_char) %>% 
   filter(is_master == 1) %>% 
   distinct(match_id) %>% 
   summarise(n = n()) %>% 
