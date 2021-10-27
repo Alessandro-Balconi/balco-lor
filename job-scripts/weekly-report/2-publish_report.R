@@ -13,7 +13,7 @@ template_file_2 <- "/home/balco/dev/lor-meta-report/templates/report_pt2.md" # t
 p_report_number <- "17"
 p_full_art      <- "03IO006"
 p_emote         <- "zoe"
-p_subtitle      <- "Patch 2.18 - Week 1"
+p_subtitle      <- "Patch 2.18 - Week 1 - Plat+ data due to Ranked Season Reset"
 
 # 3. functions ----
 
