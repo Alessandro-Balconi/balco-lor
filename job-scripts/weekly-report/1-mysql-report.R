@@ -53,20 +53,34 @@ con <- DBI::dbConnect(
   dbname = "db_prova"
 )
 
+# number of master matches in the last week
+count_master_match <- tbl(con, "lor_match_info") %>% 
+  union_all(tbl(con, "lor_match_info_na")) %>% 
+  union_all(tbl(con, "lor_match_info_asia")) %>%
+  filter(game_start_time_utc >= mysql_start_date) %>% 
+  filter(is_master == 1) %>% 
+  distinct(match_id) %>% 
+  summarise(n = n()) %>% 
+  collect() %>% 
+  pull(n)
+
 # import match data (only from ranked games)
 data_eu <- tbl(con, "lor_match_info") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
+  {if(count_master_match >= 5000) filter(., is_master == 1) else . } %>% 
+  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data_na <- tbl(con, "lor_match_info_na") %>% 
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
+  {if(count_master_match >= 5000) filter(., is_master == 1) else . } %>% 
+  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data_asia <- tbl(con, "lor_match_info_asia") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards)) %>% 
+  {if(count_master_match >= 5000) filter(., is_master == 1) else . } %>% 
+  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data <- bind_rows("europe" = data_eu, "americas" = data_na, "asia" = data_asia, .id = "shard")
