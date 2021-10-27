@@ -83,6 +83,8 @@ while(TRUE){
         
         old_masters <- readRDS(file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/americas.rds")
         
+        cat(sprintf("Saving Old Master Leaderboards: %s", Sys.time()))
+        
         saveRDS(object = old_masters, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_americas.rds")
         
       }
@@ -98,6 +100,8 @@ while(TRUE){
       puuid_list <- player_data %>% 
         filter(gameName %in% c(master_players, old_master_players)) %>% 
         pull(puuid)
+      
+      cat(sprintf("Analyzing %s players (%s masters, %s plat+). \n", length(puuid_list), length(master_players), length(old_master_players)))
       
     }
     
