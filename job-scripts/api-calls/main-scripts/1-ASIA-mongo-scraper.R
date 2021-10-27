@@ -51,7 +51,6 @@ api_key <- "RGAPI-ae4106eb-969c-4957-ba08-724b72ad70ac"
 while(TRUE){
   
   # at the start of each cycle, initialize list of players to extract match from
-  # if there are >30 masters, get their match; else get last season masters (if I still have them stored); else just get who played ranked recently
   if(i == 1){
     
     # print message to console
@@ -74,74 +73,31 @@ while(TRUE){
       master_players <- leaderboard %>% 
         {if(nrow(.) > 0) pull(., name) else NA_character_ }
       
-      # if I have at least 30 players in master I collect their data; else i collect from players that recently played ranked matches
-      if(length(master_players) >= 30){
-        
-        # print message to console
-        cat(sprintf(" - There are %s master players; collecting match data from them. \n", length(master_players)))
-        
-        # get puuid of players from "m_player" database
-        player_data <- m_player$find() %>% 
-          as_tibble()
-        
-        # filter only master players
-        puuid_list <- player_data %>% 
-          filter(gameName %in% master_players) %>% 
-          pull(puuid)
+      # save current master players
+      if(length(master_players) >= 10){
         
         # save masters (for when next season hits)
-        saveRDS(object = puuid_list, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
+        saveRDS(object = master_players, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
         
-      } else if(exists("puuid_list")){
+      } else if (Sys.time()-lubridate::days(30) <= R.utils::lastModified("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")){
         
-        # print message to console
-        cat(sprintf(" - There are only %s master players; collecting match data from previous season' masters. \n", length(master_players)))
-
-        # save previous season masters
-        saveRDS(object = puuid_list, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
+        old_masters <- readRDS(file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
         
-      } else if(file.exists("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")){
-        
-        # print message to console
-        cat(sprintf(" - There are only %s master players; using .rds with previous season' masters. \n", length(master_players)))
-        
-        # last season master players
-        old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
-        
-        # get puuid of players from "m_player" database
-        player_data <- m_player$find() %>% 
-          as_tibble()
-        
-        # filter only master players
-        puuid_list <- player_data %>% 
-          filter(gameName %in% old_master_players) %>% 
-          pull(puuid)
-        
-      } else {
-        
-        # print message to console
-        cat(sprintf(" - There are only %s master players; collecting match data from people who recently played ranked games. \n", length(master_players)))
-
-        # if there are less than 30 master in the leaderboard, just use all players that we have collected from data
-        player_data <- m_match$find(
-          query = '{"info.game_type":"Ranked"}', 
-          fields = '{"info.players.puuid" : true, "info.game_start_time_utc" : true, "_id": false}'
-        ) %>% 
-          .[["info"]]
-        
-        # filter only players that recently played ranked matches
-        player_data <- player_data %>% 
-          as_tibble() %>% 
-          mutate(game_start_time_utc = as_date(game_start_time_utc)) %>%
-          filter(game_start_time_utc >= Sys.Date() - days(3))
-        
-        # get puuids
-        puuid_list <- player_data$players %>% 
-          bind_rows() %>% 
-          distinct(puuid) %>% 
-          pull()
+        saveRDS(object = old_masters, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
         
       }
+      
+      # last season master players (collecting data from them)
+      old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
+      
+      # get players to read match data from (old season masters + current masters)
+      player_data <- m_player$find() %>% 
+        as_tibble()
+      
+      # filter only master players
+      puuid_list <- player_data %>% 
+        filter(gameName %in% c(master_players, old_master_players)) %>% 
+        pull(puuid)
       
     }
     
