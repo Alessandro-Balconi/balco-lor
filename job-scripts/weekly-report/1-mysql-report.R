@@ -203,7 +203,7 @@ from_puuid_to_riotid <- function(puuid, shard){
 }
 
 # perform GET calls but with a delay in them
-get_slowly <- function(..., delay = 1){
+get_slowly <- function(..., delay = 0.1){
   
   Sys.sleep(delay)
   
