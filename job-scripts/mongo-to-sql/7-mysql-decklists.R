@@ -91,45 +91,6 @@ data <- data %>%
   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
   select(-new_name)
 
-# 5.1 table of last 3 days ----
-
-# keep only data for last 3 days
-data_3d <- data %>% 
-  filter(last_d > 1) %>% 
-  select(-last_d)
-
-# calculate information
-data_decks_3d <- data_3d %>% 
-  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
-
-data_decks_3d <- data_decks_3d %>% 
-  rowwise() %>% 
-  mutate(match = sum(c_across(where(is.numeric)))) %>% 
-  ungroup() %>% 
-  filter(match >= 5) %>% 
-  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
-  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
-
-# 5.2 table of last 7 days ----
-
-# keep only data for last 7 days
-data_7d <- data %>% 
-  filter(last_d > 0) %>% 
-  group_by(game_outcome, archetype, deck_code) %>% 
-  summarise(n = sum(n), .groups = "drop")
-
-# calculate information
-data_decks_7d <- data_7d %>% 
-  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
-
-data_decks_7d <- data_decks_7d %>% 
-  rowwise() %>% 
-  mutate(match = sum(c_across(where(is.numeric)))) %>% 
-  ungroup() %>% 
-  filter(match >= 5) %>% 
-  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
-  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
-
 # 5.3 table of current patch ----
 
 # remove last 7 days information
@@ -155,12 +116,6 @@ if(nrow(data_decks) >  0){
   
   data_decks %>% 
     DBI::dbWriteTable(conn = con, name = "lor_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
-  
-  data_decks_7d %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_decklists_7d", value = ., overwrite = TRUE, row.names = FALSE) 
-  
-  data_decks_3d %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_decklists_3d", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 

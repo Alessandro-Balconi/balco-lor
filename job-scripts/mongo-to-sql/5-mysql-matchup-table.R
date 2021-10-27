@@ -160,17 +160,13 @@ if(nrow(data_matchup) >  0){
   data_matchup %>% 
     DBI::dbWriteTable(conn = con, name = "lor_matchup_table", value = ., overwrite = TRUE, row.names = FALSE) 
 
+  data_matchup_v2 %>% 
+    DBI::dbWriteTable(conn = con, name = "lor_matchup_table_v2", value = ., overwrite = TRUE, row.names = FALSE) 
+
   Sys.time() %>%
     as_tibble() %>% 
     DBI::dbWriteTable(conn = con, name = "lor_update_time", value = ., overwrite = TRUE, row.names = FALSE) 
   
-}
-
-if(nrow(data_matchup_v2) >  0){
-  
-  data_matchup_v2 %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_matchup_table_v2", value = ., overwrite = TRUE, row.names = FALSE) 
-
 }
 
 DBI::dbDisconnect(con)
