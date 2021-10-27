@@ -43,6 +43,10 @@ get_monoregion <- function(champs){
 # connect to MongoDB
 m_db <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
 
+# connect to MongoDB (leaderboard)
+m_lb <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_leaderboard_asia")
+m_pl <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player_asia")
+
 # close previous connections to MySQL database (if any)
 if(exists("con")){ DBI::dbDisconnect(con) }
 
@@ -112,6 +116,16 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     TRUE ~ nameRef
   ))
 
+# master leaderboard 
+leaderboard <- m_lb$find() %>% 
+  pull(name) %>%
+  paste0(collapse = '\", \"') %>% 
+  paste0("\"", ., "\"")
+
+# get PUUIDs of master players
+master_puuids <- m_pl$find(query = sprintf('{"gameName" : { "$in" : [ %s ] } }', leaderboard), fields = '{"_id":0, "puuid":1}') %>% 
+  pull(puuid)
+
 # 5. convert from BSON to tabular ----
 
 # unpack data & remove useless column
@@ -180,6 +194,10 @@ data <- data %>%
 data <- data %>% 
   mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
   mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
+
+# add check whether the player is master or not
+data <- data %>% 
+  mutate(is_master = (puuid %in% master_puuids))
 
 # 6. save to MySQL db ----
 
