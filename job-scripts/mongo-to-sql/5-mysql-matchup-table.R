@@ -66,50 +66,6 @@ min_date <- tbl(con, "lor_match_info_na") %>%
 # archetypes aggregation mapping
 archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
 
-# 5.2 table of current patch ----
-
-# extract data from MySQL
-data <- tbl(con, "lor_match_info_na") %>%
-  union_all(tbl(con, "lor_match_info")) %>% 
-  union_all(tbl(con, "lor_match_info_asia")) %>% 
-  filter(str_detect(game_version, current_patch)) %>% 
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-  filter(game_start_time_utc >= min_date) %>% 
-  select(match_id, game_outcome, archetype) %>% 
-  collect()
-
-# merge archetypes according to mapping
-data <- data %>%
-  left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
-  mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
-  select(-new_name)
-
-# calculate matchup information
-data_matchup <- data %>%
-  group_by(match_id) %>%
-  arrange(match_id, archetype) %>% 
-  mutate(id = row_number()) %>% 
-  mutate(winner = case_when(id == 1 & game_outcome == "win" ~ 1, id == 2 & game_outcome == "win" ~ 2, TRUE ~ 0)) %>% 
-  pivot_wider(names_from = id, values_from = archetype, names_prefix = "archetype_") %>% 
-  fill(starts_with("archetype_"), .direction = "updown") %>% 
-  ungroup() %>% 
-  filter(winner != 0) %>%
-  group_by(across(starts_with("archetype_"))) %>% 
-  summarise(n = n(), wins = sum(winner == 1), .groups = "drop") %>% 
-  mutate(winrate = ifelse(archetype_1 == archetype_2, 0.5, wins / n)) 
-
-# also calculate the matchup information from the opponent's POV
-data_matchup2 <- tibble(
-  archetype_1 = data_matchup$archetype_2,
-  archetype_2 = data_matchup$archetype_1,
-  n = data_matchup$n,
-  winrate = 1- data_matchup$winrate
-)
-
-data_matchup <- data_matchup %>% 
-  select(-wins) %>% 
-  bind_rows(data_matchup2)
-
 # 5.3 table v2 ----
 
 # extract data from MySQL
@@ -157,9 +113,6 @@ data_matchup_v2 <- data_matchup_v2 %>%
 
 if(nrow(data_matchup) >  0){
   
-  data_matchup %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_matchup_table", value = ., overwrite = TRUE, row.names = FALSE) 
-
   data_matchup_v2 %>% 
     DBI::dbWriteTable(conn = con, name = "lor_matchup_table_v2", value = ., overwrite = TRUE, row.names = FALSE) 
 
