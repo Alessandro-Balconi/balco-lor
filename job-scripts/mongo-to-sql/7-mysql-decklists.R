@@ -72,6 +72,11 @@ archetypes <- tbl(con, "lor_match_info_na") %>%
   collect() %>% 
   pull(archetype)
   
+# merge archetypes according to mapping
+archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
+
+# 5.3 table of current patch ----
+
 # extract data from MySQL
 data <- tbl(con, "lor_match_info_na") %>%
   union_all(tbl(con, "lor_match_info")) %>% 
@@ -79,24 +84,13 @@ data <- tbl(con, "lor_match_info_na") %>%
   filter(str_detect(game_version, current_patch), archetype %in% archetypes) %>% 
   mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
-  mutate(last_d = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
-  count(game_outcome, archetype, deck_code, last_d) %>% 
+  count(game_outcome, archetype, deck_code) %>% 
   collect()
-
-# merge archetypes according to mapping
-archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
 
 data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
   select(-new_name)
-
-# 5.3 table of current patch ----
-
-# remove last 7 days information
-data <- data %>% 
-  group_by(game_outcome, archetype, deck_code) %>% 
-  summarise(n = sum(n), .groups = "drop")
 
 # calculate information
 data_decks <- data %>% 
@@ -110,12 +104,43 @@ data_decks <- data_decks %>%
   {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
   {if(nrow(.)>0) select(., archetype, deck_code, match, winrate) else . }
 
+# 5.2 table of current patch v2 ----
+
+# extract data from MySQL
+data_v2 <- tbl(con, "lor_match_info_na") %>%
+  union_all(tbl(con, "lor_match_info")) %>% 
+  union_all(tbl(con, "lor_match_info_asia")) %>% 
+  filter(str_detect(game_version, current_patch), archetype %in% archetypes) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  filter(game_start_time_utc >= min_date) %>% 
+  mutate(time_frame = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
+  count(game_outcome, archetype, deck_code, time_frame, is_master) %>% 
+  collect()
+
+data_v2 <- data_v2 %>%
+  left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
+  mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>%
+  select(-new_name)
+
+# calculate information
+data_decks_v2 <- data_v2 %>% 
+  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
+
+data_decks_v2 <- data_decks_v2 %>% 
+  mutate(match = win + loss + tie) %>% 
+  filter(match >= 5) %>% 
+  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
+  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate, time_frame, is_master) else . }
+
 # 6. save to MySQL db ----
 
 if(nrow(data_decks) >  0){
   
   data_decks %>% 
     DBI::dbWriteTable(conn = con, name = "lor_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
+  
+  data_decks_v2 %>% 
+    DBI::dbWriteTable(conn = con, name = "lor_decklists_v2", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 
