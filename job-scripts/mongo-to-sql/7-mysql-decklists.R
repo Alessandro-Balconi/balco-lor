@@ -105,7 +105,7 @@ data_decks_v2 <- data_decks_v2 %>%
 
 # 6. save to MySQL db ----
 
-if(nrow(data_decks) >  0){
+if(nrow(data_decks_v2) >  0){
   
   data_decks_v2 %>% 
     DBI::dbWriteTable(conn = con, name = "lor_decklists_v2", value = ., overwrite = TRUE, row.names = FALSE) 

@@ -111,7 +111,7 @@ data_matchup_v2 <- data_matchup_v2 %>%
 
 # 6. save to MySQL db ----
 
-if(nrow(data_matchup) >  0){
+if(nrow(data_matchup_v2) >  0){
   
   data_matchup_v2 %>% 
     DBI::dbWriteTable(conn = con, name = "lor_matchup_table_v2", value = ., overwrite = TRUE, row.names = FALSE) 
