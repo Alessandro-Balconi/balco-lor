@@ -101,7 +101,7 @@ while(TRUE){
         filter(gameName %in% c(master_players, old_master_players)) %>% 
         pull(puuid)
       
-      cat(sprintf(" - Analyzing %s players (%s masters, %s plat+). \n", length(puuid_list), length(master_players), length(old_master_players)))
+      cat(sprintf(" - Analyzing %s players (%s masters, %s plat+). \n", length(puuid_list), length(master_players), length(setdiff(old_master_players, master_players))))
       
     }
     
@@ -118,8 +118,11 @@ while(TRUE){
     # extract contents of the call
     matches <- get_matches %>% content(as = "parsed") %>% unlist()
     
+    # already collected matches
+    already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
+    
     # check if we have already analyzed any of those
-    matches <- setdiff(x = matches, y = m_match$distinct("metadata.match_id"))
+    matches <- setdiff(x = matches, y = already_in_mongo)
     
     # get info from new matches
     match_list <- lapply(
