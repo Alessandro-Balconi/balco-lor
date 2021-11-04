@@ -54,35 +54,48 @@ con <- DBI::dbConnect(
   dbname = "db_prova"
 )
 
-# matchid with at least 1 master player
-master_matchids <- tbl(con, "lor_match_info") %>% 
+# number of master matches in the last 7 days
+count_master_match <- tbl(con, "lor_match_info") %>% 
   union_all(tbl(con, "lor_match_info_na")) %>% 
   union_all(tbl(con, "lor_match_info_asia")) %>%
   filter(game_start_time_utc >= start_date_char) %>% 
   filter(is_master == 1) %>% 
-  distinct(match_id) %>% 
+  distinct(match_id) %>%
+  count() %>% 
   collect() %>% 
-  pull(match_id)
+  pull(n)
 
-# number of master matches in the last week
-count_master_match <- length(master_matchids)
+# if I have at least 10k master matches, collect only master matches
+if(count_master_match >= 10000){
+  
+  # matchid with at least 1 master player (this week + last week)
+  master_matchids <- tbl(con, "lor_match_info") %>% 
+    union_all(tbl(con, "lor_match_info_na")) %>% 
+    union_all(tbl(con, "lor_match_info_asia")) %>%
+    filter(game_start_time_utc >= mysql_start_date) %>% 
+    filter(is_master == 1) %>% 
+    distinct(match_id) %>%
+    collect() %>% 
+    pull(match_id)
+  
+}
 
 # import match data (only from ranked games)
 data_eu <- tbl(con, "lor_match_info") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 5000) filter(., match_id %in% master_matchids) else . } %>% 
+  {if(count_master_match >= 10000) filter(., match_id %in% master_matchids) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data_na <- tbl(con, "lor_match_info_na") %>% 
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 5000) filter(., match_id %in% master_matchids) else . } %>% 
+  {if(count_master_match >= 10000) filter(., match_id %in% master_matchids) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data_asia <- tbl(con, "lor_match_info_asia") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 5000) filter(., match_id %in% master_matchids) else . } %>% 
+  {if(count_master_match >= 10000) filter(., match_id %in% master_matchids) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
