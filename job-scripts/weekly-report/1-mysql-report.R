@@ -54,33 +54,35 @@ con <- DBI::dbConnect(
   dbname = "db_prova"
 )
 
-# number of master matches in the last week
-count_master_match <- tbl(con, "lor_match_info") %>% 
+# matchid with at least 1 master player
+master_matchids <- tbl(con, "lor_match_info") %>% 
   union_all(tbl(con, "lor_match_info_na")) %>% 
   union_all(tbl(con, "lor_match_info_asia")) %>%
   filter(game_start_time_utc >= start_date_char) %>% 
   filter(is_master == 1) %>% 
   distinct(match_id) %>% 
-  summarise(n = n()) %>% 
   collect() %>% 
-  pull(n)
+  pull(match_id)
+
+# number of master matches in the last week
+count_master_match <- length(master_matchids)
 
 # import match data (only from ranked games)
 data_eu <- tbl(con, "lor_match_info") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 5000) filter(., is_master == 1) else . } %>% 
+  {if(count_master_match >= 5000) filter(., match_id %in% master_matchids) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data_na <- tbl(con, "lor_match_info_na") %>% 
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 5000) filter(., is_master == 1) else . } %>% 
+  {if(count_master_match >= 5000) filter(., match_id %in% master_matchids) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
 data_asia <- tbl(con, "lor_match_info_asia") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 5000) filter(., is_master == 1) else . } %>% 
+  {if(count_master_match >= 5000) filter(., match_id %in% master_matchids) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
   collect()
 
@@ -269,7 +271,7 @@ p2 <- data %>%
     match_analyzed = n_distinct(match_id),
     unique_players = n_distinct(puuid),
     unique_decklists = n_distinct(deck_code),
-    tied_match = sum(game_outcome == "tie") / 2
+    tied_match = ceiling(sum(game_outcome == "tie") / 2)
   ) %>%
   mutate(tied_match = sprintf("%s (%s)", tied_match, scales::percent(tied_match/match_analyzed, accuracy = .01))) %>%
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
