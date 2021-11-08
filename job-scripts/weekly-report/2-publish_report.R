@@ -17,11 +17,15 @@ latest <- reports %>%
   parse_number() %>% 
   max()
 
+# check which report emotes are available
+emotes <- system('ssh balco@lor-meta.com "ls -d /home/balco/www/assets/img/lor-emotes/*"', intern = TRUE) %>% 
+  str_remove_all(pattern = '/home/balco/www/assets/img/lor-emotes/|.png')
+
 # this should be changed every week
 p_report_number <- as.character(latest+1)
 p_full_art      <- "03IO006"
-p_emote         <- "lulu"
-p_subtitle      <- "Patch 2.18 - Week 3"
+p_emote         <- emotes[latest %% length(emotes)]
+p_subtitle      <- "Weekly Report at Master Rank!"
 
 # 3. functions ----
 
@@ -34,48 +38,36 @@ make_report <- function(template, report_number = "0", full_art = "03IO006", emo
 
 # 4. publish report ----
 
-if(as.numeric(p_report_number) != latest+1){
-  
-  RPushbullet::pbPost(
-    "note", 
-    title = "Weekly Report Publishing", 
-    body = "Report parameters where not updated this week. Failed to publish the report."
+# read template
+template <- map(
+  .x = list(template_file_1, template_file_2),
+  .f = ~readChar(., file.info(.)$size)
+)
+
+# add this week's parameter to the report
+suppressWarnings(
+  weekly_report <- map(
+    .x = template,
+    .f = ~make_report(template = .x, report_number = p_report_number, full_art = p_full_art, emote = p_emote, subtitle = p_subtitle)
   )
+)
+
+weekly_report <- str_flatten(weekly_report)
+
+# name of the report
+file_name <- sprintf("%s-meta-report-#%s.md", Sys.Date(), p_report_number)
+
+# remove previously stored reports
+do.call(file.remove, list(list.files("/home/balco/dev/lor-meta-report/templates/output/", full.names = TRUE)))
   
-} else {
+# save report locally
+writeLines(weekly_report, sprintf("/home/balco/dev/lor-meta-report/templates/output/%s", file_name))
   
-  # read template
-  template <- map(
-    .x = list(template_file_1, template_file_2),
-    .f = ~readChar(., file.info(.)$size)
-  )
-  
-  # add this week's parameter to the report
-  suppressWarnings(
-    weekly_report <- map(
-      .x = template,
-      .f = ~make_report(template = .x, report_number = p_report_number, full_art = p_full_art, emote = p_emote, subtitle = p_subtitle)
-    )
-  )
-  
-  weekly_report <- str_flatten(weekly_report)
-  
-  # name of the report
-  file_name <- sprintf("%s-meta-report-#%s.md", Sys.Date(), p_report_number)
-  
-  # remove previously stored reports
-  do.call(file.remove, list(list.files("/home/balco/dev/lor-meta-report/templates/output/", full.names = TRUE)))
-  
-  # save report locally
-  writeLines(weekly_report, sprintf("/home/balco/dev/lor-meta-report/templates/output/%s", file_name))
-  
-  # push to "lor-meta.com" and bundle exec jekyll build
-  system("scp -r /home/balco/dev/lor-meta-report/templates/output/* balco@lor-meta.com:/home/balco/www/_posts/")
-  
-  RPushbullet::pbPost(
-    "note", 
-    title = "Weekly Report Uploaded", 
-    body = "The weekly report was uploaded correctly."
-  )
-  
-}
+# push to "lor-meta.com" and bundle exec jekyll build
+system("scp -r /home/balco/dev/lor-meta-report/templates/output/* balco@lor-meta.com:/home/balco/www/_posts/")
+
+RPushbullet::pbPost(
+  "note", 
+  title = "Weekly Report Uploaded", 
+  body = "The weekly report was uploaded correctly."
+)
