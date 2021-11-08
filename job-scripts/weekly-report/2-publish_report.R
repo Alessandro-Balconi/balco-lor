@@ -9,11 +9,19 @@ suppressPackageStartupMessages(library(tidyverse))   # all purposes package
 template_file_1 <- "/home/balco/dev/lor-meta-report/templates/report_pt1.md" # this should not be changed
 template_file_2 <- "/home/balco/dev/lor-meta-report/templates/report_pt2.md" # this should not be changed
 
+# check which report is the last available (to make sure we updated the parameters this week)
+reports <- system('ssh balco@lor-meta.com "ls -d /home/balco/www/_posts/*"', intern = TRUE)
+
+latest <- reports %>% 
+  str_extract(pattern = "\\#[0-9]+") %>% 
+  parse_number() %>% 
+  max()
+
 # this should be changed every week
-p_report_number <- "18"
+p_report_number <- as.character(latest+1)
 p_full_art      <- "03IO006"
-p_emote         <- "lux"
-p_subtitle      <- "Patch 2.18 - Week 2"
+p_emote         <- "lulu"
+p_subtitle      <- "Patch 2.18 - Week 3"
 
 # 3. functions ----
 
@@ -25,14 +33,6 @@ make_report <- function(template, report_number = "0", full_art = "03IO006", emo
 }
 
 # 4. publish report ----
-
-# check which report is the last available (to make sure we updated the parameters this week)
-reports <- system('ssh balco@lor-meta.com "ls -d /home/balco/www/_posts/*"', intern = TRUE)
-
-latest <- reports %>% 
-  str_extract(pattern = "\\#[0-9]+") %>% 
-  parse_number() %>% 
-  max()
 
 if(as.numeric(p_report_number) != latest+1){
   
