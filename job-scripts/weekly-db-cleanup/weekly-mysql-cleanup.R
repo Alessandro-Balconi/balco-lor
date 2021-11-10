@@ -69,7 +69,7 @@ if(length(old_matchid_na) > 0){
   
   delete_query <- paste0("DELETE FROM lor_match_info_na WHERE (match_id IN ('", paste0(old_matchid_na, collapse = "','"), "'));")
   
-  DBI::dbSendQuery(con, delete_query)
+  DBI::dbExecute(con, delete_query)
   
 }
 
@@ -83,7 +83,7 @@ if(length(old_matchid_eu) > 0){
   
   delete_query <- paste0("DELETE FROM lor_match_info WHERE (match_id IN ('", paste0(old_matchid_eu, collapse = "','"), "'));")
   
-  DBI::dbSendQuery(con, delete_query)
+  DBI::dbExecute(con, delete_query)
   
 }
 
@@ -97,7 +97,7 @@ if(length(old_matchid_asia) > 0){
   
   delete_query <- paste0("DELETE FROM lor_match_info_asia WHERE (match_id IN ('", paste0(old_matchid_asia, collapse = "','"), "'));")
   
-  DBI::dbSendQuery(con, delete_query)
+  DBI::dbExecute(con, delete_query)
   
 }
 
