@@ -97,8 +97,10 @@ data_v2 <- data_v2 %>%
 data_decks_v2 <- data_v2 %>% 
   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
 
-data_decks_v2 <- data_decks_v2 %>% 
-  mutate(match = win + loss + tie) %>% 
+data_decks_v2 <- data_decks_v2 %>%
+  rowwise() %>% 
+  mutate(match = sum(c_across(c(win, loss, matches("tie"))))) %>% 
+  ungroup() %>% 
   filter(match >= 5) %>% 
   {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
   {if(nrow(.)>0) select(., archetype, deck_code, match, winrate, time_frame, is_master) else . }
