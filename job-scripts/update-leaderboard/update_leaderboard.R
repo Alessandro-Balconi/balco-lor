@@ -17,7 +17,7 @@ update_leaderboard <- function(region){
   base.url <- sprintf("https://%s.api.riotgames.com/", region) # americas, asia, europe, sea
 
   # GET call
-  get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key))
+  get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
   
   # if status == 200 (good response)
   if(get_leaderboard$status_code == 200){
