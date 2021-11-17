@@ -28,45 +28,16 @@ update_leaderboard <- function(region){
     # fix rank (it starts from 0, should start from 1)
     if(nrow(leaderboard) > 0){ leaderboard <- leaderboard %>% mutate(rank = rank + 1) }
     
-    # name of the collection to update
-    db_collection <- switch(
-      region,
-      "europe" = "lor_leaderboard",
-      "americas" = "lor_leaderboard_na",
-      "asia" = "lor_leaderboard_asia"
-    )
-    
+    # choose table name based on region
     sql_collection <- switch(
       region,
       "europe" = "leaderboard_eu",
       "americas" = "leaderboard_na",
       "asia" = "leaderboard_asia"
     )
-    
-    dbu_collection <- switch(
-      region,
-      "europe" = "lor_leaderboard_update",
-      "americas" = "lor_leaderboard_update_na",
-      "asia" = "lor_leaderboard_update_asia"
-    )
-    
+
     # update leadeboard in SQL
     DBI::dbWriteTable(conn = con, name = sql_collection, value = leaderboard, overwrite = TRUE, row.names = FALSE)
-    
-    # connect to databases
-    m_lb      <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = db_collection)
-    m_lb_upd  <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = dbu_collection)
-    
-    # update leaderboard to db
-    m_lb$remove(query = "{}")
-    m_lb$insert(leaderboard)
-    
-    # update "lb_update"
-    lb_update <- Sys.time()
-    
-    # uodate leaderboard update time
-    m_lb_upd$remove(query = "{}")
-    m_lb_upd$insert(data.frame(lb_update))
     
     # wait to prevent too many API calls
     Sys.sleep(0.05)
@@ -77,9 +48,10 @@ update_leaderboard <- function(region){
 
 # 3. set parameters ----
 
+# api key
 api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 
-db_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
+# MySQL credentials
 sql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # 4. connect to db ----
