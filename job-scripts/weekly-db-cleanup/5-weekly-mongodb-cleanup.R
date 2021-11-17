@@ -25,13 +25,9 @@ m_db1_old <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_cre
 m_db2_old <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_na_old")
 m_db3_old <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = "lor_match_info_asia_old")
 
-# 3. extract old matches from dbs ----
+# 3. extract old matches from dbs & add them to "old_db" & remove them from current dbs----
 
 old_eu   <- m_db1$find(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
-old_na   <- m_db2$find(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
-old_asia <- m_db3$find(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
-
-# 4. add those matches to "old_db" & remove them from current dbs ----
 
 if(nrow(old_eu) > 0){
   
@@ -40,12 +36,18 @@ if(nrow(old_eu) > 0){
   
 }
 
+rm(old_eu)
+old_na   <- m_db2$find(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
+
 if(nrow(old_na) > 0){
   
   m_db2_old$insert(old_na)
   m_db2$remove(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
   
 }
+
+rm(old_na)
+old_asia <- m_db3$find(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
 
 if(nrow(old_asia) > 0){
   
