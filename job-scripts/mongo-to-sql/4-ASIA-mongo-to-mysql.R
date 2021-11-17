@@ -114,7 +114,7 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
   ))
 
 # master leaderboard 
-leaderboard <- tbl(con, "leadeboard_asia") %>% 
+leaderboard <- tbl(con, "leaderboard_asia") %>% 
   pull(name) %>%
   paste0(collapse = '\", \"') %>% 
   paste0("\"", ., "\"")
