@@ -36,12 +36,22 @@ update_leaderboard <- function(region){
       "asia" = "lor_leaderboard_asia"
     )
     
+    sql_collection <- switch(
+      region,
+      "europe" = "leaderboard_eu",
+      "americas" = "leaderboard_na",
+      "asia" = "leaderboard_asia"
+    )
+    
     dbu_collection <- switch(
       region,
       "europe" = "lor_leaderboard_update",
       "americas" = "lor_leaderboard_update_na",
       "asia" = "lor_leaderboard_update_asia"
     )
+    
+    # update leadeboard in SQL
+    DBI::dbWriteTable(conn = con, name = sql_collection, value = leaderboard, overwrite = TRUE, row.names = FALSE)
     
     # connect to databases
     m_lb      <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$uid, db_creds$pwd), collection = db_collection)
@@ -70,9 +80,26 @@ update_leaderboard <- function(region){
 api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 
 db_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
+sql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
-# 4. launch function calls ----
+# 4. connect to db ----
+
+# close previous connections to MySQL database (if any)
+if(exists("con")){ DBI::dbDisconnect(con) }
+
+# create connection to MySQL database
+con <- DBI::dbConnect(
+  RMariaDB::MariaDB(),
+  db_host = "127.0.0.1",
+  user = sql_creds$uid,
+  password = sql_creds$pwd,
+  dbname = "db_prova"
+)
+
+# 5. launch function calls ----
 
 update_leaderboard(region = "europe")
 update_leaderboard(region = "americas")
 update_leaderboard(region = "asia")
+
+DBI::dbDisconnect(con)

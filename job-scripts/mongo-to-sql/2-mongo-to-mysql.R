@@ -41,9 +41,6 @@ get_monoregion <- function(champs){
 
 # connect to MongoDB
 m_db <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info")
-
-# connect to MongoDB (leaderboard)
-m_lb <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_leaderboard")
 m_pl <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player")
 
 # close previous connections to MySQL database (if any)
@@ -116,7 +113,8 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
   ))
 
 # master leaderboard 
-leaderboard <- m_lb$find() %>% 
+leaderboard <- tbl(con, "leaderboard_eu") %>%
+  collect() %>% 
   pull(name) %>%
   paste0(collapse = '\", \"') %>% 
   paste0("\"", ., "\"")
