@@ -8,9 +8,12 @@ suppressPackageStartupMessages(library(lubridate))
 
 # 2. connect to db & load data ----
 
+# credentials
+mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
+
 # connect to db
-m_match   <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_match_info")
-m_player  <- mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = "lor_player")
+m_match   <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info")
+m_player  <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player")
 
 # 3. set api parameters ----
 
@@ -21,6 +24,9 @@ path_match_info    <- "lor/match/v1/matches/"
 
 # initialize parameters
 i <- 1 # cycle parameter
+
+# api key
+api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 
 # 4. define functions ----
 
@@ -46,8 +52,6 @@ add_player_to_db <- function(player){
 
 # 5. make calls ----
 
-api_key <- "RGAPI-ae4106eb-969c-4957-ba08-724b72ad70ac"
-
 while(TRUE){
   
   # at the start of each cycle, initialize list of players to extract match from
@@ -59,6 +63,10 @@ while(TRUE){
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
     m_match$remove('{"status.status_code":{"$exists": true}}')
+    
+    # matches already collected (to prevent collecting them again)
+    # could be done just once but doing it every cicle for safety
+    already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
     
     # get leaderboard
     get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
@@ -119,9 +127,6 @@ while(TRUE){
     # extract contents of the call
     matches <- get_matches %>% content(as = "parsed") %>% unlist()
     
-    # already collected matches
-    already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
-    
     # check if we have already analyzed any of those
     matches <- setdiff(x = matches, y = already_in_mongo)
     
@@ -154,6 +159,16 @@ while(TRUE){
     
     # save to database
     map(.x = match_content, .f = ~m_match$insert(.))
+    
+    # add to "already_in_mongo" the ones we collected (status_code = 200)
+    new_matches <- tibble(
+      id = matches,
+      status = match_list %>% map_dbl('status_code')
+    ) %>% 
+      filter(status == 200) %>% 
+      pull(id)
+    
+    already_in_mongo <- c(already_in_mongo, new_matches)
     
     # convert "game_start_time_utc" to MongoDB class Date 
     m_match$update(
