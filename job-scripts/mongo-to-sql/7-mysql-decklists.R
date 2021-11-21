@@ -61,6 +61,10 @@ min_date <- tbl(con, "lor_match_info_na") %>%
   mutate(min_date = min_date + lubridate::days(1)) %>% 
   pull()
 
+# merge archetypes according to mapping
+archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
+
+# games played by archetype (needed for next step)
 archetypes <- tbl(con, "lor_match_info_na") %>% 
   union_all(tbl(con, "lor_match_info")) %>% 
   union_all(tbl(con, "lor_match_info_asia")) %>% 
@@ -68,12 +72,18 @@ archetypes <- tbl(con, "lor_match_info_na") %>%
   mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
   count(archetype) %>% 
-  filter(n >= 950) %>% 
-  collect() %>% 
-  pull(archetype)
+  filter(n >= 5) %>% 
+  collect()
   
-# merge archetypes according to mapping
-archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
+# archetype need at least 950 match played to be imported
+archetypes <- archetypes %>% 
+  left_join(archetypes_map, by = c('archetype' = 'old_name')) %>% 
+  mutate(new_name = coalesce(new_name, archetype)) %>% 
+  group_by(new_name) %>% 
+  mutate(n = sum(n, na.rm = TRUE)) %>%
+  ungroup() %>% 
+  filter(n >= 950) %>% 
+  pull(archetype)
 
 # 5.2 table of current patch v2 ----
 
