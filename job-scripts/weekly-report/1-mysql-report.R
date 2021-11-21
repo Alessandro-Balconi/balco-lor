@@ -426,8 +426,10 @@ p <- data_history %>%
   geom_label(x = ymd("2021-08-25")+1, y = 0, label = "BtB \n Patch 2.14", size = 4) +
   geom_segment(x = ymd("2021-10-20")+1, xend = ymd("2021-10-20")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-10-20")+1, y = 0, label = "Balance Change \n Patch 2.18", size = 4) +
+  geom_segment(x = ymd("2021-11-10")+1, xend = ymd("2021-10-11")+1, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+  geom_label(x = ymd("2021-11-10")+1, y = 0, label = "PoC Event \n Patch 2.19", size = 4) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
-  theme_bw(base_size = 15) +
+  theme_bw(base_size = 15, axis.text.x = element_text(angle = 20, hjust = 1)) +
   expand_limits(y = 0) +
   scale_x_continuous(breaks = unique(data_history$week), labels = nice_date) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1L)) +
