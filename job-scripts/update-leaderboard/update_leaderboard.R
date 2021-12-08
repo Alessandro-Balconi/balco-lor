@@ -35,9 +35,31 @@ update_leaderboard <- function(region){
       "americas" = "leaderboard_na",
       "asia" = "leaderboard_asia"
     )
-
+    
+    # if no master players, initialize empty table
+    if(nrow(leaderboard) == 0){ leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double()) }
+    
     # update leadeboard in SQL
     DBI::dbWriteTable(conn = con, name = sql_collection, value = leaderboard, overwrite = TRUE, row.names = FALSE)
+    
+    # hour at which the snapshot is taken (UTC time)
+    daily_hour <- switch(
+      region,
+      "europe" = 22,
+      "americas" = 14,
+      "asia" = 6
+    )
+    
+    # once a day, also save a daily leaderboard snapshot (& make tweets)
+    if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) < 29){
+      
+      # daily leaderboard name
+      daily_collection <- paste0(sql_collection, "_daily")
+      
+      # update leadeboard in SQL
+      DBI::dbWriteTable(conn = con, name = daily_collection, value = leaderboard, overwrite = TRUE, row.names = FALSE)
+      
+    }
     
     # wait to prevent too many API calls
     Sys.sleep(0.05)
