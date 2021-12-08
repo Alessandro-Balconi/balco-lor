@@ -91,7 +91,7 @@ while(TRUE){
         
         old_masters <- readRDS(file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/europe.rds")
         
-        cat(sprintf("Saving Old Master Leaderboards: %s", Sys.time()))
+        cat(sprintf(" - Saving Old Master Leaderboards: %s", Sys.time()))
         
         saveRDS(object = old_masters, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds")
         
