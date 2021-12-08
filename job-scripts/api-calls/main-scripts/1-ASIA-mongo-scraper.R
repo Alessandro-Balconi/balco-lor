@@ -87,7 +87,7 @@ while(TRUE){
         # save masters (for when next season hits)
         saveRDS(object = master_players, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
         
-      } else if (Sys.time()-lubridate::days(30) <= R.utils::lastModified("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")){
+      } else if (Sys.time()-lubridate::days(30) >= R.utils::lastModified("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")){
         
         old_masters <- readRDS(file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/asia.rds")
         
