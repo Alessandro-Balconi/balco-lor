@@ -121,7 +121,7 @@ leaderboard <- tbl(con, "leaderboard_na") %>%
 
 # get PUUIDs of master players
 master_puuids <- m_pl$find(query = sprintf('{"gameName" : { "$in" : [ %s ] } }', leaderboard), fields = '{"_id":0, "puuid":1}') %>% 
-  pull(puuid)
+  {if(nrow(.) > 0) pull(., puuid) else NA_character_}
 
 # 5. convert from BSON to tabular ----
 
