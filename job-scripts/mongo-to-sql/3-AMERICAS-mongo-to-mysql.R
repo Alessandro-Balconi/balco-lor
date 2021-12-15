@@ -213,4 +213,13 @@ if(nrow(data) >  0){
   
 }
 
+# save matches to db v2
+if(nrow(data) >  0){
+ 
+ data %>% 
+   mutare(region = 'americas') %>% 
+   DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
+ 
+}
+
 DBI::dbDisconnect(con)
