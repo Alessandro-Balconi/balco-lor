@@ -205,7 +205,7 @@ data <- data %>%
 if(nrow(data) >  0){
   
   data %>% 
-    mutare(region = 'asia') %>% 
+    mutate(region = 'asia') %>% 
     DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
   
 }
