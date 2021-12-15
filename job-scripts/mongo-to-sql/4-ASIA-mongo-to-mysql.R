@@ -201,14 +201,6 @@ data <- data %>%
 # first initialization of database
 #DBI::dbWriteTable(conn = con, name = "lor_match_info_asia", value = data, row.names = FALSE)
 
-# save matches to db
-if(nrow(data) >  0){
-  
-  data %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_match_info_asia", value = ., append = TRUE, row.names = FALSE) 
-  
-}
-
 # save matches to db v2
 if(nrow(data) >  0){
   
