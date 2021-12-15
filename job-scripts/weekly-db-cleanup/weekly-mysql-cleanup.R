@@ -57,6 +57,15 @@ old_matchid_asia <- match_times_asia %>%
   filter(date(game_start_time_utc) <  Sys.Date() - days(30)) %>% 
   pull(match_id)
 
+match_times_v2 <- tbl(con, "lor_match_info_v2") %>% 
+  distinct(match_id, game_start_time_utc) %>% 
+  collect()
+
+old_matchid_v2 <- match_times_v2 %>% 
+  mutate(game_start_time_utc = as.POSIXct(game_start_time_utc)) %>% 
+  filter(date(game_start_time_utc) <  Sys.Date() - days(30)) %>% 
+  pull(match_id)
+
 # 4. add those to "old_db" and remove them from main collections ----
 
 if(length(old_matchid_na) > 0){
@@ -96,6 +105,20 @@ if(length(old_matchid_asia) > 0){
   DBI::dbWriteTable(con, "lor_match_info_old_asia", value = old_asia, append = TRUE, row.names = FALSE)
   
   delete_query <- paste0("DELETE FROM lor_match_info_asia WHERE (match_id IN ('", paste0(old_matchid_asia, collapse = "','"), "'));")
+  
+  DBI::dbExecute(con, delete_query)
+  
+}
+
+if(length(old_matchid_v2) > 0){
+  
+  old_v2 <- tbl(con, "lor_match_info_v2") %>% 
+    filter(match_id %in% old_matchid_v2) %>% 
+    collect()
+  
+  DBI::dbWriteTable(con, "lor_match_info_old_v2", value = old_v2, append = TRUE, row.names = FALSE)
+  
+  delete_query <- paste0("DELETE FROM lor_match_info_v2 WHERE (match_id IN ('", paste0(old_matchid_v2, collapse = "','"), "'));")
   
   DBI::dbExecute(con, delete_query)
   
