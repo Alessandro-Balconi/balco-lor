@@ -31,7 +31,7 @@ con <- DBI::dbConnect(
 )
 
 # list of patches
-patch_list <- tbl(con, "lor_match_info_na") %>% 
+patch_list <- tbl(con, "lor_match_info_v2") %>% 
   distinct(game_version) %>% 
   collect() %>% 
   mutate(across(game_version, ~word(string = ., start = 2, end = -2, sep = "_"))) %>% 

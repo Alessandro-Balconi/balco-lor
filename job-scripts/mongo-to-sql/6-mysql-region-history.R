@@ -39,9 +39,7 @@ con <- DBI::dbConnect(
 
 # 5. prepare table ----
 
-data <- tbl(con, "lor_match_info_na") %>%
-  union_all(tbl(con, "lor_match_info")) %>% 
-  union_all(tbl(con, "lor_match_info_asia")) %>% 
+data <- tbl(con, "lor_match_info_v2") %>%
   select(match_id, game_start_time_utc, starts_with("faction_")) %>%
   filter(game_start_time_utc <= mysql_end_date, game_start_time_utc >= mysql_start_date) %>% 
   collect()
