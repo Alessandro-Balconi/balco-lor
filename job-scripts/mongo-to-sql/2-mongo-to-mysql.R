@@ -56,7 +56,8 @@ con <- DBI::dbConnect(
 )
 
 # get matches already in sql
-already_in_sql <- tbl(con, "lor_match_info") %>% 
+already_in_sql <- tbl(con, "lor_match_info_v2") %>% 
+  filter(region == 'europe') %>% 
   distinct(match_id) %>% 
   collect() %>% 
   pull() %>%
