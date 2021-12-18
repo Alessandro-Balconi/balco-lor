@@ -10,11 +10,23 @@ suppressPackageStartupMessages(library(lubridate))
 
 # credentials
 mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
+mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
-# connect to db
+# connect to mongodb
 m_match   <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
 m_player  <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player_asia")
 
+# close previous connections to MySQL database (if any)
+if(exists("con")){ DBI::dbDisconnect(con) }
+
+# connect to mysql db
+con <- DBI::dbConnect(
+  RMariaDB::MariaDB(),
+  db_host = "127.0.0.1",
+  user = mysql_creds$uid,
+  password = mysql_creds$pwd,
+  dbname = mysql_creds$dbs
+)
 # 3. set api parameters ----
 
 # API path
@@ -34,10 +46,12 @@ api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 # 
 #' @param player - the output of a content(GET(...)) call to "/riot/account/v1/accounts/by-puuid/"
 #' 
-add_player_to_db <- function(player){
+add_player_to_db <- function(player, region = 'asia'){
   
   # add check to add player only if the call went well; otherwise just do nothing...
   if(!is.null(player$puuid)){
+    
+    # MongoDB
     
     # if we don't have the player, add it; else update it's info (maybe the gameName or tagLine changed)
     check_puuid   <- sprintf('{"puuid":"%s"}', player$puuid)
@@ -46,6 +60,20 @@ add_player_to_db <- function(player){
     # run update
     m_player$update(check_puuid, update_fields, upsert = TRUE)
     
+    # MySQL
+    
+    # run update
+    DBI::dbExecute(
+      conn = con,
+      statement = sprintf(
+        "REPLACE INTO test
+        (puuid, gameName, tagLine, region)
+        VALUES
+        (%s);",
+        paste0("'", paste0(c(player$puuid, player$gameName, player$tagLine, region), collapse = "', '"), "'")
+      )
+    )
+
   }
   
 }
@@ -103,6 +131,12 @@ while(TRUE){
       # get players to read match data from (old season masters + current masters)
       player_data <- m_player$find() %>% 
         as_tibble()
+      
+      # if MySQL db works replace with this:
+      # player_data <- tbl(con, 'lor_players') %>% 
+      #   filter(region == 'asia') %>% 
+      #   select(-region) %>% 
+      #   collect()
       
       # filter only master players
       puuid_list <- player_data %>% 
