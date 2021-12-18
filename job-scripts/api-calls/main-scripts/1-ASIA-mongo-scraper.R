@@ -66,7 +66,7 @@ add_player_to_db <- function(player, region = 'asia'){
     DBI::dbExecute(
       conn = con,
       statement = sprintf(
-        "REPLACE INTO test
+        "REPLACE INTO lor_players
         (puuid, gameName, tagLine, region)
         VALUES
         (%s);",
