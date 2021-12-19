@@ -15,7 +15,7 @@ mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 # db connections ----
 
 # MongoDB
-m_pl <- mongolite::mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player_asia")
+m_pl <- mongolite::mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player_na")
 
 # create connection to MySQL database
 con <- DBI::dbConnect(
@@ -29,7 +29,19 @@ con <- DBI::dbConnect(
 # load data ----
 
 # import mongodb data
-pl <- m_pl$find() %>% as_tibble() %>% mutate(region = 'asia')
+pl <- m_pl$find() %>% as_tibble() %>% mutate(region = 'americas')
+
+# user already in db
+pl_old <- tbl(con, 'lor_players') %>% collect()
+
+# check duplicates
+dup <- bind_rows(pl, pl_old) %>% count(puuid) %>% filter(n > 1) %>% pull(puuid)
+
+# print duplicates
+bind_rows(pl, pl_old) %>% filter(puuid %in% dup) %>% arrange(puuid, region)
+
+# remove duplicates (not perfect but whatever, I'm gonna lose a couple of players...)
+pl <- pl %>% filter(!puuid %in% dup)
 
 # add to mysql
 DBI::dbWriteTable(conn = con, name = "lor_players", value = pl, append = TRUE, row.names = FALSE)
@@ -37,6 +49,7 @@ DBI::dbWriteTable(conn = con, name = "lor_players", value = pl, append = TRUE, r
 # check
 tbl(con, 'lor_players') %>% count(region)
 
+# JUST THE VERY FIRST TIME:
 # GO TO TERMINAL:
 # mysql -u balco -p db_prova
 # insert password

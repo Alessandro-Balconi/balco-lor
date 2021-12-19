@@ -13,8 +13,7 @@ mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
 mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # connect to mongodb
-m_match   <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
-m_player  <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player_asia")
+m_match <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
 
 # close previous connections to MySQL database (if any)
 if(exists("con")){ DBI::dbDisconnect(con) }
@@ -27,6 +26,7 @@ con <- DBI::dbConnect(
   password = mysql_creds$pwd,
   dbname = mysql_creds$dbs
 )
+
 # 3. set api parameters ----
 
 # API path
@@ -50,17 +50,6 @@ add_player_to_db <- function(player, region = 'asia'){
   
   # add check to add player only if the call went well; otherwise just do nothing...
   if(!is.null(player$puuid)){
-    
-    # MongoDB
-    
-    # if we don't have the player, add it; else update it's info (maybe the gameName or tagLine changed)
-    check_puuid   <- sprintf('{"puuid":"%s"}', player$puuid)
-    update_fields <- sprintf('{"$set":{"gameName":"%s", "tagLine":"%s"}}', player$gameName, player$tagLine)
-    
-    # run update
-    m_player$update(check_puuid, update_fields, upsert = TRUE)
-    
-    # MySQL
     
     # run update
     DBI::dbExecute(
@@ -129,14 +118,10 @@ while(TRUE){
       old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
       
       # get players to read match data from (old season masters + current masters)
-      player_data <- m_player$find() %>% 
-        as_tibble()
-      
-      # if MySQL db works replace with this:
-      # player_data <- tbl(con, 'lor_players') %>% 
-      #   filter(region == 'asia') %>% 
-      #   select(-region) %>% 
-      #   collect()
+      player_data <- tbl(con, 'lor_players') %>%
+        filter(region == 'asia') %>%
+        select(-region) %>%
+        collect()
       
       # filter only master players
       puuid_list <- player_data %>% 
