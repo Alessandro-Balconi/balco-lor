@@ -44,9 +44,9 @@ update_leaderboard <- function(region){
     # hour at which the snapshot is taken (UTC time)
     daily_hour <- switch(
       region,
-      "europe" = 22,
-      "americas" = 14,
-      "asia" = 6
+      "europe" = 21,
+      "americas" = 5,
+      "asia" = 13
     )
     
     # once a day, also save a daily leaderboard snapshot (& make tweets)
