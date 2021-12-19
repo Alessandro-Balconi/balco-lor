@@ -41,7 +41,6 @@ get_monoregion <- function(champs){
 
 # connect to MongoDB
 m_db <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info")
-m_pl <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_player")
 
 # close previous connections to MySQL database (if any)
 if(exists("con")){ DBI::dbDisconnect(con) }
@@ -116,12 +115,12 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
 # master leaderboard 
 leaderboard <- tbl(con, "leaderboard_eu") %>%
   collect() %>% 
-  pull(name) %>%
-  paste0(collapse = '\", \"') %>% 
-  paste0("\"", ., "\"")
+  pull(name)
 
 # get PUUIDs of master players
-master_puuids <- m_pl$find(query = sprintf('{"gameName" : { "$in" : [ %s ] } }', leaderboard), fields = '{"_id":0, "puuid":1}') %>% 
+master_puuids <- tbl(con, 'lor_players') %>% 
+  filter(region == 'europe', gameName %in% local(leaderboard)) %>% 
+  collect() %>% 
   {if(nrow(.) > 0) pull(., puuid) else NA_character_}
 
 # 5. convert from BSON to tabular ----

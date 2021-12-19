@@ -184,22 +184,13 @@ fill_matchup_table <- function(tbl){
 }
 
 # function that extracts name from player puuid
-# this is really not efficient since it calls mongoDB everytime; but I don't care it's just for a handful of players
 from_puuid_to_riotid <- function(puuid, shard){
   
-  db_collection <- switch(
-    shard,
-    "europe"   = "lor_player",
-    "americas" = "lor_player_na",
-    "asia"     = "lor_player_asia"
-  )
-  
-  m_player  <- mongolite::mongo(url = "mongodb://balco:n0nLadimentico@localhost:27017/admin", collection = db_collection)
-  
-  player <- m_player$find(sprintf('{"puuid" : "%s" }', puuid))
-  
-  player$gameName
-  
+  tbl(con, 'lor_players') %>% 
+    filter(region == local(shard), puuid == local(puuid)) %>% 
+    collect() %>% 
+    pull(name)
+
 }
 
 # perform GET calls but with a delay in them

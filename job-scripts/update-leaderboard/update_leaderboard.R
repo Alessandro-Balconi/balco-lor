@@ -5,7 +5,6 @@
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
-suppressPackageStartupMessages(library(mongolite)) # connect to MongoDB
 suppressPackageStartupMessages(library(httr))      # http requests
 
 # 2. functions ----
