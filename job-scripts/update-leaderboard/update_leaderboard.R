@@ -70,13 +70,13 @@ update_leaderboard <- function(region){
     # hour at which the snapshot is taken (UTC time)
     daily_hour <- switch(
       region,
-      "europe" = 1,
-      "americas" = 9,
-      "asia" = 17
+      "europe" = 0,
+      "americas" = 8,
+      "asia" = 16
     )
     
     # once a day, also save a daily leaderboard snapshot (& make tweets)
-    if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) < 29){
+    if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) > 29){
       
       # store api keys
       twitter_creds <- config::get("twitter", file = "/home/balco/my_rconfig.yml")
@@ -94,7 +94,7 @@ update_leaderboard <- function(region){
       daily_collection <- paste0(sql_collection, "_daily")
       
       # make plot with changes vs yesterday
-      if(nrow(leaderboard) >= 10){
+      if(nrow(leaderboard) >= 10 & FALSE){
         
         # check today's top 10 players and how they were doing yesteday
         new <- tbl(con, sql_collection) %>% filter(rank <= 10) %>% collect()
@@ -148,7 +148,10 @@ update_leaderboard <- function(region){
         ggsave(filename = "/home/balco/dev/lor-meta-report/templates/tweet-plots/leaderboard.png", plot = p, width = 12, height = 8, dpi = 180)
         
         # best 3 players of the day:
-        top_3 <- diff %>% slice_max(n = 3, order_by = lp_gain, with_ties = FALSE) %>% pull(name)
+        top_3 <- diff %>%
+          replace_na(list(lp_gain = 0)) %>% 
+          slice_max(n = 3, order_by = lp_gain, with_ties = FALSE) %>% 
+          pull(name)
         
         # collect their info from players db
         top_3 <- tbl(con, 'lor_players') %>% 
