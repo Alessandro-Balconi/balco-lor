@@ -1,6 +1,19 @@
 # import libraries
 library(tidyverse)
 library(lubridate)
+library(rtweet)
+
+## store api keys
+twitter_creds <- config::get("twitter", file = "/home/balco/my_rconfig.yml")
+
+## authenticate via web browser
+token <- create_token(
+  app = twitter_creds$app_name,
+  consumer_key = twitter_creds$api_key,
+  consumer_secret = twitter_creds$secret_api_key,
+  access_token = twitter_creds$access_token,
+  access_secret = twitter_creds$secret_access_token
+)
 
 # create a nice date from  date object
 nice_date <- function(date, short_month = TRUE){
@@ -88,3 +101,13 @@ p <- ggplot(diff, aes(x = reorder(name, lp.x))) +
 
 # save plot
 ggsave(filename = "/home/balco/dev/lor-meta-report/templates/tweet-plots/leaderboard.png", plot = p, width = 12, height = 8, dpi = 180)
+
+# post tweet
+post_tweet(
+  status = sprintf('%s - TOP 10 Master players in %s', nice_date(Sys.Date()), shard),
+  media = '/home/balco/dev/lor-meta-report/templates/tweet-plots/leaderboard.png',
+  token = token
+)
+
+# make main tweet with top 10
+# reply with 3 biggest increases, and decks played in past 24 hours
