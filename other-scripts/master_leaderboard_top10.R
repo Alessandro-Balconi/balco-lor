@@ -46,14 +46,14 @@ old <- tbl(con, 'leaderboard_eu_daily') %>% filter(name %in% local(new$name)) %>
 old <- old %>% 
   group_by(name) %>% 
   slice_min(n = 1, order_by = rank, with_ties = FALSE) %>% 
-  uNgroup()
+  ungroup()
 
 # join and calculate changes
 diff <- left_join(new, old, by = c('name')) %>% 
   mutate(rank_gain = rank.y - rank.x, lp_gain = lp.x - lp.y)
 
 # make plot
-ggplot(diff, aes(x = reorder(name, lp.x))) +
+p <- ggplot(diff, aes(x = reorder(name, lp.x))) +
   geom_col(aes(y = lp.x), fill = "#13294b", color = "steelblue", alpha = 1) +
   geom_text(aes(label = "", y = 1.1*lp.x), size = 6) +
   geom_text(aes(label = scales::comma(lp.x, accuracy = 1), y = lp.x), size = 6, hjust = -0.5, vjust = -0.5) +
@@ -85,3 +85,6 @@ ggplot(diff, aes(x = reorder(name, lp.x))) +
     y = 'LP', 
     title = 'TOP 10 - EU Master Leadeboard', 
     subtitle = sprintf('Date: %s - Rank & LP change in the past 24 hours', nice_date(Sys.Date()-days(1))))
+
+# save plot
+ggsave(filename = "/home/balco/dev/lor-meta-report/templates/tweet-plots/leaderboard.png", plot = p, width = 12, height = 8, dpi = 180)
