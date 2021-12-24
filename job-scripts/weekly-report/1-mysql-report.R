@@ -189,7 +189,7 @@ from_puuid_to_riotid <- function(puuid, shard){
   tbl(con, 'lor_players') %>% 
     filter(region == local(shard), puuid == local(puuid)) %>% 
     collect() %>% 
-    pull(name)
+    pull(gameName)
 
 }
 
