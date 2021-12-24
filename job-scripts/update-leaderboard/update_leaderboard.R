@@ -78,40 +78,44 @@ update_leaderboard <- function(region){
     # once a day, also save a daily leaderboard snapshot (& make tweets)
     if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) > 29){
       
-      # store api keys
-      twitter_creds <- config::get("twitter", file = "/home/balco/my_rconfig.yml")
-      
-      # authenticate via web browser
-      token <- create_token(
-        app = twitter_creds$app_name,
-        consumer_key = twitter_creds$api_key,
-        consumer_secret = twitter_creds$secret_api_key,
-        access_token = twitter_creds$access_token,
-        access_secret = twitter_creds$secret_access_token
-      )
-      
       # daily leaderboard name
       daily_collection <- paste0(sql_collection, "_daily")
       
       # make plot with changes vs yesterday
       if(nrow(leaderboard) >= 10 & FALSE){
         
-        # check today's top 10 players and how they were doing yesteday
-        new <- tbl(con, sql_collection) %>% filter(rank <= 10) %>% collect()
-        old <- tbl(con, daily_collection) %>% filter(name %in% local(new$name)) %>% collect()
+        # store api keys
+        twitter_creds <- config::get("twitter", file = "/home/balco/my_rconfig.yml")
+        
+        # authenticate via web browser
+        token <- create_token(
+          app = twitter_creds$app_name,
+          consumer_key = twitter_creds$api_key,
+          consumer_secret = twitter_creds$secret_api_key,
+          access_token = twitter_creds$access_token,
+          access_secret = twitter_creds$secret_access_token
+        )
+        
+        # check today's top players and how they were doing yesterday
+        new <- tbl(con, sql_collection) %>% collect()
+        old <- tbl(con, daily_collection) %>% collect()
+        
+        # filter top 10
+        new_10 <- new %>% filter(rank <= 10)
+        old_10 <- old %>% filter(name %in% new_10$name) 
         
         # remove duplicate names 
-        old <- old %>% 
+        old_10 <- old_10 %>% 
           group_by(name) %>% 
           slice_min(n = 1, order_by = rank, with_ties = FALSE) %>% 
           ungroup()
         
         # join and calculate changes
-        diff <- left_join(new, old, by = c('name')) %>% 
+        diff_10 <- left_join(new_10, old_10, by = c('name')) %>% 
           mutate(rank_gain = rank.y - rank.x, lp_gain = lp.x - lp.y)
         
         # make plot
-        p <- ggplot(diff, aes(x = reorder(name, lp.x))) +
+        p <- ggplot(diff_10, aes(x = reorder(name, lp.x))) +
           geom_col(aes(y = lp.x), fill = "#13294b", color = "steelblue", alpha = 1) +
           geom_text(aes(label = "", y = 1.1*lp.x), size = 6) +
           geom_text(aes(label = scales::comma(lp.x, accuracy = 1), y = lp.x), size = 6, hjust = -0.5, vjust = -0.5) +
@@ -142,10 +146,18 @@ update_leaderboard <- function(region){
             x = "Player", 
             y = 'LP', 
             title = sprintf('TOP 10 - %s Master Leadeboard', str_to_title(region)), 
-            subtitle = sprintf('Date: %s - Rank & LP change in the past 24 hours', nice_date(Sys.Date()-days(1))))
+            subtitle = sprintf('Date: %s - Rank & LP change in the past 24 hours', nice_date(Sys.Date())))
         
         # save plot
         ggsave(filename = "/home/balco/dev/lor-meta-report/templates/tweet-plots/leaderboard.png", plot = p, width = 12, height = 8, dpi = 180)
+        
+        # remove duplicate names
+        new <- new %>% group_by(name) %>% slice_min(n = 1, order_by = rank, with_ties = FALSE) %>% ungroup()
+        old <- old %>% group_by(name) %>% slice_min(n = 1, order_by = rank, with_ties = FALSE) %>% ungroup()
+        
+        # join and calculate changes
+        diff <- left_join(new, old, by = c('name')) %>% 
+          mutate(rank_gain = rank.y - rank.x, lp_gain = lp.x - lp.y)
         
         # best 3 players of the day:
         top_3 <- diff %>%
@@ -153,13 +165,24 @@ update_leaderboard <- function(region){
           slice_max(n = 3, order_by = lp_gain, with_ties = FALSE) %>% 
           pull(name)
         
+        # worst 3
+        bot_3 <- diff %>%
+          replace_na(list(lp_gain = 0)) %>% 
+          slice_min(n = 3, order_by = lp_gain, with_ties = FALSE) %>% 
+          pull(name)
+        
         # collect their info from players db
         top_3 <- tbl(con, 'lor_players') %>% 
           filter(region == local(region), gameName %in% top_3) %>% 
           collect()
+
+        bot_3 <- tbl(con, 'lor_players') %>% 
+          filter(region == local(region), gameName %in% bot_3) %>% 
+          collect()
         
         # get their puuids
         top_3_puuids <- top_3 %>% pull(puuid)
+        bot_3_puuids <- bot_3 %>% pull(puuid)
         
         # extract their matches played
         top_3_decks <- tbl(con, 'lor_match_info_v2') %>% 
@@ -168,8 +191,15 @@ update_leaderboard <- function(region){
           count(puuid, archetype, deck_code, game_outcome) %>% 
           collect()
         
+        # extract their matches played
+        bot_3_decks <- tbl(con, 'lor_match_info_v2') %>% 
+          mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+          filter(puuid %in% local(bot_3_puuids), game_start_time_utc >= local(Sys.time() - hours(24))) %>% 
+          count(puuid, archetype, deck_code, game_outcome) %>% 
+          collect()
+        
         # data with users to tweet in reply
-        replies <- top_3_decks %>% 
+        top_replies <- top_3_decks %>% 
           left_join(top_3, by = 'puuid') %>% 
           pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
           mutate(match = sum(c_across(c(win, loss, matches('tie'))))) %>% 
@@ -177,32 +207,66 @@ update_leaderboard <- function(region){
           group_by(player_id) %>% 
           slice_max(n = 1, order_by = match, with_ties = FALSE) %>% 
           ungroup()
+
+        bot_replies <- bot_3_decks %>% 
+          left_join(bot_3, by = 'puuid') %>% 
+          pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+          mutate(match = sum(c_across(c(win, loss, matches('tie'))))) %>% 
+          unite(col = player_id, gameName, tagLine, sep= '#') %>% 
+          group_by(player_id) %>% 
+          slice_max(n = 1, order_by = match, with_ties = FALSE) %>% 
+          ungroup()
+        
+        # add lp changes info
+        top_replies = top_replies %>% 
+          mutate(tmp = str_remove(player_id, pattern = '#.*')) %>% 
+          left_join(diff %>% select(name, lp_gain), by = c('tmp' = 'name'))
+        
+        bot_replies = bot_replies %>% 
+          mutate(tmp = str_remove(player_id, pattern = '#.*')) %>% 
+          left_join(diff %>% select(name, lp_gain), by = c('tmp' = 'name'))
         
         # post tweet
         post_tweet(
-          status = sprintf('%s - TOP 10 Master players in %s', nice_date(Sys.Date()), region),
+          status = sprintf('test might be wrong!!! \n \n %s - TOP 10 Master players in %s', nice_date(Sys.Date()), region),
           media = '/home/balco/dev/lor-meta-report/templates/tweet-plots/leaderboard.png',
           token = token
         )
         
         # get id of the tweet just posted
         my_timeline <- get_timeline('Balco21', token = token, n = 1)
-        reply_id <- my_timeline$status_id[1]
+
+        # post reply
+        post_tweet(
+          status = sprintf('%s - %s - Unluckiest Master players of the past 24 hours:', nice_date(Sys.Date()), str_to_title(region)),
+          token = token, 
+          in_reply_to_status_id = my_timeline$status_id[1]
+        )
+
+        # post reply
+        post_tweet(
+          status = sprintf('%s - %s - Best Master players of the past 24 hours:', nice_date(Sys.Date()), str_to_title(region)),
+          token = token, 
+          in_reply_to_status_id = my_timeline$status_id[1]
+        )
         
-        # for each user, make a reply tweet with most played deck
-        for(i in seq_len(length(replies))){
+        # get ids of just tweeted tweets
+        my_timeline_2 <- get_timeline('Balco21', token = token, n = 2)
+        
+        # for each top user, make a reply tweet with most played deck
+        for(i in seq_len(length(top_replies))){
           
-          # player to tweet about
-          focus_player <- replies[i,]
-          
+          reply_id <- my_timeline_2$status_id[1]
+
           # status to tweet
           status_tweet <- sprintf(
-            "Most played deck from %s in the last 24 hours: %s - %s (N: %s, W: %s)",
-            focus_player$player_id,
-            focus_player$archetype,
-            focus_player$deck_code,
-            focus_player$match,
-            focus_player$win
+            "Most played deck from %s to gain %s LP in the last 24 hours: %s - %s (N: %s, W: %s)",
+            top_replies$player_id[i],
+            top_replies$lp_gain[i],
+            top_replies$archetype[i],
+            top_replies$deck_code[i],
+            top_replies$match[i],
+            top_replies$win[i]
           )
           
           # post reply
@@ -212,6 +276,31 @@ update_leaderboard <- function(region){
             in_reply_to_status_id = reply_id
           )
 
+        }
+        
+        # for each bot user, make a reply tweet with most played deck
+        for(i in seq_len(length(bot_replies))){
+          
+          reply_id <- my_timeline_2$status_id[2]
+
+          # status to tweet
+          status_tweet <- sprintf(
+            "Most played deck from %s to lose %s LP in the last 24 hours: %s - %s (N: %s, W: %s)",
+            bot_replies$player_id[i],
+            bot_replies$lp_gain[i],
+            bot_replies$archetype[i],
+            bot_replies$deck_code[i],
+            bot_replies$match[i],
+            bot_replies$win[i]
+          )
+          
+          # post reply
+          post_tweet(
+            status = status_tweet,
+            token = token, 
+            in_reply_to_status_id = reply_id
+          )
+          
         }
 
       }
