@@ -15,6 +15,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/9-gs4_report.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/11-gs4_table_master.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/12-gs4_table_40decks.R")
   #rm(list = ls(all.names = TRUE))
   #Sys.setenv(RSTUDIO_PANDOC = "/usr/lib/rstudio-server/bin/pandoc")
   #source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/10-masteringruneterra_tierlist.R")
