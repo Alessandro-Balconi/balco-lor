@@ -387,15 +387,14 @@ data_history_new <- data %>%
   arrange(week)
 
 data_history <- data_history %>% 
-  mutate(week = ymd(week)) %>% 
+  mutate(week = ymd(week)) %>%
+  filter(week >= (Sys.Date() - months(6))) %>% 
   bind_rows(data_history_new)
 
 p <- data_history %>% 
   mutate(playrate = n / tot_games) %>% 
   ggplot(aes(x = week)) +
   geom_line(aes(y = playrate, group = value, color = value), size = 2) +
-  geom_segment(x = ymd("2021-06-30")+3, xend = ymd("2021-06-30")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-06-30")+3, y = 0, label = "RotU \n P. 2.11", size = 4) +
   geom_segment(x = ymd("2021-07-14")+3, xend = ymd("2021-07-14")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-07-14")+3, y = 0, label = "SoL \n P. 2.12", size = 4) +
   geom_segment(x = ymd("2021-08-25")+3, xend = ymd("2021-08-25")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
