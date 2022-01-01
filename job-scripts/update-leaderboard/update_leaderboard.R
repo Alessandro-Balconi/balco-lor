@@ -78,11 +78,12 @@ update_leaderboard <- function(region){
     if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) > 29){
       
       # calculate current day (based on region)
-      cur_date = ifelse(region == 'asia', Sys.Date(), Sys.Date()-days(1))
+      cur_date = Sys.Date()
+      if(region == 'asia'){ cur_date = cur_date - days(1) }
       
       # add leaderboard region, day info
       leaderboard <- leaderboard %>% 
-        mutare(region = region, day = cur_date)
+        mutate(region = region, day = cur_date)
       
       # update leadeboard in SQL
       DBI::dbWriteTable(conn = con, name = 'leaderboard_daily', value = leaderboard, append = TRUE, row.names = FALSE)
