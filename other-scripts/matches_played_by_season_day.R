@@ -1,17 +1,21 @@
 x = tbl(con, 'lor_match_info_v2') %>% 
+  #filter(is_master == 1) %>% 
   mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
+  filter(ts >= local(ymd('2021-12-09')) & ts < local(Sys.Date())) %>%
   count(ts) %>%
   arrange(ts) %>% 
   collect()
 
 y = tbl(con, 'lor_match_info_old_v2') %>% 
+  #filter(is_master == 1) %>% 
   mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
-  filter(ts >= local(ymd('2021-10-20')) & ts < local(ymd('2021-12-09'))) %>%
+  filter(ts >= local(ymd('2021-10-21')) & ts < local(ymd('2021-12-08'))) %>%
   count(ts) %>%
   arrange(ts) %>% 
   collect()
 
 w = tbl(con, 'lor_match_info_old_v2') %>% 
+  #filter(is_master == 1) %>% 
   mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
   filter(ts >= local(ymd('2021-08-27')) & ts < local(ymd('2021-10-20'))) %>%
   count(ts) %>%
@@ -20,18 +24,14 @@ w = tbl(con, 'lor_match_info_old_v2') %>%
 
 x = x %>% 
   mutate(n = as.numeric(n)) %>% 
-  filter(ts >= Sys.Date() - lubridate::days(30) & ts < Sys.Date()) %>% 
-  filter(ts >= ymd('2021-12-09')) %>% 
   mutate(season = 'Magic Misadventures', day = row_number())
   
 y = y %>% 
   mutate(n = as.numeric(n)) %>% 
-  filter(ts >= ymd('2021-10-21')) %>% 
   mutate(season = 'Between Worlds', day = row_number())
 
 w = w %>% 
   mutate(n = as.numeric(n)) %>% 
-  filter(ts >= ymd('2021-08-27')) %>% 
   mutate(season = 'Beyond the Bandlewood', day = row_number())
 
 z = bind_rows(w, x,y)
@@ -49,5 +49,6 @@ ggplot(z, aes(x = day, y = n, color = season)) +
     title = 'Matches collected by day of the season', 
     color = 'Season',
     subtitle = 'Plat+ data'
+    #subtitle = 'Master data'
   )
   
