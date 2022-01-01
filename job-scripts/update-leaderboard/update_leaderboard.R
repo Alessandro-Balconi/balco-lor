@@ -79,7 +79,7 @@ update_leaderboard <- function(region){
       
       # calculate current day (based on region)
       cur_date = Sys.Date()
-      if(region == 'asia'){ cur_date = cur_date - days(1) }
+      if(region %in% c('europe', 'americas')){ cur_date = cur_date - days(1) }
       
       # add leaderboard region, day info
       leaderboard <- leaderboard %>% 
