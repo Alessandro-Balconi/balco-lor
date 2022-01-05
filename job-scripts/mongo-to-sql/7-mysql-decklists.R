@@ -50,15 +50,15 @@ current_patch <- patches_to_analyze %>%
   paste0(collapse = "|")
 
 # start collecting matches only 24 hours after the patch
-#min_date <- tbl(con, "lor_match_info_v2") %>% 
-#  filter(str_detect(game_version, current_patch)) %>%
-#  select(game_start_time_utc) %>% 
-#  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-#  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
-#  collect() %>% 
-#  mutate(min_date = min_date + lubridate::days(1)) %>% 
-#  pull()
-min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
+min_date <- tbl(con, "lor_match_info_v2") %>% 
+  filter(str_detect(game_version, current_patch)) %>%
+  select(game_start_time_utc) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
+  collect() %>% 
+  mutate(min_date = min_date + lubridate::days(1)) %>% 
+  pull()
+#min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
 # merge archetypes according to mapping
 archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
