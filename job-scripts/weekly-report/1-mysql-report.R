@@ -395,8 +395,6 @@ p <- data_history %>%
   mutate(playrate = n / tot_games) %>% 
   ggplot(aes(x = week)) +
   geom_line(aes(y = playrate, group = value, color = value), size = 2) +
-  geom_segment(x = ymd("2021-07-14")+3, xend = ymd("2021-07-14")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-07-14")+3, y = 0, label = "SoL \n P. 2.12", size = 4) +
   geom_segment(x = ymd("2021-08-25")+3, xend = ymd("2021-08-25")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-08-25")+3, y = 0, label = "BtB \n P. 2.14", size = 4) +
   geom_segment(x = ymd("2021-10-20")+3, xend = ymd("2021-10-20")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
