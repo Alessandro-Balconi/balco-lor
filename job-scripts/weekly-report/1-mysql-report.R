@@ -400,11 +400,13 @@ p <- data_history %>%
   geom_segment(x = ymd("2021-08-25")+3, xend = ymd("2021-08-25")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-08-25")+3, y = 0, label = "BtB \n P. 2.14", size = 4) +
   geom_segment(x = ymd("2021-10-20")+3, xend = ymd("2021-10-20")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-10-20")+3, y = 0, label = "Balances \n P. 2.18", size = 4) +
+  geom_label(x = ymd("2021-10-20")+3, y = 0, label = "Balance \n P. 2.18", size = 4) +
   geom_segment(x = ymd("2021-11-10")+3, xend = ymd("2021-10-11")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-11-10")+3, y = 0, label = "PoC \n P. 2.19", size = 4) +
   geom_segment(x = ymd("2021-12-08")+3, xend = ymd("2021-12-08")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
   geom_label(x = ymd("2021-12-08")+3, y = 0, label = "MM \n P. 2.21", size = 4) +
+  geom_segment(x = ymd("2022-01-06")+3, xend = ymd("2022-01-06")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+  geom_label(x = ymd("2022-01-06")+3, y = 0, label = "Balance \n P. 2.22", size = 4) +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
   theme_bw(base_size = 15) +
   theme(axis.text.x = element_text(angle = 20, hjust = 1)) +
