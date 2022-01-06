@@ -25,7 +25,7 @@ con <- DBI::dbConnect(
   db_host = "127.0.0.1",
   user = db_creds$uid,
   password = db_creds$pwd,
-  dbname = "db_prova"
+  dbname = db_creds$dbs
 )
 
 # 3. extract old matches from dbs ----
@@ -46,6 +46,15 @@ if(length(old_matchid_v2) > 0){
   old_v2 <- tbl(con, "lor_match_info_v2") %>% 
     filter(match_id %in% old_matchid_v2) %>% 
     collect()
+  
+  already_in_old_db <- tbl(con, 'lor_match_info_old_v2') %>% 
+    filter(match_id %in% old_matchid_v2) %>% 
+    select(match_id) %>% 
+    distinct() %>% 
+    collect() %>% 
+    pull()
+  
+  old_v2 <- old_v2 %>% filter(!match_id %in% already_in_old_db)
   
   DBI::dbWriteTable(con, "lor_match_info_old_v2", value = old_v2, append = TRUE, row.names = FALSE)
   
