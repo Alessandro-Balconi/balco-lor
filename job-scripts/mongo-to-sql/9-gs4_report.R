@@ -13,7 +13,7 @@ con <- DBI::dbConnect(
   db_host = "127.0.0.1",
   user = db_creds$uid,
   password = db_creds$pwd,
-  dbname = "db_prova"
+  dbname = db_creds$dbs
 )
 
 # get patch history informations

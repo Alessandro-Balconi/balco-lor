@@ -32,7 +32,7 @@ con <- DBI::dbConnect(
   db_host = "127.0.0.1",
   user = db_creds$uid,
   password = db_creds$pwd,
-  dbname = "db_prova"
+  dbname = db_creds$dbs
 )
 
 # 5. prepare table ----
@@ -43,9 +43,15 @@ patches_to_analyze <- tbl(con, "lor_patch_history") %>%
   mutate(new_change = lag(change)) %>% 
   replace_na(list(new_change = 0)) %>% 
   mutate(cum_change = cumsum(new_change)) %>% 
-  filter(cum_change == min(cum_change)) %>%
-  pull(value) %>% 
-  str_replace_all(pattern = "\\.", replacement = "_")
+  filter(cum_change == min(cum_change))
+
+# fix for single digits patches
+patches_to_analyze <- patches_to_analyze %>% 
+  mutate(value = str_replace_all(value, pattern = "\\.", replacement = "_")) %>% 
+  separate(col = value, into = c('main', 'sub'), sep ="_") %>% 
+  mutate(sub = str_pad(sub, width = 2, pad = "0", side = 'left')) %>% 
+  unite(col = value, main, sub, sep = "_") %>% 
+  pull(value)
 
 current_patch <- patches_to_analyze %>% 
   paste0("live_", ., "_") %>% 
