@@ -1,5 +1,6 @@
 # Convert information from MongoDB (BSON) to tabular format and store in MySQL
 
+# All servers - Expeditions 
 # This task is performed with daily frequency at 16.30 UTC
 
 # 1. libraries ----
@@ -53,15 +54,28 @@ con <- DBI::dbConnect(
   db_host = "127.0.0.1",
   user = mysql_creds$uid,
   password = mysql_creds$pwd,
-  dbname = "db_prova"
+  dbname = mysql_creds$dbs
 )
 
-# read new data from MongoDB
-data_eu <- m_db_eu$find(query = '{"info.game_mode":"Expeditions"}')
-data_na <- m_db_na$find(query = '{"info.game_mode":"Expeditions"}')
-data_as <- m_db_as$find(query = '{"info.game_mode":"Expeditions"}')
+# get matches already in sql
+already_in_sql <- tbl(con, "lor_expeditions") %>% 
+  distinct(match_id) %>% 
+  collect() %>% 
+  pull() %>%
+  paste0(collapse = '\", \"') %>% 
+  paste0("\"", ., "\"")
 
-data <- bind_rows(data_eu, data_na, data_as)
+# convert "game_start_time_utc" to MongoDB class Date & read new data from MongoDB
+m_db_eu$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
+data_eu <- m_db_eu$find(query = sprintf('{"info.game_mode":"Expeditions", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
+
+m_db_na$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
+data_na <- m_db_na$find(query = sprintf('{"info.game_mode":"Expeditions", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
+
+m_db_as$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
+data_as <- m_db_as$find(query = sprintf('{"info.game_mode":"Expeditions", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
+
+data <- bind_rows('europe' = data_eu, 'americas' = data_na, 'asia' = data_as, .id = 'region')
 
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
@@ -167,29 +181,16 @@ data <- data %>%
   left_join(data, ., by = c("faction_1", "faction_2", "faction_3", "cards_list")) %>% 
   select(-c(cards_list, champs_factions, factions, no_fix, factions_to_add))
 
-# make archetype name nicer
-data <- data %>% 
-  mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
-  mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
-
-# # merge archetypes according to mapping
-# archetypes_map <- readr::read_csv("/home/balco/dev/lor-meta-report/templates/archetypes_map.csv")
-# 
-# data <- data %>% 
-#   left_join(archetypes_map, by = c("archetype" = "old_name")) %>% 
-#   mutate(archetype = ifelse(!is.na(new_name), new_name, archetype)) %>% 
-#   select(-new_name)
-
 # 6. save to MySQL db ----
 
 # first initialization of database
-#DBI::dbWriteTable(conn = con, name = "tbl_lor_match_expeditions", value = data, row.names = FALSE)
+#DBI::dbWriteTable(conn = con, name = "lor_expedition", value = data, row.names = FALSE)
 
 # save matches to db
 if(nrow(data) >  0){
   
   data %>% 
-    DBI::dbWriteTable(conn = con, name = "tmp_lor_match_expedition", value = ., append = TRUE, row.names = FALSE) 
+    DBI::dbWriteTable(conn = con, name = "lor_expedition", value = ., append = TRUE, row.names = FALSE) 
   
 }
 
