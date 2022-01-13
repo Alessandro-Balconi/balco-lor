@@ -51,7 +51,7 @@ con <- DBI::dbConnect(
   db_host = "127.0.0.1",
   user = db_creds$uid,
   password = db_creds$pwd,
-  dbname = "db_prova"
+  dbname = db_creds$dbs
 )
 
 # number of master matches in the last 7 days
@@ -228,7 +228,7 @@ data <- data %>%
 data <- data %>% 
   mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
 
-# # merge archetypes according to mapping
+# merge archetypes according to mapping
 data <- data %>%
   left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
   mutate(new_name = coalesce(new_name, archetype))
@@ -436,7 +436,7 @@ data_archetype_pr <- data %>%
   slice_max(n = 10, order_by = current, with_ties = FALSE) %>%
   mutate(change = current - last) %>%
   left_join(most_played_version, by = 'new_name') %>% 
-  mutate(image = archetype) %>% 
+  mutate(image = str_remove_all(archetype, "No Champions ")) %>% 
   mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
   separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
   mutate(tmp2 = str_replace_all(tmp2, pattern = " ", replacement = "x_x")) %>% 
@@ -498,7 +498,7 @@ data_archetype_wr <- data %>%
   mutate(across(where(is.numeric), function(x) ifelse(is.na(x), 0, x))) %>% 
   mutate(winrate = win / n) %>%
   left_join(most_played_version, by = 'new_name') %>% 
-  mutate(image = archetype) %>% 
+  mutate(image = str_remove_all(archetype, "No Champions ")) %>% 
   mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
   mutate(image = str_trim(image, side = "left")) %>% 
   separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
