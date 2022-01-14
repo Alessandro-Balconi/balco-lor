@@ -1,4 +1,6 @@
 # AGGIUGERE CHECK SU TABLE OLD VS TABLE NONOLD
+library(tidyverse)
+library(lubridate)
 
 # filter master only? or all players
 masters_only = TRUE
@@ -9,17 +11,38 @@ no_bandle = TRUE
 # calculate number of matches played by day
 match_by_day <- function(name, start_date, end_date, masters_only){
   
+  df1 = tibble(ts = ymd(), n = as.numeric())
+  df2 = tibble(ts = ymd(), n = as.numeric())
+  
   # collect number of matches by day between start_date and end_date
-  df = tbl(con, 'lor_match_info_old_v2') %>% 
-    { if(masters_only) filter(., is_master == 1) else . } %>% 
-    mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
-    filter(ts >= local(ymd(start_date)) & ts <= local(ymd(end_date))) %>%
-    count(ts) %>%
-    arrange(ts) %>% 
-    collect()
+  if(ymd(start_date) <= Sys.Date()-days(30)){
+    
+    df1 = tbl(con, 'lor_match_info_old_v2') %>% 
+      { if(masters_only) filter(., is_master == 1) else . } %>% 
+      mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
+      filter(ts >= local(ymd(start_date)) & ts <= local(ymd(end_date))) %>%
+      count(ts) %>%
+      arrange(ts) %>% 
+      collect()
+    
+  }
+  
+  if(ymd(end_date) >= Sys.Date()-days(40)){
+    
+    df2 = tbl(con, 'lor_match_info_v2') %>% 
+      { if(masters_only) filter(., is_master == 1) else . } %>% 
+      mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
+      filter(ts >= local(ymd(start_date)) & ts <= local(ymd(end_date))) %>%
+      count(ts) %>%
+      arrange(ts) %>% 
+      collect()
+    
+  }
   
   # add season name, row number (day of the season)
-  df = df %>% 
+  df = bind_rows(df1, df2) %>% 
+    group_by(ts) %>% 
+    summarise(n = sum(n), .groups = "drop") %>% 
     mutate(season = name, day = row_number())
   
   # return df
@@ -30,13 +53,13 @@ match_by_day <- function(name, start_date, end_date, masters_only){
 # collect data for all seasons
 if(!no_bandle) { s1 = match_by_day(name = 'Beyond the Bandlewood', start_date = '2021-08-27', end_date = '2021-10-19', masters_only = masters_only) }
 s2 = match_by_day(name = 'Between Worlds',        start_date = '2021-10-21', end_date = '2021-12-07', masters_only = masters_only)
-s3 = match_by_day(name = 'Magic Misadventures',   start_date = '2021-12-09', end_date = '2022-01-03', masters_only = masters_only)
+s3 = match_by_day(name = 'Magic Misadventures',   start_date = '2021-12-09', end_date = '2022-01-12', masters_only = masters_only)
 
 # bind rows and fix column class
-z = bind_rows(s1, s2, s3) %>% mutate(n = as.numeric(n))
+z = { if(!no_bandle) bind_rows(s1, s2, s3) else bind_rows(s2, s3) } %>% mutate(n = as.numeric(n))
 
 # make plot
-ggplot(z_plot, aes(x = day, y = n, color = season)) +
+ggplot(z, aes(x = day, y = n, color = season)) +
   geom_line(size = 1.5) +
   geom_point(alpha = 0.3, size = 3) +
   expand_limits(y = 0) +
