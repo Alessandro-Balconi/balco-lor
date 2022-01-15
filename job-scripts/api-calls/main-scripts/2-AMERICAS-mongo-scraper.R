@@ -75,7 +75,7 @@ while(TRUE){
   if(i == 1){
     
     # print message to console
-    cat(sprintf("New cycle: %s UTC", Sys.time()))
+    cat(sprintf("START: %s UTC", Sys.time()))
     
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
@@ -84,6 +84,9 @@ while(TRUE){
     # matches already collected (to prevent collecting them again)
     # could be done just once but doing it every cicle for safety
     already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
+    
+    # number of matches in the db at the start of a cycle
+    n_start <- length(already_in_mongo)
     
     # get leaderboard
     get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 120))
@@ -128,8 +131,8 @@ while(TRUE){
         filter(gameName %in% c(master_players, old_master_players)) %>% 
         pull(puuid)
       
-      cat(sprintf(" - Analyzing %s players (%s masters, %s plat+). \n", length(puuid_list), length(master_players), length(setdiff(old_master_players, master_players))))
-      
+      cat(sprintf(" - %s players (%s masters, %s plat+).", length(puuid_list), length(master_players), length(setdiff(old_master_players, master_players))))
+
     }
     
   } # END cycle initialization  
@@ -234,6 +237,17 @@ while(TRUE){
     
     # update i
     if(i < length(puuid_list)){ i <- i + 1 } else { i <- 1 }
+    
+  }
+  
+  # if we just finished a cycle, send number of match collected in this cycle
+  if(i == 1){
+    
+    # number of matches collected in this cycle
+    n_cycle <- length(already_in_mongo) - n_start
+    
+    # print log
+    cat(sprintf(" - END: %s new matches. \n", n_cycle))
     
   }
   
