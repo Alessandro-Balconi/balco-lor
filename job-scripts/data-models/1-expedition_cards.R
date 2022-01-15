@@ -61,14 +61,6 @@ last_day = tbl(con, 'expedition_cards') %>%
   pull() %>% 
   {if(is.na(.)) ymd('2000-01-01') else . }
 
-# total number of daily matches
-daily_match = tbl(con, 'expedition_match') %>% 
-  mutate(day = sql("CAST(game_start_time_utc AS DATE)")) %>% 
-  filter(day > local(last_day), day <= local(Sys.Date()-days(3))) %>% 
-  count(day, name = 'n_tot') %>% 
-  arrange(day) %>% 
-  collect()
-
 # new matches that need to be added
 data = tbl(con, 'expedition_match') %>% 
   mutate(day = sql("CAST(game_start_time_utc AS DATE)")) %>% 
@@ -86,6 +78,10 @@ opponent = data %>%
 data = data %>% 
   left_join(opponent, by = 'match_id') %>% 
   select(-match_id)
+
+# table with n of games (will be saved)
+n_games = data %>% 
+  count(day, is_master, opponent)
 
 # split a deck into single cards
 data = data %>% 
@@ -133,13 +129,9 @@ data = data %>%
 data = data %>% 
   left_join(data_cards, by = c('card' = 'cardCode'))
 
-# add total number of daily matches
-data = data %>% 
-  left_join(daily_match, by = 'day')
-
 # relocate columns
 data = data %>% 
-  relocate(day, is_master, opponent, card, name, rarity, game_version, win, loss, tie, n, n_tot)
+  relocate(day, is_master, opponent, card, name, rarity, game_version, win, loss, tie, n)
 
 # 5. save to MySQL db ----
 
@@ -148,6 +140,9 @@ if(nrow(data) >  0){
   
   data %>% 
     DBI::dbWriteTable(conn = con, name = "expedition_cards", value = ., append = TRUE, row.names = FALSE) 
+  
+  n_games %>% 
+    DBI::dbWriteTable(conn = con, name = "expedition_ngames", value = ., append = TRUE, row.names = FALSE) 
   
 }
 
