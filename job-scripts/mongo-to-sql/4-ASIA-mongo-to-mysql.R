@@ -125,88 +125,97 @@ master_puuids <- tbl(con, 'lor_players') %>%
 
 # 5. convert from BSON to tabular ----
 
-# unpack data & remove useless column
-data <- data %>%
-  unpack(cols = everything()) %>% 
-  select(-participants)
-
-# remove matches that have wrong game_start_time_utc format (should be few and will get added later on anyway)
-data <- data %>% 
-  filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-"))
-
-# unnest "players" column
-data <- data %>% 
-  unnest(cols = players, keep_empty = TRUE)
-
-# remove useless column
-data <- data %>% 
-  select(-c(data_version, deck_id))
-
-# unpack factions column
-data <- data %>% 
-  unnest(cols = factions, keep_empty = TRUE)
-
-# make faction column nicer
-data <- data %>% 
-  mutate(factions = str_extract(factions, pattern = "(?<=_)(.+)(?=\\_)"))
-
-# reshape (keeping only 1 row per deck)
-data <- data %>% 
-  group_by(match_id, puuid, deck_code, game_outcome) %>%
-  mutate(id = row_number()) %>% 
-  ungroup() %>% 
-  pivot_wider(names_from = id, values_from = factions, names_prefix = "faction_")
-
-# extract card codes from deck code
-data <- data %>% 
-  distinct(deck_code) %>% 
-  mutate(cards_list = map(.x = deck_code, .f = lor_deckcodes$decode$decode_deck)) %>% 
-  left_join(x = data, y = ., by = "deck_code")
-
-# get deck champions & archetype
-data <- data %>%
-  distinct(across(c(starts_with("faction_"), cards_list))) %>% 
-  mutate(
-    cards = map_chr(cards_list, str_flatten, collapse = " "),
-    champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
-    champs = map_chr(champs, str_flatten, collapse = " "),
-    champs_factions = map_chr(champs, get_monoregion)
-  ) %>% 
-  left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
-  left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
-  unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
-  mutate(
-    factions = str_remove_all(factions, pattern = " NA|NA "),
-    across(c(champs, champs_factions, factions),  function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))),
-    no_fix = map2_lgl(.x = factions, .y = champs_factions, .f = ~grepl(pattern = .x, x = .y)),
-    champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
-    champs_factions = paste0(champs_factions, "| "),
-    factions_to_add = str_remove_all(factions, pattern = champs_factions),
-    archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
-  ) %>% 
-  left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
-  select(-c(cards_list, champs_factions, factions, no_fix, factions_to_add))
-
-# make archetype name nicer
-data <- data %>% 
-  mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
-  mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
-
-# add check whether the player is master or not
-data <- data %>% 
-  mutate(is_master = (puuid %in% master_puuids))
-
-# 6. save to MySQL db ----
-
-# first initialization of database
-#DBI::dbWriteTable(conn = con, name = "lor_match_info_asia", value = data, row.names = FALSE)
-
-# save matches to db v2
-if(nrow(data) >  0){
+if(nrow(data) == 0){
   
-  data %>% 
-    mutate(region = 'asia') %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
+  RPushbullet::pbPost(
+    "note",
+    title = "ASIA - Daily database update",
+    body = "0 new matches founnd since the last update. Check for issues"
+  )
+  
+} else {
+  
+  # unpack data & remove useless column
+  data <- data %>%
+    unpack(cols = everything()) %>% 
+    select(-participants)
+  
+  # remove matches that have wrong game_start_time_utc format (should be few and will get added later on anyway)
+  data <- data %>% 
+    filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-"))
+  
+  # unnest "players" column
+  data <- data %>% 
+    unnest(cols = players, keep_empty = TRUE)
+  
+  # remove useless column
+  data <- data %>% 
+    select(-c(data_version, deck_id))
+  
+  # unpack factions column
+  data <- data %>% 
+    unnest(cols = factions, keep_empty = TRUE)
+  
+  # make faction column nicer
+  data <- data %>% 
+    mutate(factions = str_extract(factions, pattern = "(?<=_)(.+)(?=\\_)"))
+  
+  # reshape (keeping only 1 row per deck)
+  data <- data %>% 
+    group_by(match_id, puuid, deck_code, game_outcome) %>%
+    mutate(id = row_number()) %>% 
+    ungroup() %>% 
+    pivot_wider(names_from = id, values_from = factions, names_prefix = "faction_")
+  
+  # extract card codes from deck code
+  data <- data %>% 
+    distinct(deck_code) %>% 
+    mutate(cards_list = map(.x = deck_code, .f = lor_deckcodes$decode$decode_deck)) %>% 
+    left_join(x = data, y = ., by = "deck_code")
+  
+  # get deck champions & archetype
+  data <- data %>%
+    distinct(across(c(starts_with("faction_"), cards_list))) %>% 
+    mutate(
+      cards = map_chr(cards_list, str_flatten, collapse = " "),
+      champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
+      champs = map_chr(champs, str_flatten, collapse = " "),
+      champs_factions = map_chr(champs, get_monoregion)
+    ) %>% 
+    left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
+    left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
+    unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
+    mutate(
+      factions = str_remove_all(factions, pattern = " NA|NA "),
+      across(c(champs, champs_factions, factions),  function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))),
+      no_fix = map2_lgl(.x = factions, .y = champs_factions, .f = ~grepl(pattern = .x, x = .y)),
+      champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
+      champs_factions = paste0(champs_factions, "| "),
+      factions_to_add = str_remove_all(factions, pattern = champs_factions),
+      archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
+    ) %>% 
+    left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
+    select(-c(cards_list, champs_factions, factions, no_fix, factions_to_add))
+  
+  # make archetype name nicer
+  data <- data %>% 
+    mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
+    mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
+  
+  # add check whether the player is master or not
+  data <- data %>% 
+    mutate(is_master = (puuid %in% master_puuids))
+  
+  # 6. save to MySQL db ----
+  
+  # save matches to db v2
+  if(nrow(data) >  0){
+    
+    data %>% 
+      mutate(region = 'asia') %>% 
+      DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
+    
+  }
   
 }
 
