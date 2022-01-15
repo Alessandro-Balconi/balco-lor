@@ -130,7 +130,7 @@ if(nrow(data) == 0){
   RPushbullet::pbPost(
     "note",
     title = "ASIA - Daily database update",
-    body = "0 new matches founnd since the last update. Check for issues"
+    body = "No new matches found since the last update. Check for issues."
   )
   
 } else {
