@@ -221,7 +221,7 @@ while(TRUE){
       # call API to get new players name+tag 
       get_new_players <- map(
         .x = new_puuids,
-        .f = function(x) GET(base.url, path = paste0("/riot/account/v1/accounts/by-puuid/", x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
+        .f = function(x) GET("https://europe.api.riotgames.com/", path = paste0("/riot/account/v1/accounts/by-puuid/", x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
       )
       
       # extract content in JSON format
