@@ -10,36 +10,15 @@ suppressPackageStartupMessages(library(lubridate)) # work with dates
 
 # 2. functions ----
 
-# create a nice date from  date object
-nice_date <- function(date, short_month = TRUE){
-  
-  paste(day(date), month(date, label = TRUE, abbr = short_month), year(date), sep = " ")
-  
-}
-
-# same as scales::comma, but has a nicer format
-scales_comma_plus <- function(x, accuracy = 1){
-  
-  sapply(
-    X = x,
-    FUN = function(x) case_when(
-      is.na(x) ~ paste0("‼ NEW"),
-      x==0 ~ paste0("↔ ", scales::comma(x, accuracy = accuracy)),
-      x>0 ~ paste0("↑ +", scales::comma(x, accuracy = accuracy)),
-      x<0 ~ paste0("↓ ", scales::comma(x, accuracy = accuracy)),
-      TRUE ~ NA_character_ # should never happen; just an additional check
-    ),
-    USE.NAMES = FALSE
-  )
-  
-}
-
 # run call to update leaderboard for the selected region (region must be one of "europe", "americas", "asia")
 update_leaderboard <- function(region){
   
   # base url to perform API call
   base.url <- sprintf("https://%s.api.riotgames.com/", region) # americas, asia, europe, sea
-
+  
+  # fastest way to fix the change in endpoint (asia -> apac)
+  if(region == 'asia'){ base.url <- "https://apac.api.riotgames.com/" }
+  
   # GET call
   get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
   
