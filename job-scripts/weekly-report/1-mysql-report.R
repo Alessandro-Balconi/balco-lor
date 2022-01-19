@@ -239,6 +239,7 @@ data <- data %>%
 
 p1 <- data %>%
   filter(week == "current") %>%
+  mutate(shard = ifelse(shard == 'asia', 'asia-pacific', shard)) %>% 
   group_by(shard) %>% 
   summarise(
     match_analyzed = n_distinct(match_id),
@@ -745,7 +746,8 @@ tbl <- top_players %>%
   mutate(content = map(.x = get, .f = content)) %>% 
   mutate(country = ifelse(status == 200, content, NA_character_)) %>% 
   mutate(country = map_chr(country, str_flatten, collapse = " ")) %>% 
-  select(player, region = shard, country, most_played_deck = new_name, match, winrate) %>% 
+  select(player, region = shard, country, most_played_deck = new_name, match, winrate) %>%
+  mutate(region = ifelse(region == 'asia', 'asia-pacific', region)) %>% 
   mutate(region = str_to_title(region)) %>% 
   mutate(country = ifelse(!is.na(country), sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), country)) %>% 
   mutate(pos = row_number()) %>% 
@@ -796,6 +798,7 @@ tbl <- data %>%
   mutate(country = ifelse(status == 200, content, NA_character_)) %>% 
   mutate(country = map_chr(country, str_flatten, collapse = " ")) %>% 
   select(player, region = shard, country, archetype, deck_code, match, winrate) %>% 
+  mutate(region = ifelse(region == 'asia', 'asia-pacific', region)) %>% 
   mutate(region = str_to_title(region)) %>% 
   mutate(country = ifelse(!is.na(country), sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), country)) %>% 
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 

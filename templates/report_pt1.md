@@ -11,7 +11,7 @@ head-extra: adsense.html
 
 ## Data collected
 
-Data used in this report are collected from ranked matches of Master players in the Europe, Americas and Asia shard.
+Data used in this report are collected from ranked matches of Master players in the Europe, Americas and Asia-Pacific shard.
 
 <img src="/assets/meta-report/mr%1$s/data.png">
 
