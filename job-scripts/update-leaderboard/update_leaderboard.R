@@ -42,6 +42,24 @@ update_leaderboard <- function(region){
     # if no master players, initialize empty table
     if(nrow(leaderboard) == 0){ leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double()) }
     
+    # time of the update
+    upd_time <- tibble(
+      table_name = sql_collection,
+      time = Sys.time() %>% as.character()
+    )
+    
+    # run update
+    DBI::dbExecute(
+      conn = con,
+      statement = sprintf(
+        "REPLACE INTO utils_update_time
+        (table_name, time)
+        VALUES
+        (%s);",
+        paste0("'", paste0(c(upd_time$table_name, upd_time$time), collapse = "', '"), "'")
+      )
+    )
+    
     # update leadeboard in SQL
     DBI::dbWriteTable(conn = con, name = sql_collection, value = leaderboard, overwrite = TRUE, row.names = FALSE)
     

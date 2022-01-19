@@ -123,6 +123,24 @@ if(nrow(data_matchup_v2) >  0){
     as_tibble() %>% 
     DBI::dbWriteTable(conn = con, name = "lor_update_time", value = ., overwrite = TRUE, row.names = FALSE) 
   
+  # time of the update
+  upd_time <- tibble(
+    table_name = 'lor_matchup_table_v2',
+    time = Sys.time() %>% as.character()
+  )
+  
+  # run update
+  DBI::dbExecute(
+    conn = con,
+    statement = sprintf(
+      "REPLACE INTO utils_update_time
+        (table_name, time)
+        VALUES
+        (%s);",
+      paste0("'", paste0(c(upd_time$table_name, upd_time$time), collapse = "', '"), "'")
+    )
+  )
+  
 }
 
 DBI::dbDisconnect(con)
