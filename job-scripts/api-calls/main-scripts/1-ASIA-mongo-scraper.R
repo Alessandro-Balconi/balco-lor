@@ -30,7 +30,7 @@ con <- DBI::dbConnect(
 # 3. set api parameters ----
 
 # API path
-base.url           <- "https://apac.api.riotgames.com/" # americas, asia, europe, sea
+base.url           <- "https://sea.api.riotgames.com/" # americas, asia, europe, sea
 path_match_history <- "lor/match/v1/matches/by-puuid/"
 path_match_info    <- "lor/match/v1/matches/"
 

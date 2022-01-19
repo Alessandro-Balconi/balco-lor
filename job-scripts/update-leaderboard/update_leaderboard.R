@@ -16,8 +16,8 @@ update_leaderboard <- function(region){
   # base url to perform API call
   base.url <- sprintf("https://%s.api.riotgames.com/", region) # americas, asia, europe, sea
   
-  # fastest way to fix the change in endpoint (asia -> apac)
-  if(region == 'asia'){ base.url <- "https://apac.api.riotgames.com/" }
+  # fastest way to fix the change in endpoint (asia -> sea)
+  if(region == 'asia'){ base.url <- "https://sea.api.riotgames.com/" }
   
   # GET call
   get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
