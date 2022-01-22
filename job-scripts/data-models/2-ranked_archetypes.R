@@ -92,6 +92,11 @@ data_v2 = data_v2 %>%
   mutate(n = as.numeric(n)) %>% 
   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0, values_fn = sum)
 
+data_v2 = data_v2 %>% 
+  rowwise() %>% 
+  mutate(n = sum(c_across(c(win, loss, matches('tie'))))) %>% 
+  ungroup()
+
 # 6. save to MySQL db ----
 
 if(nrow(data_v2) >  0){
