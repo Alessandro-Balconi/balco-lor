@@ -54,7 +54,7 @@ data_cards <- map_dfr(
   select(name, cardCode, rarity) %>%
   filter(nchar(cardCode) <= 8)
 
-# most recent day in the table (it measn we have updated up to this point)
+# most recent day in the table (it means we have updated up to this point)
 last_day = tbl(con, 'expedition_cards') %>% 
   summarise(maxts = max(day)) %>%
   collect() %>% 

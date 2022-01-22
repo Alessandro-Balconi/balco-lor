@@ -19,7 +19,7 @@ tryCatch({
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/weekly-db-cleanup/expedition-mysql-cleanup.R")
   rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/1-expeditions_cards.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/1-expedition_cards.R")
   tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
