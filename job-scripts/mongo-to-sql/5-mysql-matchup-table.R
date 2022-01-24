@@ -119,10 +119,6 @@ if(nrow(data_matchup_v2) >  0){
   data_matchup_v2 %>% 
     DBI::dbWriteTable(conn = con, name = "lor_matchup_table_v2", value = ., overwrite = TRUE, row.names = FALSE) 
 
-  Sys.time() %>%
-    as_tibble() %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_update_time", value = ., overwrite = TRUE, row.names = FALSE) 
-  
   # time of the update
   upd_time <- tibble(
     table_name = 'lor_matchup_table_v2',
