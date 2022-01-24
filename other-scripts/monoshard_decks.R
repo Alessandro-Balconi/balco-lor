@@ -1,0 +1,122 @@
+min_n_tot = 100
+min_share = 0.8
+min_wr = 0.5
+master_only = TRUE
+
+patches_to_analyze <- tbl(con, "lor_patch_history") %>% 
+  collect() %>% 
+  arrange(-last_patch) %>% 
+  mutate(new_change = lag(change)) %>% 
+  replace_na(list(new_change = 0)) %>% 
+  mutate(cum_change = cumsum(new_change)) %>% 
+  filter(cum_change == min(cum_change))
+
+# fix for single digits patches
+patches_to_analyze <- patches_to_analyze %>% 
+  mutate(value = str_replace_all(value, pattern = "\\.", replacement = "_")) %>% 
+  separate(col = value, into = c('main', 'sub'), sep ="_") %>% 
+  mutate(sub = str_pad(sub, width = 2, pad = "0", side = 'left')) %>% 
+  unite(col = value, main, sub, sep = "_") %>% 
+  pull(value)
+
+current_patch <- patches_to_analyze %>% 
+  paste0("live_", ., "_") %>% 
+  paste0(collapse = "|")
+
+# start collecting matches only 24 hours after the patch
+min_date <- tbl(con, "lor_match_info_v2") %>% 
+  filter(str_detect(game_version, current_patch)) %>%
+  select(game_start_time_utc) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
+  collect() %>% 
+  mutate(min_date = min_date + lubridate::days(1)) %>% 
+  pull()
+
+x = tbl(con, 'ranked_archetypes') %>% 
+  {if(master_only) filter(., is_master == 1) else . } %>% 
+  group_by(region, archetype) %>% 
+  summarise(win = sum(win, na.rm = TRUE), n = sum(n, na.rm = TRUE), .groups = 'drop') %>% 
+  collect()
+
+x_n = x %>% 
+  select(-win) %>% 
+  pivot_wider(names_from = region, values_from = n, values_fill = 0) %>% 
+  mutate(n_tot = asia + europe + americas)
+
+res = x_n %>% 
+  filter(n_tot >= min_n_tot) %>% 
+  pivot_longer(cols = -c(archetype, n_tot)) %>% 
+  mutate(rate = value / n_tot) %>% 
+  filter(rate >= min_share)
+
+res = res %>% 
+  select(archetype, region = name, n_tot, n_region = value, share = rate) %>% 
+  arrange(-share)
+
+res = res %>% 
+  left_join(x, by = c('archetype', 'region', 'n_region' = 'n')) %>% 
+  mutate(wr_region = win / n_region) %>% 
+  select(-win) %>% 
+  filter(wr_region >= 0.5)
+
+decks = tbl(con, 'lor_match_info_v2') %>% 
+  filter(archetype %in% local(res$archetype)) %>% 
+  filter(str_detect(game_version, current_patch)) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  filter(game_start_time_utc >= min_date) %>% 
+  {if(master_only) filter(., is_master == 1) else . } %>% 
+  count(archetype, deck_code, game_outcome) %>% 
+  collect()
+
+decks = decks %>% 
+  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+  rowwise() %>% 
+  mutate(n = sum(c_across(c(win, loss, matches('tie'))))) %>% 
+  ungroup()
+
+decks = decks %>% 
+  group_by(archetype) %>% 
+  slice_max(n = 1, order_by = n, with_ties = FALSE) %>% 
+  ungroup() %>% 
+  mutate(wr_deck = win / n) %>% 
+  select(archetype, deck_code, n_deck = n, wr_deck)
+
+res %>% left_join(decks, by = 'archetype') %>% write_csv('./data_dumps/monoshard.csv')
+
+players = tbl(con, 'lor_match_info_v2') %>% 
+  filter(archetype %in% local(res$archetype)) %>% 
+  filter(str_detect(game_version, current_patch)) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  filter(game_start_time_utc >= min_date) %>% 
+  {if(master_only) filter(., is_master == 1) else . } %>% 
+  count(archetype, puuid) %>% 
+  collect()
+
+pl = tbl(con, 'lor_players') %>% collect()
+
+players = players %>% 
+  mutate(n_tot = sum(n), share = n / n_tot) %>% 
+  ungroup() %>% 
+  rename(n_player = n) 
+
+players = players %>% 
+  arrange(-share) %>% 
+  left_join(pl, by = 'puuid') %>% 
+  unite(col = player, gameName, tagLine, sep = "#") %>% 
+  select(-puuid) %>% 
+  relocate(region, player, .after = archetype)
+
+players = res %>% 
+  select(archetype, region) %>% 
+  left_join(players, by = c('archetype', 'region')) %>% 
+  arrange(-n_tot, -share)
+
+players %>% 
+  group_by(archetype, region) %>% 
+  slice_max(n = 1, order_by = share, with_ties = TRUE) %>% 
+  ungroup() %>% 
+  left_join(players %>% count(archetype, sort = TRUE, name = 'n_players'), by = 'archetype') %>% 
+  select(archetype, region, n_tot, n_players, most_dedicated_player = player, n_player, share) %>% 
+  arrange(-n_players) %>% 
+  write_csv('./data_dumps/monoshard_players.csv')
