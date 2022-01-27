@@ -119,11 +119,12 @@ data = data %>%
   mutate(game_version = fix_game_version) %>% 
   select(-fix_game_version)
 
+# if no ties this week, add column of zeros
+if(!"tie" %in% colnames(data)){ data = data %>% mutate(tie = 0) }
+
 # add number of decks containing that card in that day for that category
 data = data %>% 
-  rowwise() %>% 
-  mutate(n = sum(c_across(c(win, loss, matches('tie'))))) %>% 
-  ungroup()
+  mutate(n = win + loss + tie)
 
 # add card name
 data = data %>% 
