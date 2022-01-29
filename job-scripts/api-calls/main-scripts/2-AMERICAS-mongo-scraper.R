@@ -191,12 +191,12 @@ while(TRUE){
     
     already_in_mongo <- c(already_in_mongo, new_matches)
     
-    # convert "game_start_time_utc" to MongoDB class Date 
-    m_match$update(
-      query  = '{}',
-      update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', 
-      multiple = TRUE
-    )
+    # # convert "game_start_time_utc" to MongoDB class Date 
+    # m_match$update(
+    #   query  = '{}',
+    #   update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', 
+    #   multiple = TRUE
+    # )
     
     # check if there was any ranked match
     rankeds <- match_content %>% 

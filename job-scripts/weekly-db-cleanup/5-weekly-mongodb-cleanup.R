@@ -22,8 +22,13 @@ m_db3 <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", db_creds$u
 
 # 3. extract old matches from dbs & add them to "old_db" & remove them from current dbs----
 
+m_db1$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
 m_db1$remove(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
+
+m_db2$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
 m_db2$remove(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
+
+m_db3$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
 m_db3$remove(sprintf('{"info.game_start_time_utc": { "$lt" : { "$date" : "%sT00:00:00Z" }}}', Sys.Date() - lubridate::days(30)))
 
 tictoc::toc()

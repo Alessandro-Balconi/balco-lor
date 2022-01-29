@@ -76,7 +76,7 @@ while(TRUE){
     
     # print message to console
     cat(sprintf("START: %s UTC", Sys.time()))
-    
+
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
     m_match$remove('{"status.status_code":{"$exists": true}}')
@@ -196,12 +196,12 @@ while(TRUE){
       
     }
     
-    # convert "game_start_time_utc" to MongoDB class Date 
-    m_match$update(
-      query  = '{}',
-      update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', 
-      multiple = TRUE
-    )
+    # # convert "game_start_time_utc" to MongoDB class Date 
+    # m_match$update(
+    #   query  = '{}',
+    #   update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', 
+    #   multiple = TRUE
+    # )
     
     # check if there was any ranked match
     rankeds <- match_content %>% 
