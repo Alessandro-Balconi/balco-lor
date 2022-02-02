@@ -4,6 +4,8 @@ min_wr = 0.5            # minimum winrate
 master_only = TRUE      # filter only master data?
 min_date = "2022-01-19" # minimum date
 
+# REMEMBER TO LOAD PACKAGES AND CONNECT TO DB !
+
 patches_to_analyze <- tbl(con, "lor_patch_history") %>% 
   collect() %>% 
   arrange(-last_patch) %>% 
