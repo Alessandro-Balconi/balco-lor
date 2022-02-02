@@ -1,7 +1,8 @@
-min_n_tot = 100
-min_share = 0.8
-min_wr = 0.5
-master_only = TRUE
+min_n_tot = 100         # minimum number of games played 
+min_share = 0.8         # minimum percentage of games played in a single shard
+min_wr = 0.5            # minimum winrate
+master_only = TRUE      # filter only master data?
+min_date = "2022-01-19" # minimum date
 
 patches_to_analyze <- tbl(con, "lor_patch_history") %>% 
   collect() %>% 
@@ -23,15 +24,23 @@ current_patch <- patches_to_analyze %>%
   paste0("live_", ., "_") %>% 
   paste0(collapse = "|")
 
-# start collecting matches only 24 hours after the patch
-min_date <- tbl(con, "lor_match_info_v2") %>% 
-  filter(str_detect(game_version, current_patch)) %>%
-  select(game_start_time_utc) %>% 
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
-  collect() %>% 
-  mutate(min_date = min_date + lubridate::days(1)) %>% 
-  pull()
+# start collecting matches only 24 hours after the patch (or check if there is min_date)
+if(exists('min_date')){
+  
+  min_date <- ymd(min_date)
+  
+} else {
+  
+  min_date <- tbl(con, "lor_match_info_v2") %>% 
+    filter(str_detect(game_version, current_patch)) %>%
+    select(game_start_time_utc) %>% 
+    mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+    summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
+    collect() %>% 
+    mutate(min_date = min_date + lubridate::days(1)) %>% 
+    pull()
+  
+}
 
 x = tbl(con, 'ranked_archetypes') %>% 
   {if(master_only) filter(., is_master == 1) else . } %>% 
