@@ -44,11 +44,22 @@ if(exists('min_date')){
   
 }
 
-x = tbl(con, 'ranked_archetypes') %>% 
+x = tbl(con, 'lor_match_info_v2') %>% 
+  filter(str_detect(game_version, current_patch)) %>%
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATE)")) %>% 
+  filter(game_start_time_utc >= min_date) %>% 
   {if(master_only) filter(., is_master == 1) else . } %>% 
-  group_by(region, archetype) %>% 
-  summarise(win = sum(win, na.rm = TRUE), n = sum(n, na.rm = TRUE), .groups = 'drop') %>% 
+  count(region, archetype, game_outcome) %>% 
+  ungroup() %>% 
   collect()
+
+x = x %>% 
+  mutate(n = as.numeric(n)) %>% 
+  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+  rowwise() %>% 
+  mutate(n = sum(c_across(c(win, loss, matches('tie'))))) %>% 
+  ungroup() %>% 
+  select(region, archetype, win, n)
 
 x_n = x %>% 
   select(-win) %>% 
@@ -74,7 +85,7 @@ res = res %>%
 decks = tbl(con, 'lor_match_info_v2') %>% 
   filter(archetype %in% local(res$archetype)) %>% 
   filter(str_detect(game_version, current_patch)) %>% 
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATE)")) %>% 
   filter(game_start_time_utc >= min_date) %>% 
   {if(master_only) filter(., is_master == 1) else . } %>% 
   count(archetype, deck_code, game_outcome) %>% 
