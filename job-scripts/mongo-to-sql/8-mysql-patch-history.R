@@ -27,13 +27,16 @@ con <- DBI::dbConnect(
   db_host = "127.0.0.1",
   user = mysql_creds$uid,
   password = mysql_creds$pwd,
-  dbname = "db_prova"
+  dbname = mysql_creds$dbs
 )
 
-# list of patches
+# extract list of patches from sql data
 patch_list <- tbl(con, "lor_match_info_v2") %>% 
   distinct(game_version) %>% 
-  collect() %>% 
+  collect()
+
+# quick preprocess
+patch_list <- patch_list %>% 
   mutate(across(game_version, ~word(string = ., start = 2, end = -2, sep = "_"))) %>% 
   distinct() %>% 
   separate(col = game_version, into = c("version", "patch"), sep = "\\_", convert = TRUE) %>% 
@@ -46,9 +49,9 @@ last_patch <- patch_list %>%
   pull(value)
 
 # latest saved patch
-mysql_patch <- tbl(con, "lor_patch_history") %>% 
-  filter(last_patch == max(last_patch, na.rm = TRUE)) %>% 
-  distinct(value) %>% # should be just one anyway...
+mysql_patch <- tbl(con, "utils_patch_history") %>% 
+  filter(release_date == max(release_date, na.rm = TRUE)) %>% 
+  distinct(patch) %>% # should be just one anyway...
   collect() %>% 
   pull()
 
@@ -189,8 +192,16 @@ if(mysql_patch == last_patch){
   if(nrow(data) >  0){
     
     data %>% 
-      DBI::dbWriteTable(conn = con, name = "lor_patch_history", value = ., append = TRUE, row.names = FALSE) 
+      DBI::dbWriteTable(conn = con, name = "lor_patch_history", value = ., append = TRUE, row.names = FALSE)
     
+    data %>%
+      separate(value, into = c('main', 'sub'), sep = "\\.", remove = FALSE) %>% 
+      mutate(sub = str_pad(sub, width = 2, pad = "0", side = 'left')) %>% 
+      mutate(patch_regex = paste0("live_", main, "_", sub, "_")) %>% 
+      mutate(release_date = lubridate::as_datetime(paste(Sys.Date() - lubridate::days(1), "16:00:00"))) %>% 
+      select(patch = value, patch_regex, release_date, change) %>% 
+      DBI::dbWriteTable(conn = con, name = "utils_patch_history", value = ., append = TRUE, row.names = FALSE) 
+
   }
   
   RPushbullet::pbPost(

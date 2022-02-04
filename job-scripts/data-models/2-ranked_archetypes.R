@@ -37,24 +37,15 @@ con <- DBI::dbConnect(
 
 # 5. prepare table ----
 
-patches_to_analyze <- tbl(con, "lor_patch_history") %>% 
+# get patch to look for in data
+current_patch <- tbl(con, "utils_patch_history") %>% 
   collect() %>% 
-  arrange(-last_patch) %>% 
+  arrange(desc(release_date)) %>% 
   mutate(new_change = lag(change)) %>% 
   replace_na(list(new_change = 0)) %>% 
   mutate(cum_change = cumsum(new_change)) %>% 
-  filter(cum_change == min(cum_change))
-
-# fix for single digits patches
-patches_to_analyze <- patches_to_analyze %>% 
-  mutate(value = str_replace_all(value, pattern = "\\.", replacement = "_")) %>% 
-  separate(col = value, into = c('main', 'sub'), sep ="_") %>% 
-  mutate(sub = str_pad(sub, width = 2, pad = "0", side = 'left')) %>% 
-  unite(col = value, main, sub, sep = "_") %>% 
-  pull(value)
-
-current_patch <- patches_to_analyze %>% 
-  paste0("live_", ., "_") %>% 
+  filter(cum_change == min(cum_change)) %>% 
+  pull(patch_regex) %>% 
   paste0(collapse = "|")
 
 # start collecting matches only 24 hours after the patch

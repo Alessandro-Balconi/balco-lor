@@ -16,19 +16,16 @@ con <- DBI::dbConnect(
   dbname = db_creds$dbs
 )
 
-# get patch history informations
-patch <- tbl(con, "lor_patch_history") %>% 
-  collect()
-
 # patches from which data is analyzed
-patches <- patch %>% 
-  arrange(-last_patch) %>% 
+patches <- tbl(con, "utils_patch_history") %>% 
+  collect() %>% 
+  arrange(desc(release_date)) %>% 
   mutate(new_change = lag(change)) %>% 
   replace_na(list(new_change = 0)) %>% 
   mutate(cum_change = cumsum(new_change)) %>% 
   filter(cum_change == min(cum_change)) %>%
-  arrange(last_patch) %>% 
-  pull(value) %>% 
+  arrange(release_date) %>% 
+  pull(patch) %>% 
   paste0(collapse = ", ")
 
 # most 40 played archetypes
