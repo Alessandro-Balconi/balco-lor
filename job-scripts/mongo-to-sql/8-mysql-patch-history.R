@@ -191,9 +191,6 @@ if(mysql_patch == last_patch){
   # save matches to db
   if(nrow(data) >  0){
     
-    data %>% 
-      DBI::dbWriteTable(conn = con, name = "lor_patch_history", value = ., append = TRUE, row.names = FALSE)
-    
     data %>%
       separate(value, into = c('main', 'sub'), sep = "\\.", remove = FALSE) %>% 
       mutate(sub = str_pad(sub, width = 2, pad = "0", side = 'left')) %>% 
