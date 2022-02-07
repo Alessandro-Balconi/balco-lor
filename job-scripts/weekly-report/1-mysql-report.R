@@ -18,6 +18,14 @@ suppressPackageStartupMessages(library(googlesheets4)) # working with google spr
 options(gargle_oauth_email = "Balco21@outlook.it")
 options(googlesheets4_quiet = TRUE)
 
+# short name of the patches (this needs manual updates!)
+patch_labels = tribble(
+  ~patch, ~label,
+  "2.14", "BtB",
+  "2.19", "PoC",
+  "2.21", "MM"
+)
+
 # date from which extract matches
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date() - days(7)))
 start_date_char <- as.character(start_date)
@@ -142,6 +150,25 @@ bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", 
 nice_date <- function(date, short_month = TRUE){
   
   paste(month(date, label = TRUE, abbr = short_month), day(date), sep = " ")
+  
+}
+
+# add vertical lines with patch info to region history plot
+add_patch_vlines <- function(plot, df_patch){
+  
+  for (i in seq_len(nrow(patches))){
+    
+    date  <- df_patch$date[i]
+    patch <- df_patch$patch[i]
+    label <- df_patch$label[i]
+    
+    plot <- plot + 
+      geom_segment(x = ymd(date)+3, xend = ymd(date)+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
+      geom_label(x = ymd(date)+3, y = 0, label = paste0(label, " \n P. ", patch), size = 4)
+    
+  }
+  
+  return(plot)
   
 }
 
@@ -372,6 +399,16 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/champs_pr.html", backgro
 data_history <- tbl(con, "ranked_region_weekly_ngames") %>% 
   collect()
 
+patches <- tbl(con, 'utils_patch_history') %>%
+  filter(release_date >= local(Sys.Date()-months(6)), change == 1) %>% 
+  select(patch, date = release_date) %>% 
+  collect()
+
+patches <- patches %>% 
+  mutate(date = as_date(date)) %>% 
+  left_join(patch_labels, by = 'patch') %>% 
+  replace_na(list(label = "Balance"))
+
 weekly_decks <- data %>% 
   distinct(match_id, week) %>% 
   count(week, name = "tot_games") %>% 
@@ -395,17 +432,11 @@ data_history <- data_history %>%
 p <- data_history %>% 
   mutate(playrate = n / tot_games) %>% 
   ggplot(aes(x = week)) +
-  geom_line(aes(y = playrate, group = value, color = value), size = 2) +
-  geom_segment(x = ymd("2021-08-25")+3, xend = ymd("2021-08-25")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-08-25")+3, y = 0, label = "BtB \n P. 2.14", size = 4) +
-  geom_segment(x = ymd("2021-10-20")+3, xend = ymd("2021-10-20")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-10-20")+3, y = 0, label = "Balance \n P. 2.18", size = 4) +
-  geom_segment(x = ymd("2021-11-10")+3, xend = ymd("2021-10-11")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-11-10")+3, y = 0, label = "PoC \n P. 2.19", size = 4) +
-  geom_segment(x = ymd("2021-12-08")+3, xend = ymd("2021-12-08")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2021-12-08")+3, y = 0, label = "MM \n P. 2.21", size = 4) +
-  geom_segment(x = ymd("2022-01-06")+3, xend = ymd("2022-01-06")+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-  geom_label(x = ymd("2022-01-06")+3, y = 0, label = "Balance \n P. 2.22", size = 4) +
+  geom_line(aes(y = playrate, group = value, color = value), size = 2) 
+
+p <- add_patch_vlines(plot = p, df_patch = patches)
+
+p <- p +
   geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
   theme_bw(base_size = 15) +
   theme(axis.text.x = element_text(angle = 20, hjust = 1)) +
