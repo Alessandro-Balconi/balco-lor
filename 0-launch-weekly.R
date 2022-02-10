@@ -6,7 +6,7 @@ tryCatch({
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/weekly-db-cleanup/weekly-mysql-cleanup.R")
   rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/3-ranked_region_weekly_ngames.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/3-ranked_weekly_region_ngames.R")
 }, error = function(e) {
   RPushbullet::pbPost(
     "note",

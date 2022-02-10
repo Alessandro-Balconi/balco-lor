@@ -75,7 +75,7 @@ data <- data %>%
 if(nrow(data) >  0){
   
   data %>% 
-    DBI::dbWriteTable(conn = con, name = "ranked_region_weekly_ngames", value = ., append = TRUE, row.names = FALSE) 
+    DBI::dbWriteTable(conn = con, name = "ranked_weekly_region_ngames", value = ., append = TRUE, row.names = FALSE) 
   
 }
 

@@ -396,7 +396,7 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/champs_pr.html", backgro
 
 # 6.3. historical play-rate ----
 
-data_history <- tbl(con, "ranked_region_weekly_ngames") %>% 
+data_history <- tbl(con, "ranked_weekly_region_ngames") %>% 
   collect()
 
 patches <- tbl(con, 'utils_patch_history') %>%
