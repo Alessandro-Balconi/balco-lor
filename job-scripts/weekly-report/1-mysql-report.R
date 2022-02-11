@@ -11,12 +11,8 @@ suppressPackageStartupMessages(library(DT))          # display nice tables
 suppressPackageStartupMessages(library(reactable))   # display nice tables
 suppressPackageStartupMessages(library(htmlwidgets)) # save tables
 suppressPackageStartupMessages(library(htmltools))   # use HTML functions in R
-suppressPackageStartupMessages(library(googlesheets4)) # working with google spreadsheets
 
 # 2. set parameters ----
-
-options(gargle_oauth_email = "Balco21@outlook.it")
-options(googlesheets4_quiet = TRUE)
 
 # short name of the patches (this needs manual updates!)
 patch_labels = tribble(
@@ -135,7 +131,8 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
   ))
 
 # mapping champion-region combinations to archetypes aggregations
-archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
+archetypes_map <- tbl(con, 'utils_archetype_aggregation') %>% 
+  collect()
 
 # 4. define functions ----
 

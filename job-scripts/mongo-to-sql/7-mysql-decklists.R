@@ -3,12 +3,8 @@
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
-suppressPackageStartupMessages(library(googlesheets4)) # working with google spreadsheets
 
 # 2. parameters ----
-
-options(gargle_oauth_email = "Balco21@outlook.it")
-options(googlesheets4_quiet = TRUE)
 
 # date of 3/7 days ago
 last3_date <- (Sys.time() - lubridate::days(3))
@@ -57,7 +53,8 @@ min_date <- tbl(con, "lor_match_info_v2") %>%
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
 # merge archetypes according to mapping
-archetypes_map <- with_gs4_quiet(read_sheet(ss = "1Xlh2kg7gLzvqugqGPpI4PidAdM5snggbJ44aRLuik5E", sheet = 'Archetypes Mapping'))
+archetypes_map <- tbl(con, 'utils_archetype_aggregation') %>% 
+  collect()
 
 # games played by archetype (needed for next step)
 archetypes <- tbl(con, "lor_match_info_v2") %>% 
