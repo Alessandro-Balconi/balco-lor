@@ -8,6 +8,8 @@ tryCatch({
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/2-mongo-to-mysql.R")
   rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/6-utils_archetype_aggregation.R")
+  rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/2-ranked_archetypes.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/5-ranked_daily_archetypes.R")
@@ -21,9 +23,6 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/2-table_master.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/3-table_40decks.R")
-  #rm(list = ls(all.names = TRUE))
-  #Sys.setenv(RSTUDIO_PANDOC = "/usr/lib/rstudio-server/bin/pandoc")
-  #source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/10-masteringruneterra_tierlist.R")
   tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
