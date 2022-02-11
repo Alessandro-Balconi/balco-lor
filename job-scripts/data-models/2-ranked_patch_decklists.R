@@ -108,7 +108,7 @@ data_decks_v2 <- data_decks_v2 %>%
 if(nrow(data_decks_v2) >  0){
   
   data_decks_v2 %>% 
-    DBI::dbWriteTable(conn = con, name = "lor_decklists_v2", value = ., overwrite = TRUE, row.names = FALSE) 
+    DBI::dbWriteTable(conn = con, name = "ranked_patch_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 
