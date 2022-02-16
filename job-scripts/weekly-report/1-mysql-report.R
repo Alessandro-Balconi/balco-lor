@@ -20,7 +20,7 @@ patch_labels = tribble(
   "2.14", "BtB",
   "2.19", "PoC",
   "2.21", "MM",
-  "3.1", "ACJ"
+  "3.2", "ACJ"
 )
 
 # date from which extract matches
