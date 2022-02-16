@@ -56,7 +56,7 @@ data_cards <- map_dfr(
 
 # most recent day in the table (it means we have updated up to this point)
 last_day = tbl(con, 'expedition_cards') %>% 
-  summarise(maxts = max(day)) %>%
+  summarise(maxts = max(day, na.rm = TRUE)) %>%
   collect() %>% 
   pull() %>% 
   {if(is.na(.)) ymd('2000-01-01') else . }
@@ -148,3 +148,13 @@ if(nrow(data) >  0){
 }
 
 DBI::dbDisconnect(con)
+
+# send update message on discord
+conn_obj <- discordr::create_discord_connection(
+  webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+  username = 'balco-lor.com'
+)
+
+message = sprintf("Weekly Expedition Update! \n %s new matches found since last update.", scales::comma(nrow(opponent)))
+
+discordr::send_webhook_message(message, conn = conn_obj)
