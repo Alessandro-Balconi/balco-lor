@@ -31,13 +31,18 @@ con <- DBI::dbConnect(
 
 # 5. prepare table ----
 
-current_patch <- tbl(con, "utils_patch_history") %>% 
+# patches to analyze
+df_patch <- tbl(con, "utils_patch_history") %>% 
   collect() %>% 
   arrange(desc(release_date)) %>% 
   mutate(new_change = lag(change)) %>% 
   replace_na(list(new_change = 0)) %>% 
   mutate(cum_change = cumsum(new_change)) %>% 
-  filter(cum_change == min(cum_change)) %>% 
+  filter(cum_change == min(cum_change)) %>%
+  collect()
+
+# pull regex to match in lor_match_info_v2
+current_patch <- df_patch %>% 
   pull(patch_regex) %>% 
   paste0(collapse = "|")
 
@@ -52,27 +57,15 @@ min_date <- tbl(con, "lor_match_info_v2") %>%
   pull()
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
-# merge archetypes according to mapping
-archetypes_map <- tbl(con, 'utils_archetype_aggregation') %>% 
-  collect()
-
 # games played by archetype (needed for next step)
-archetypes <- tbl(con, "lor_match_info_v2") %>% 
-  filter(str_detect(game_version, current_patch)) %>%
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-  filter(game_start_time_utc >= min_date) %>% 
-  count(archetype) %>% 
-  filter(n >= 5) %>% 
-  collect()
-  
-# archetype need at least 950 match played to be imported
-archetypes <- archetypes %>% 
-  left_join(archetypes_map, by = c('archetype' = 'old_name')) %>% 
-  mutate(new_name = coalesce(new_name, archetype)) %>% 
-  group_by(new_name) %>% 
-  mutate(n = sum(n, na.rm = TRUE)) %>%
-  ungroup() %>% 
+archetypes <- tbl(con, "ranked_daily_archetypes") %>% 
+  filter(patch %in% local(df_patch$patch), day >= lubridate::as_date(min_date)) %>%
+  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+  mutate(archetype = coalesce(new_name, archetype)) %>% 
+  group_by(archetype) %>% 
+  summarise(n = sum(match, na.rm = TRUE), .groups = 'drop') %>% 
   filter(n >= 950) %>% 
+  collect() %>% 
   pull(archetype)
 
 # 5.2 table of current patch v2 ----
@@ -84,6 +77,10 @@ data_v2 <- tbl(con, "lor_match_info_v2") %>%
   filter(game_start_time_utc >= min_date) %>% 
   mutate(time_frame = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
   count(game_outcome, archetype, deck_code, time_frame, is_master) %>% 
+  collect()
+
+# merge archetypes according to mapping
+archetypes_map <- tbl(con, 'utils_archetype_aggregation') %>% 
   collect()
 
 data_v2 <- data_v2 %>%
