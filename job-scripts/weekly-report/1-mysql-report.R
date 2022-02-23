@@ -579,7 +579,7 @@ p <- data_archetype_wr %>%
     x = "Archetype", 
     y = "Winrate", 
     title = "TOP 10 Archetype Winrate",
-    subtitle = "Only archtypes with a playrate >1% are considered."
+    subtitle = "Only archetypes with a playrate >1% are considered."
   )
 
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/arch_wr.png", plot = p, width = 12, height = 8, dpi = 180)
