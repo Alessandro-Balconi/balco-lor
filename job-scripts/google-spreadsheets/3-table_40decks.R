@@ -112,7 +112,7 @@ info <- tibble(
 deck_info <- y %>% 
   left_join(yy_wr, by = "archetype_1") %>% 
   mutate(winrate = round(winrate*100, digits = 2)) %>% 
-  rename(" " = archetype_1)
+  rename(archetype = archetype_1)
 
 # id of the spreadsheet 
 ss_id <- "1b2sgPXcgV7zTmOVmotoVnUfGTeuK_PIuYsx6zA46rks"
