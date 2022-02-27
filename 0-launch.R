@@ -21,6 +21,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/2-table_master.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/3-table_40decks.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/4-table_60decks.R")
   tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
