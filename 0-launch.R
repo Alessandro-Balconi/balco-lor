@@ -7,6 +7,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/3-AMERICAS-mongo-to-mysql.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/2-mongo-to-mysql.R")
+  tictoc::toc()
+  tictoc::tic()
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/6-utils_archetype_aggregation.R")
   rm(list = ls(all.names = TRUE))
@@ -15,6 +17,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/2-ranked_patch_decklists.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/5-mysql-matchup-table.R")
+  tictoc::toc()
+  tictoc::tic()
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/1-base_table.R")
   rm(list = ls(all.names = TRUE))
@@ -23,6 +27,10 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/3-table_40decks.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/4-table_60decks.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/5-table_7days.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/6-table_3days.R")
   tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
