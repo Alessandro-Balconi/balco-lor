@@ -31,7 +31,7 @@ y = xx %>%
   filter(value %in% new$code) %>% 
   left_join(new, by = c('value' = 'code')) %>% 
   unite(col = 'time', day, hour, sep = " ") %>% 
-  mutate(time = as_datetime(paste0(time, ":00:00"))) %>% 
+  mutate(time = lubridate::as_datetime(paste0(time, ":00:00"))) %>% 
   group_by(time, name) %>% 
   summarise(across(where(is.numeric), sum), .groups = 'drop')
 
@@ -52,7 +52,7 @@ n = tbl(con, 'lor_match_info_v2') %>%
 n = n %>% 
   ungroup() %>% 
   unite(col = 'time', day, hour, sep = " ") %>% 
-  mutate(time = as_datetime(paste0(time, ":00:00"))) %>% 
+  mutate(time = lubridate::as_datetime(paste0(time, ":00:00"))) %>% 
   mutate(n = as.numeric(n))
 
 y = y %>%
@@ -85,11 +85,11 @@ y = y %>%
 # p1
 
 yy = y %>%
-  filter(time > min(time)) %>%
+  filter(time > min(time), time < max(time)) %>%
   mutate(wr = win / match, pr = match / n) %>% 
-  select(time, name, pr, ) %>% 
+  select(time, name, pr, wr) %>% 
   group_by(name) %>% 
-  mutate(pr_ma = forecast::ma(pr, order = 25))
+  mutate(pr_ma = forecast::ma(pr, order = 25), wr_ma = forecast::ma(wr, order = 25))
 
 p2 = yy %>% 
   ggplot(aes(x = time, color = name)) +
@@ -102,7 +102,7 @@ p2 = yy %>%
   labs(
     x = 'Hour',
     y = 'Playrate',
-    title = 'Playrate for new champions',
+    title = 'Playrate for new champions (Plat+)',
     subtitle = 'Line shows a daily Moving Average',
     color = 'Champion'
   )

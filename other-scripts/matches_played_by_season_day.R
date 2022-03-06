@@ -51,10 +51,12 @@ match_by_day <- function(name, start_date, end_date, masters_only){
 }
 
 # collect data for all seasons
+today = as.character(Sys.Date()-lubridate::days(1))
+
 if(!no_bandle) { s1 = match_by_day(name = 'Beyond the Bandlewood', start_date = '2021-08-27', end_date = '2021-10-19', masters_only = masters_only) }
-s2 = match_by_day(name = 'Between Worlds',        start_date = '2021-10-21', end_date = '2021-12-07', masters_only = masters_only)
-s3 = match_by_day(name = 'Magic Misadventures',   start_date = '2021-12-09', end_date = '2022-02-15', masters_only = masters_only)
-s4 = match_by_day(name = 'A Curious Journey',     start_date = '2022-02-17', end_date = '2022-03-01', masters_only = masters_only)
+s2 = match_by_day(name = 'Between Worlds',      start_date = '2021-10-21', end_date = '2021-12-07', masters_only = masters_only)
+s3 = match_by_day(name = 'Magic Misadventures', start_date = '2021-12-09', end_date = '2022-02-15', masters_only = masters_only)
+s4 = match_by_day(name = 'A Curious Journey',   start_date = '2022-02-17', end_date = today,        masters_only = masters_only)
 
 # bind rows and fix column class
 z = { if(!no_bandle) bind_rows(s1, s2, s3, s4) else bind_rows(s2, s3, s4) } %>% mutate(n = as.numeric(n))

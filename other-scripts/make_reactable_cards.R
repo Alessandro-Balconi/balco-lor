@@ -7,17 +7,22 @@ rally_elusives = c(
   'Zed Lulu (DE)'
 )
 
+arch_name = 'Fizz Riven'
+rally_elusives = c('Fizz Riven (BC)')
+
 # ..................................................
 
-min_date = tbl(con, 'lor_match_info_v2') %>% 
-  filter(str_detect(game_version, 'live_3_02_')) %>%
-  mutate(game_start_time_utc = sql('CAST(game_start_time_utc AS DATETIME)')) %>% 
-  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
-  pull()
+# min_date = tbl(con, 'lor_match_info_v2') %>% 
+#   filter(str_detect(game_version, 'live_3_02_')) %>%
+#   mutate(game_start_time_utc = sql('CAST(game_start_time_utc AS DATETIME)')) %>% 
+#   summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
+#   pull()
+min_date = lubridate::ymd('2022-02-24')
 
 x = tbl(con, 'lor_match_info_v2') %>% 
   mutate(game_start_time_utc = sql('CAST(game_start_time_utc AS DATETIME)')) %>% 
-  filter(str_detect(game_version, 'live_3_02_'), game_start_time_utc >= min_date, archetype %in% local(rally_elusives)) %>%
+  filter(str_detect(game_version, 'live_3_02_|live_3_03_'), game_start_time_utc >= min_date, archetype %in% local(rally_elusives)) %>%
+  filter(is_master == 1) %>% 
   count(cards, game_outcome) %>% 
   collect()
 
@@ -37,6 +42,7 @@ xx = xx %>%
   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
 
 xx = xx %>% 
+  { if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
   mutate(match = win + loss + tie, winrate = win / match) %>%
   select(-c(win, loss, tie)) %>% 
   pivot_wider(names_from = count, values_from = c(winrate, match)) %>% # reshape and fill NAs with zeros
@@ -51,9 +57,9 @@ xx <- xx %>%
 
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
+  httr::GET() %>% 
+  httr::content(encoding = "UTF-8") %>% 
+  jsonlite::fromJSON() %>% 
   .[["sets"]] %>% 
   mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
   mutate(set = as.numeric(set)) %>% 
@@ -65,9 +71,9 @@ data_cards <- map_dfr(
   .x = 1:last_set,
   .f = function(x) {
     sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
+      httr::GET() %>%  
+      httr::content(encoding = "UTF-8") %>% 
+      jsonlite::fromJSON() %>% 
       as_tibble()
   },
   .id = "set"
@@ -93,6 +99,7 @@ tot_wr <- x %>%
   group_by(game_outcome) %>% 
   summarise(n = sum(n, na.rm = TRUE), .groups = 'drop') %>% 
   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+  { if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
   mutate(wr = win / (win+loss+tie)) %>% 
   pull(wr)
 
@@ -125,8 +132,10 @@ row_style = htmlwidgets::JS("
 col_pal <- function(x, col_1 = "#FFFFFF", col_2 = "#000000") rgb(colorRamp(c(col_1, col_2))(x), maxColorValue = 255)
 
 # make table nicer
+library(reactable)
+
 xx %>% 
-  reactable(
+  reactable::reactable(
     columns = list(
       rarity = colDef(show = FALSE),
       name = colDef(name = "", minWidth = 200, style = list(fontWeight = "bold", borderRight = "1px solid rgba(0, 0, 0, 0.55)")),
