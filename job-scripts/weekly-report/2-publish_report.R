@@ -21,10 +21,13 @@ latest <- reports %>%
 emotes <- system('ssh balco@lor-meta.com "ls -d /home/balco/www/assets/img/lor-emotes/*"', intern = TRUE) %>% 
   str_remove_all(pattern = '/home/balco/www/assets/img/lor-emotes/|.png')
 
+cur_emote = latest %% length(emotes)
+if (cur_emote == 0){ cur_emote = cur_emote + 1 } 
+
 # this should be changed every week
 p_report_number <- as.character(latest+1)
 p_full_art      <- "03IO006"
-p_emote         <- emotes[latest %% length(emotes)]
+p_emote         <- emotes[cur_emote]
 p_subtitle      <- "Weekly Report at Master Rank!"
 
 # 3. functions ----
