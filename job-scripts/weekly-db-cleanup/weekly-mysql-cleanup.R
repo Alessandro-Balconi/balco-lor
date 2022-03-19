@@ -30,22 +30,16 @@ con <- DBI::dbConnect(
 
 # 3. extract old matches from dbs ----
 
-match_times_v2 <- tbl(con, "lor_match_info_v2") %>% 
-  distinct(match_id, game_start_time_utc) %>% 
-  collect()
-
-old_matchid_v2 <- match_times_v2 %>% 
-  mutate(game_start_time_utc = as.POSIXct(game_start_time_utc)) %>% 
-  filter(date(game_start_time_utc) <  Sys.Date() - days(30)) %>% 
-  pull(match_id)
+old_matchid_v2 <- tbl(con, "lor_match_info_v2") %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATE)")) %>% 
+  filter(game_start_time_utc < local(Sys.Date()-days(30))) %>% 
+  distinct(match_id) %>% 
+  collect() %>% 
+  pull()
 
 # 4. add those to "old_db" and remove them from main collections ----
 
 if(length(old_matchid_v2) > 0){
-  
-  old_v2 <- tbl(con, "lor_match_info_v2") %>% 
-    filter(match_id %in% old_matchid_v2) %>% 
-    collect()
   
   already_in_old_db <- tbl(con, 'lor_match_info_old_v2') %>% 
     filter(match_id %in% old_matchid_v2) %>% 
@@ -54,7 +48,9 @@ if(length(old_matchid_v2) > 0){
     collect() %>% 
     pull()
   
-  old_v2 <- old_v2 %>% filter(!match_id %in% already_in_old_db)
+  old_v2 <- tbl(con, "lor_match_info_v2") %>% 
+    filter((match_id %in% old_matchid_v2) & (!match_id %in% already_in_old_db)) %>% 
+    collect()
   
   DBI::dbWriteTable(con, "lor_match_info_old_v2", value = old_v2, append = TRUE, row.names = FALSE)
   
