@@ -1,13 +1,19 @@
 #Runs analysis + shows error if anything happens
 tryCatch({
+  
+  # update time
   cat(sprintf("--- %s --- \n", Sys.time()))
+
+  # update mysql raw tables
   tictoc::tic()
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/4-ASIA-mongo-to-mysql.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/3-AMERICAS-mongo-to-mysql.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/2-mongo-to-mysql.R")
-  tictoc::toc()
+  cat("MongoDB to MySQL: ") tictoc::toc()
+  
+  # update data models
   tictoc::tic()
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/6-utils_archetype_aggregation.R")
@@ -17,23 +23,26 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/2-ranked_patch_decklists.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/5-mysql-matchup-table.R")
-  tictoc::toc()
+  cat("Data Models: ") tictoc::toc()
+  
+  # update google spreadsheets
   tictoc::tic()
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/1-base_table.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/2-table_master.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/3-table_40decks.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/4-table_60decks.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/5-table_7days.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/6-table_3days.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/7-archetypes_playrate.R")
-  tictoc::toc()
+  
+  # list of files to update
+  gs_list <- list.files('/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets')
+  
+  # function to update spreadsheet
+  update_ss <- function(ss){
+    rm(list = ls(all.names = TRUE))
+    source(paste0("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/", ss))
+  }
+  
+  # apply function to all spreadsheets
+  lapply(X = gs_list, FUN = update_ss)
+  
+  # log message after finishing updates
+  cat("Google Spreadsheets: ") tictoc::toc()
+  
 }, error = function(e) {
   RPushbullet::pbPost(
     "note",
