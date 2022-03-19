@@ -31,6 +31,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/5-table_7days.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/6-table_3days.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/7-archetypes_playrate.R")
   tictoc::toc()
 }, error = function(e) {
   RPushbullet::pbPost(
