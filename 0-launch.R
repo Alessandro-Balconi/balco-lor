@@ -11,7 +11,7 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/3-AMERICAS-mongo-to-mysql.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/2-mongo-to-mysql.R")
-  cat("MongoDB to MySQL: ") tictoc::toc()
+  cat("MongoDB to MySQL: "); tictoc::toc()
   
   # update data models
   tictoc::tic()
@@ -23,7 +23,7 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/2-ranked_patch_decklists.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/5-mysql-matchup-table.R")
-  cat("Data Models: ") tictoc::toc()
+  cat("Data Models: "); tictoc::toc()
   
   # update google spreadsheets
   tictoc::tic()
@@ -33,7 +33,6 @@ tryCatch({
   
   # function to update spreadsheet
   update_ss <- function(ss){
-    rm(list = ls(all.names = TRUE))
     source(paste0("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/", ss))
   }
   
@@ -41,7 +40,7 @@ tryCatch({
   lapply(X = gs_list, FUN = update_ss)
   
   # log message after finishing updates
-  cat("Google Spreadsheets: ") tictoc::toc()
+  cat("Google Spreadsheets: "); tictoc::toc()
   
 }, error = function(e) {
   RPushbullet::pbPost(

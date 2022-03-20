@@ -37,6 +37,8 @@ get_top_played_decks <- function(patches, start_date = '2000-01-01', only_master
     filter(patch %in% patches) %>%
     {if (only_master) filter(., is_master == 1) else . } %>% 
     filter(day >= local(ymd(start_date))) %>% 
+    left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+    mutate(archetype = coalesce(new_name, archetype)) %>% 
     group_by(archetype) %>% 
     summarise(across(c(match),  sum, na.rm = TRUE), .groups = 'drop') %>% 
     slice_max(n = n_top, order_by = match, with_ties = FALSE) %>% 
@@ -65,9 +67,11 @@ daily_region_games <- function(patches, start_date = '2000-01-01', only_master =
 get_daily_data <- function(patches, archetypes, start_date = '2000-01-01', only_master = FALSE){
   
   df = tbl(con, 'ranked_daily_archetypes') %>% 
-    filter(patch %in% patches, archetype %in% archetypes) %>% 
     {if (only_master) filter(., is_master == 1) else . } %>% 
-    filter(day >= local(ymd(start_date))) %>% 
+    filter(patch %in% patches, day >= local(ymd(start_date))) %>% 
+    left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+    mutate(archetype = coalesce(new_name, archetype)) %>% 
+    filter(archetype %in% archetypes) %>% 
     group_by(archetype, day, region) %>% 
     summarise(across(c(match, win),  sum, na.rm = TRUE), .groups = 'drop') %>% 
     collect()
