@@ -75,7 +75,7 @@ while(TRUE){
   if(i == 1){
     
     # print message to console
-    cat(sprintf("START: %s UTC", Sys.time()))
+    cat(sprintf("S: %s ", Sys.time()))
     
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
@@ -171,12 +171,6 @@ while(TRUE){
     # make sure that all match contents are in valid JSON format
     valid_json <- match_content %>% map_lgl(validate)
     
-    if(sum(valid_json == TRUE) != length(match_content)){
-      
-      print(sprintf("%s invalid match JSONs collected; removing them.", length(match_content) - sum(valid_json == TRUE)))
-      
-    }
-    
     match_content <- match_content[valid_json]
     
     # save to database
@@ -241,11 +235,11 @@ while(TRUE){
     n_cycle <- length(already_in_mongo) - n_start
     
     # print log
-    cat(sprintf(" - END: %s new matches. \n", n_cycle))
+    cat(sprintf(" - E: %s\n", n_cycle))
     
   }
   
-  # wait to prevent too many calls (more if there were no matches analyzed)
-  if(get_matches$status_code == 200 & length(matches) > 0){ Sys.sleep(0.03 + max(0, 18 - length(matches))) } else { Sys.sleep(0.03 + 18) }
+  # wait to prevent too many calls
+  if(get_matches$status_code != 200 | length(matches) == 0){ Sys.sleep(1) }
   
 }
