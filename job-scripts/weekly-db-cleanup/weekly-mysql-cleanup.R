@@ -41,18 +41,28 @@ old_matchid_v2 <- tbl(con, "lor_match_info_v2") %>%
 
 if(length(old_matchid_v2) > 0){
   
-  already_in_old_db <- tbl(con, 'lor_match_info_old_v2') %>% 
+  already_in_old_db <- tbl(con, 'ranked_match_metadata') %>% 
     filter(match_id %in% old_matchid_v2) %>% 
     select(match_id) %>% 
-    distinct() %>% 
     collect() %>% 
     pull()
   
   old_v2 <- tbl(con, "lor_match_info_v2") %>% 
     filter((match_id %in% old_matchid_v2) & (!match_id %in% already_in_old_db)) %>% 
+    collect() %>% 
+    mutate(game_start_time_utc = as_datetime(game_start_time_utc))
+  
+  old_metadata <- old_v2 %>% 
+    group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>% 
+    summarise(match_rank = sum(is_master, na.rm = TRUE), .groups = 'drop') %>% 
     collect()
   
-  DBI::dbWriteTable(con, "lor_match_info_old_v2", value = old_v2, append = TRUE, row.names = FALSE)
+  old_info <- old_v2 %>% 
+    select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank = is_master) %>% 
+    mutate(player_rank = player_rank + 1)
+  
+  DBI::dbWriteTable(con, "ranked_match_metadata", value = old_metadata, append = TRUE, row.names = FALSE)
+  DBI::dbWriteTable(con, "ranked_match_info", value = old_info, append = TRUE, row.names = FALSE)
   
   delete_query <- paste0("DELETE FROM lor_match_info_v2 WHERE (match_id IN ('", paste0(old_matchid_v2, collapse = "','"), "'));")
   
