@@ -50,7 +50,8 @@ if(length(old_matchid_v2) > 0){
   old_v2 <- tbl(con, "lor_match_info_v2") %>% 
     filter((match_id %in% old_matchid_v2) & (!match_id %in% already_in_old_db)) %>% 
     collect() %>% 
-    mutate(game_start_time_utc = as_datetime(game_start_time_utc))
+    mutate(game_start_time_utc = as_datetime(game_start_time_utc)) %>% 
+    mutate(is_master = is_master + 1) # changed from: 0 plat+, 1 master to: 0 any, 1 plat+, 2 master
   
   old_metadata <- old_v2 %>% 
     group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>% 
@@ -58,8 +59,7 @@ if(length(old_matchid_v2) > 0){
     collect()
   
   old_info <- old_v2 %>% 
-    select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank = is_master) %>% 
-    mutate(player_rank = player_rank + 1)
+    select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank = is_master)
   
   DBI::dbWriteTable(con, "ranked_match_metadata", value = old_metadata, append = TRUE, row.names = FALSE)
   DBI::dbWriteTable(con, "ranked_match_info", value = old_info, append = TRUE, row.names = FALSE)
