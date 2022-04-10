@@ -17,10 +17,12 @@ match_by_day <- function(name, start_date, end_date, masters_only){
   # collect number of matches by day between start_date and end_date
   if(ymd(start_date) <= Sys.Date()-days(30)){
     
-    df1 = tbl(con, 'lor_match_info_old_v2') %>% 
-      { if(masters_only) filter(., is_master == 1) else . } %>% 
+    df1 = tbl(con, 'ranked_match_metadata') %>% 
+      filter(game_start_time_utc >= local(ymd(start_date)) & game_start_time_utc <= local(ymd(end_date))) %>%
+      left_join(tbl(con, 'ranked_match_info'), by = 'match_id') %>% 
+      { if(masters_only) filter(., player_rank == 2) else . } %>% 
       mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
-      filter(ts >= local(ymd(start_date)) & ts <= local(ymd(end_date))) %>%
+      distinct(ts, match_id) %>% 
       count(ts) %>%
       arrange(ts) %>% 
       collect()
@@ -33,6 +35,7 @@ match_by_day <- function(name, start_date, end_date, masters_only){
       { if(masters_only) filter(., is_master == 1) else . } %>% 
       mutate(ts = sql('CAST(game_start_time_utc AS DATE)')) %>% 
       filter(ts >= local(ymd(start_date)) & ts <= local(ymd(end_date))) %>%
+      distinct(ts, match_id) %>% 
       count(ts) %>%
       arrange(ts) %>% 
       collect()

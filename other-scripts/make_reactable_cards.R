@@ -1,27 +1,27 @@
-arch_name = "Rally Elusives"
+arch_name = "Draven Viktor"
 
 rally_elusives = c(
-  'Lulu Poppy (DE IO)',
-  'Zed Lulu Poppy (DE)',
-  'Zed Poppy (DE)',
-  'Zed Lulu (DE)'
+  #'Riven Viktor',
+  'Draven Viktor'
+  #'Draven Riven Viktor'
 )
-
-arch_name = 'Fizz Riven'
-rally_elusives = c('Fizz Riven (BC)')
 
 # ..................................................
 
-# min_date = tbl(con, 'lor_match_info_v2') %>% 
-#   filter(str_detect(game_version, 'live_3_02_')) %>%
-#   mutate(game_start_time_utc = sql('CAST(game_start_time_utc AS DATETIME)')) %>% 
-#   summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
-#   pull()
-min_date = lubridate::ymd('2022-02-24')
+patch <- tbl(con, 'utils_patch_history') %>% 
+  collect() %>% 
+  arrange(desc(release_date)) %>% 
+  mutate(change_lag = lag(change)) %>% 
+  replace_na(list(change_lag = 0)) %>% 
+  mutate(change_lag = cumsum(change_lag)) %>% 
+  filter(change_lag == 0)
+
+min_date = min(patch$release_date) %>% as_date()
+gv = paste0(patch$patch_regex, collapse = '|')
 
 x = tbl(con, 'lor_match_info_v2') %>% 
   mutate(game_start_time_utc = sql('CAST(game_start_time_utc AS DATETIME)')) %>% 
-  filter(str_detect(game_version, 'live_3_02_|live_3_03_'), game_start_time_utc >= min_date, archetype %in% local(rally_elusives)) %>%
+  filter(str_detect(game_version, local(gv)), game_start_time_utc >= min_date, archetype %in% local(rally_elusives)) %>%
   filter(is_master == 1) %>% 
   count(cards, game_outcome) %>% 
   collect()
