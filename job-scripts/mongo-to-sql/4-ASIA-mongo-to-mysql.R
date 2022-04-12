@@ -64,13 +64,6 @@ already_in_sql <- tbl(con, "lor_match_info_v2") %>%
   paste0(collapse = '\", \"') %>% 
   paste0("\"", ., "\"")
 
-# convert "game_start_time_utc" to MongoDB class Date 
-m_db$update(
-  query  = '{}',
-  update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', 
-  multiple = TRUE
-)
-
 # read new data from MongoDB
 data <- m_db$find(query = sprintf('{"info.game_type":"Ranked", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
 
@@ -140,10 +133,10 @@ if(nrow(data) == 0){
     unpack(cols = everything()) %>% 
     select(-participants)
   
-  # remove matches that have wrong game_start_time_utc format (should be few and will get added later on anyway)
+  # fix date format
   data <- data %>% 
-    filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-"))
-    #filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-[0-9]{2}-[0-9]{2} "))
+    mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = ".000Z")) %>% 
+    mutate(game_start_time_utc = str_replace(game_start_time_utc, pattern = "T", replacement = " "))
   
   # unnest "players" column
   data <- data %>% 

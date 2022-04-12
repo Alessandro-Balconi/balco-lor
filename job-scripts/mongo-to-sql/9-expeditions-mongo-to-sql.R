@@ -76,13 +76,8 @@ already_in_sql <- tbl(con, "expedition_match") %>%
   paste0("\"", ., "\"")
 
 # convert "game_start_time_utc" to MongoDB class Date & read new data from MongoDB
-m_db_eu$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
 data_eu <- m_db_eu$find(query = sprintf('{"info.game_mode":"Expeditions", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
-
-m_db_na$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
 data_na <- m_db_na$find(query = sprintf('{"info.game_mode":"Expeditions", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
-
-m_db_as$update(query  = '{}', update = '[{"$set":{"info.game_start_time_utc": { "$toDate": "$info.game_start_time_utc" }}}]', multiple = TRUE)
 data_as <- m_db_as$find(query = sprintf('{"info.game_mode":"Expeditions", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
 
 data <- bind_rows('europe' = data_eu, 'americas' = data_na, 'asia' = data_as, .id = 'region')
@@ -160,6 +155,11 @@ data <- data %>%
 data <- data %>% 
   mutate(factions = map_chr(factions, str_flatten, collapse = " ")) %>% 
   mutate(factions = str_remove_all(factions, pattern = "faction_|_Name"))
+
+# make game_start_time_utc a date
+data <- data %>% 
+  mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = ".000Z")) %>% 
+  mutate(game_start_time_utc = str_replace(game_start_time_utc, pattern = "T", replacement = " "))
 
 # extract card codes from deck code
 data <- data %>%
