@@ -142,7 +142,7 @@ if(nrow(data) == 0){
   
   # remove matches that have wrong game_start_time_utc format (should be few and will get added later on anyway)
   data <- data %>% 
-    filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-"))
+    filter(str_detect(game_start_time_utc, pattern = "[0-9]{4}-[0-9]{2}-[0-9]{2} "))
   
   # unnest "players" column
   data <- data %>% 
