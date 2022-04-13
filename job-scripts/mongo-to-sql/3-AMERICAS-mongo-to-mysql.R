@@ -148,6 +148,10 @@ data <- data %>%
 data <- data %>% 
   mutate(factions = str_extract(factions, pattern = "(?<=_)(.+)(?=\\_)"))
 
+# fix change in game version
+data <- data %>%
+  mutate(game_version = str_replace_all(game_version, pattern = '-', replacement = '_'))
+
 # reshape (keeping only 1 row per deck)
 data <- data %>% 
   group_by(match_id, puuid, deck_code, game_outcome) %>%

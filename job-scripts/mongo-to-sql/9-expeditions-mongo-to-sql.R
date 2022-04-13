@@ -156,6 +156,10 @@ data <- data %>%
   mutate(factions = map_chr(factions, str_flatten, collapse = " ")) %>% 
   mutate(factions = str_remove_all(factions, pattern = "faction_|_Name"))
 
+# fix change in game version
+data <- data %>%
+  mutate(game_version = str_replace_all(game_version, pattern = '-', replacement = '_'))
+
 # make game_start_time_utc a date
 data <- data %>% 
   mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = ".000Z")) %>% 
