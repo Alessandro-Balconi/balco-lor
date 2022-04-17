@@ -152,7 +152,8 @@ df_cards <- df_cards %>%
   mutate(count = as.numeric(count)) %>% 
   bind_rows(df_count_0) %>% 
   mutate(n_perc = n / n_arch) %>% 
-  select(-c(n_arch, n_card, n)) %>% 
+  select(-c(n_arch, n_card, n)) %>%
+  arrange(desc(count)) %>% 
   pivot_wider(names_from = count, values_from = n_perc, values_fill = 0, names_prefix = 'n_') %>% 
   mutate(n_ovr = n_3 + n_2 + n_1, .after = card)
 
@@ -164,16 +165,18 @@ df_cards_nice <- df_cards %>%
 
 # make cards table with core / flex info and qty
 df_cards_table <- df_cards %>% 
-  arrange(archetype, desc(n_ovr), desc(n_3), desc(n_2), desc(n_1), desc(n_0)) %>% 
   mutate(what = ifelse(n_ovr >= 0.8, "Core", ifelse(n_ovr >= 0.1, "Flex", 'Tech Card'))) %>% 
   mutate(across(c(n_3, n_2, n_1), function(x) x / n_ovr)) %>% 
-  select(-c(n_ovr, n_0)) %>% 
-  pivot_longer(cols = -c(archetype, card, what)) %>% 
+  select(-n_0) %>% 
+  pivot_longer(cols = -c(n_ovr, archetype, card, what)) %>% 
+  arrange(archetype, what, desc(n_ovr), value) %>% 
   filter(value >= 0.25) %>% 
   mutate(name = str_remove(name, pattern = '^n_')) %>% 
   with_groups(.groups = c(archetype, card, what), .f = mutate, value = row_number()) %>% 
   pivot_wider(names_from = value, values_from = name, names_prefix = 'x') %>% 
-  unite(col = quantity, c(x3, x2, x1), sep = ' or ', na.rm = TRUE)
+  unite(col = quantity, c(x3, x2, x1), sep = ' or ', na.rm = TRUE) %>% 
+  arrange(archetype, what, desc(n_ovr), desc(quantity)) %>% 
+  select(-n_ovr)
 
 # update spreadsheet ----
 
