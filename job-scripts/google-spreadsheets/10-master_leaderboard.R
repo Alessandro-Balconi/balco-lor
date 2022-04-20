@@ -93,8 +93,11 @@ update_sheet_region('asia')
 
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
-info_1 <- "This is a work in progress"
-info <- tibble(" " = c(update, info_1))
+info_1 <- "The daily snapshots are taken at the following hours:"
+info_2 <- "Europe: 00:30 UTC (2:30 CEST)"
+info_3 <- "Americas: 08:30 UTC (1:30 PDT)"
+info_4 <- "APAC: 16:30 UTC (22:30 CST)"
+info <- tibble(" " = c(update, info_1, info_2, info_3, info_4))
 with_gs4_quiet(sheet_write(data = info,   ss = ss_id, sheet = "Data Information"))
 
 # names of the spreadsheet to update
