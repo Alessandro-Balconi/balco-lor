@@ -78,6 +78,24 @@ if(nrow(data) >  0){
   data %>% 
     DBI::dbWriteTable(conn = con, name = "ranked_daily_archetypes", value = ., append = TRUE, row.names = FALSE) 
   
+  # time of the update
+  upd_time <- tibble(
+    table_name = 'ranked_daily_archetypes',
+    time = Sys.time() %>% as.character()
+  )
+  
+  # run update
+  DBI::dbExecute(
+    conn = con,
+    statement = sprintf(
+      "REPLACE INTO utils_update_time
+        (table_name, time)
+        VALUES
+        (%s);",
+      paste0("'", paste0(c(upd_time$table_name, upd_time$time), collapse = "', '"), "'")
+    )
+  )
+  
 }
 
 DBI::dbDisconnect(con)

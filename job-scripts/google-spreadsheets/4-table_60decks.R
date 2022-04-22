@@ -29,7 +29,7 @@ patches <- tbl(con, "utils_patch_history") %>%
   paste0(collapse = ", ")
 
 # most 60 played archetypes
-top60 <- tbl(con, "lor_matchup_table_v2") %>% 
+top60 <- tbl(con, "ranked_patch_matchups") %>% 
   group_by(archetype_1) %>%
   summarise(n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
   arrange(desc(n)) %>% 
@@ -41,7 +41,7 @@ top60 <- tbl(con, "lor_matchup_table_v2") %>%
 top60_wrap <- str_wrap(top60, width = 8)
 
 # collect only matchups among the top60
-x <- tbl(con, "lor_matchup_table_v2") %>% 
+x <- tbl(con, "ranked_patch_matchups") %>% 
   filter(archetype_1 %in% top60, archetype_2 %in% top60) %>% 
   collect()
 
@@ -54,13 +54,13 @@ x <- x %>%
   )
 
 # total number of games played
-total_n <- tbl(con, "lor_matchup_table_v2") %>% 
+total_n <- tbl(con, "ranked_patch_matchups") %>% 
   summarise(full_n = sum(n, na.rm = TRUE)) %>% 
   collect() %>% 
   pull()
 
 # top 60 decks info (playrate)
-y <- tbl(con, "lor_matchup_table_v2") %>% 
+y <- tbl(con, "ranked_patch_matchups") %>% 
   filter(archetype_1 %in% top60) %>%
   group_by(archetype_1) %>% 
   summarise(games_played = sum(n, na.rm = TRUE), .groups = "drop") %>% 
@@ -70,7 +70,7 @@ y <- tbl(con, "lor_matchup_table_v2") %>%
   arrange(-playrate)
 
 # top 60 decks info (winrate)
-y_wr <- tbl(con, "lor_matchup_table_v2") %>% 
+y_wr <- tbl(con, "ranked_patch_matchups") %>% 
   filter(archetype_1 %in% top60) %>%
   collect()
 
