@@ -59,37 +59,34 @@ con <- DBI::dbConnect(
   dbname = db_creds$dbs
 )
 
-# number of master matches in the last 7 days
-count_master_match <- tbl(con, "lor_match_info_v2") %>% 
-  filter(game_start_time_utc >= start_date_char) %>% 
-  filter(is_master == 1) %>% 
-  distinct(match_id) %>%
-  count() %>% 
-  collect() %>% 
-  pull(n)
+# master matches of the past week (if >= 10000, we only collect these)
+weekly_master_match <- tbl(con, "lor_match_info_v2") %>% 
+  filter(is_master == 1, game_start_time_utc >= mysql_start_date) %>% 
+  mutate(week = ifelse(game_start_time_utc >= start_date_char, "current", "last")) %>% 
+  distinct(week, match_id) %>%
+  collect()
 
-# if I have at least 10k master matches, collect only master matches
-if(count_master_match >= 10000){
-  
-  # matchid with at least 1 master player (this week + last week)
-  master_matchids <- tbl(con, "lor_match_info_v2") %>% 
-    filter(game_start_time_utc >= mysql_start_date) %>% 
-    filter(is_master == 1) %>% 
-    distinct(match_id) %>%
-    collect() %>% 
-    pull(match_id)
-  
-}
+# number of weekly matches at master
+nweekly_master <- weekly_master_match %>% filter(week == 'current') %>% nrow()
 
 # import match data (only from ranked games)
 data <- tbl(con, "lor_match_info_v2") %>%
   filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(count_master_match >= 10000) filter(., match_id %in% master_matchids) else . } %>% 
+  {if(nweekly_master >= 10000) filter(., match_id %in% local(weekly_master_match$match_id)) else . } %>% 
   select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
+  rename(shard = region) %>% 
+  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+  mutate(new_name = coalesce(new_name, archetype)) %>% 
   collect()
 
-data <- data %>% 
-  rename(shard = region)
+# add flag for "current" or "last" week
+data <- data %>%
+  mutate(game_start_time_utc = as_datetime(game_start_time_utc)) %>% 
+  mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
+
+# number of games by week
+games_by_week <- data %>% 
+  count(week, name = "tot")
 
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
@@ -131,10 +128,6 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     TRUE ~ nameRef
   ))
 
-# mapping champion-region combinations to archetypes aggregations
-archetypes_map <- tbl(con, 'utils_archetype_aggregation') %>% 
-  collect()
-
 # 4. define functions ----
 
 # Render a bar chart with a label on the left
@@ -145,11 +138,7 @@ bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", 
 }
 
 # create a nice date from  date object
-nice_date <- function(date, short_month = TRUE){
-  
-  paste(month(date, label = TRUE, abbr = short_month), day(date), sep = " ")
-  
-}
+nice_date <- function(date, short_month = TRUE){ paste(month(date, label = TRUE, abbr = short_month), day(date), sep = " ") }
 
 # add vertical lines with patch info to region history plot
 add_patch_vlines <- function(plot, df_patch){
@@ -242,22 +231,6 @@ img_uri <- function(x, size = 1, custom_size = FALSE){
 
 }
 
-# 5. make report ----
-
-# keep only recent data (this week + past one)
-data <- data %>%
-  mutate(game_start_time_utc = as_datetime(game_start_time_utc)) %>% 
-  filter(game_start_time_utc >= start_date-days(7))
-
-# add flag for "current" or "last" week
-data <- data %>% 
-  mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
-
-# merge archetypes according to mapping
-data <- data %>%
-  left_join(archetypes_map, by = c("archetype" = "old_name")) %>%
-  mutate(new_name = coalesce(new_name, archetype))
-
 # 6. images to save ----
 
 # 6.0 data info ----
@@ -305,9 +278,6 @@ w <- grid::convertWidth(sum(p$widths), "in", TRUE)
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/data.png", plot = p, width = w+0.01, height = h+0.01)
 
 # 6.1. playrate by region ----
-
-games_by_week <- data %>% 
-  count(week, name = "tot")
 
 p <- data %>% 
   select(week, starts_with("faction_")) %>% 
@@ -615,7 +585,9 @@ data_matchup <- data %>%
   mutate(a1_wr = ifelse(archetype_1 == archetype_2, NA_real_, wins / n)) 
 
 p <- data_matchup %>% 
-  filter(archetype_1 %in% data_archetype_pr$new_name & archetype_2 %in% data_archetype_pr$new_name) %>% 
+  mutate(across(c(archetype_1, archetype_2), function(x) if_else(x %in% data_archetype_pr$new_name, x, 'Other'))) %>% 
+  with_groups(.groups = c(archetype_1, archetype_2), .f = summarise, across(c(n, wins), sum)) %>% 
+  mutate(a1_wr = ifelse(archetype_1 == archetype_2, NA_real_, wins / n)) %>% 
   select(-c(n, wins)) %>% 
   pivot_wider(names_from = archetype_2, values_from = a1_wr) %>%
   column_to_rownames(var = "archetype_1") %>%
@@ -623,7 +595,7 @@ p <- data_matchup %>%
   rownames_to_column(var = "archetype_1") %>% 
   pivot_longer(cols = -archetype_1, names_to = "archetype_2", values_to = "a1_wr") %>%
   mutate(bin = cut(a1_wr, c(0, 0.4, 0.45, 0.55, 0.6, 1), include.lowest = TRUE)) %>%
-  mutate(across(c(archetype_1, archetype_2), ~factor(., levels = data_archetype_pr$new_name, ordered = TRUE))) %>%
+  mutate(across(c(archetype_1, archetype_2), ~factor(., levels = c(data_archetype_pr$new_name, 'Other'), ordered = TRUE))) %>%
   ggplot(aes(y = reorder(archetype_1, desc(archetype_1)), x = archetype_2)) +
   geom_tile(aes(fill = bin), color = "grey90", size = 1, stat = "identity") +
   shadowtext::geom_shadowtext(aes(label = scales::percent(a1_wr, accuracy = .1)), color = "white", size = 6, na.rm = TRUE) +
