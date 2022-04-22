@@ -239,6 +239,6 @@ while(TRUE){
   }
   
   # wait to prevent too many calls
-  Sys.sleep(1)
+  if(get_matches$status_code != 200 | length(matches) < 3){ Sys.sleep(2) } else { Sys.sleep(1) }
   
 }
