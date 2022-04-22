@@ -111,7 +111,7 @@ leaderboard <- tbl(con, "leaderboard_eu") %>%
   pull(name)
 
 # get PUUIDs of master players
-master_puuids <- tbl(con, 'lor_players') %>% 
+master_puuids <- tbl(con, 'utils_players') %>% 
   filter(region == 'europe', gameName %in% local(leaderboard)) %>% 
   collect() %>% 
   {if(nrow(.) > 0) pull(., puuid) else NA_character_}

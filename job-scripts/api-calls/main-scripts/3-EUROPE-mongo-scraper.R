@@ -55,7 +55,7 @@ add_player_to_db <- function(player, region = 'europe'){
     DBI::dbExecute(
       conn = con,
       statement = sprintf(
-        "REPLACE INTO lor_players
+        "REPLACE INTO utils_players
         (puuid, gameName, tagLine, region)
         VALUES
         (%s);",
@@ -240,6 +240,6 @@ while(TRUE){
   }
   
   # wait to prevent too many calls
-  if(get_matches$status_code != 200 | length(matches) < 3){ Sys.sleep(2) }
+  Sys.sleep(1)
   
 }

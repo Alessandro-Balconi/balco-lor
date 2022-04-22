@@ -41,7 +41,7 @@ get_monoregion <- function(champs){
 # get PUUIDs of master players (from name)
 get_master_puuids <- function(region, master_names){
   
-  tbl(con, 'lor_players') %>% 
+  tbl(con, 'utils_players') %>% 
     filter(region == local(region), gameName %in% local(master_names)) %>% 
     collect() %>% 
     {if(nrow(.) > 0) pull(., puuid) else NA_character_}

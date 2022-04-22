@@ -211,7 +211,7 @@ fill_matchup_table <- function(tbl){
 # function that extracts name from player puuid
 from_puuid_to_riotid <- function(puuid, shard){
   
-  tbl(con, 'lor_players') %>% 
+  tbl(con, 'utils_players') %>% 
     filter(region == local(shard), puuid == local(puuid)) %>% 
     collect() %>% 
     pull(gameName)

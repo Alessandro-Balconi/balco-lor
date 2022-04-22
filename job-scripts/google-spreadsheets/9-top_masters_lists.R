@@ -81,7 +81,7 @@ db_cards <- map_dfr(
 df_players <- map_dfr(.x = c('europe', 'americas', 'asia'), .f = get_top_masters)
 
 # db with player info
-db_players <- tbl(con, 'lor_players') %>% 
+db_players <- tbl(con, 'utils_players') %>% 
   filter(gameName %in% local(df_players$name)) %>% 
   collect()
 
