@@ -121,7 +121,7 @@ while(TRUE){
       old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_asia.rds")
       
       # get players to read match data from (old season masters + current masters)
-      player_data <- tbl(con, 'lor_players') %>%
+      player_data <- tbl(con, 'utils_players') %>%
         filter(region == 'asia') %>%
         select(-region) %>%
         collect()
