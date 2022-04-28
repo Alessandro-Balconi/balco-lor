@@ -126,6 +126,7 @@ data <- data %>%
 # fix date format
 data <- data %>% 
   mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = ".000Z")) %>% 
+  mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = "Z")) %>% 
   mutate(game_start_time_utc = str_replace(game_start_time_utc, pattern = "T", replacement = " "))
 
 # THIS SHOULD NOT BE NEEDED BUT IT IS, WHY???
