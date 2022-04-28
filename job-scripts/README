@@ -5,22 +5,20 @@
 
 - "api-calls": scripts that perform API calls and save the results in a MongoDB.
 
-# HOURLY
+# HALF-HOURLY
 
-- "update-leaderboard": hourly script that calls the leaderboard and updates it.
+- "update-leaderboard": hourly script that calls the leaderboard and updates it. Also saves daily ladder snapshots (this should be moved to a different job tbh)
 
-# DAILY
+# 8-HOURLY
 
-- "generate-report": daily script that generates the charts and tables used in the weekly report from the ranked data in MySQL. It's daily because I like having a look at it every day, but can easily be run weekly if needed.
+- "mongo-to-sql": script that reads BSON data from MongoDB and preprocess it, convert to tabular and saves in MySQL. Also saves a table with matchup information.
 
-- "mongo-to-sql": daily script that reads BSON data from MongoDB and preprocess it, convert to tabular and saves in MySQL. Also saves a table with matchup information.
+- "data-models": scripts that generate data models (aggregations of the raw sql tabels, for faster analyses).
 
--"gs4-report": google spreadsheet with matchup table for the 25 most played archetypes.
+-"google-spreadsheets": generates and updates google spreadsheet with data taken from models.
 
 # WEEKLY
 
-- "mongo-to-sql": this folder also contains a weekly job that saves historical region playrate in a MySQL table. DONE ON WEDNESDAY MORNING.
+- "generate-report": weekly script that generates the charts and tables used in the weekly report from the ranked data in MySQL. Also publish the script that generates the actual .md file to be used as report, saves it to lor-meta.com..
 
-- "weekly-db-cleanup": script that removes from the main MongoDB / MySQL collections all matches older than 1 month; they are moved to "old" collections just for archive purposes, but are no more actively used. Also updates historical region playrates for that one chart. DONE ON WEDNESDAY MORNING.
-
-- "publish-report": script that generates the actual .md file to be used as report, saves it to lor-meta.com.
+- "weekly-db-cleanup": scripts that removes from the main MongoDB / MySQL collections all matches older than 1 month; they are moved to "old" collections just for archive purposes, but are no more actively used. 

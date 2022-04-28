@@ -6,9 +6,9 @@ Files in this directory:
 
 - folder "old": contains old scripts / analysis that are no more used, but the code might come in handy for future projects.
 
-- folder "output": contains the images used in the report. These are updated daily. Strictly speaking, this folder is not necessary but is interesting to have a look at the results every once in a while
+- folder "output": contains the images used in the report. These are updated weekly.
 
-- folder "job-scripts": contains all the scripts to perform activities that are run periodically. These scripts are called by the "0-launch" scripts. Inside this folder there is another "README" file with additional info on all the activities performed.
+- folder "job-scripts": contains all the scripts to perform activities that are run periodically. These scripts are called by the "0-launch" scripts and similar. Inside this folder there is another "README" file with additional info on all the activities performed.
 
 - folder "other-scripts": contains scripts that are not regularly launched but might be useful in the future. (e.g scripts for seasonal tournament)
 
@@ -26,9 +26,7 @@ Files in this directory:
 
 99% of the job is automated. The only manual intervention required is the following:
 
-- Once a week, choose the full-art and emote to be used in the weekly report. Save them on "lor-meta.com" and update the "publish-report.R" script with the name of those files.
-
-- After "publish-report.R" job finishes, it is necessary to perform "bundle exec jekyll build" to publish the website.
+- After "publish-report.R" job finishes, it is necessary to perform "cd ./www" and "bundle exec jekyll build" to publish the website.
 
 - Once the report is published, make a tweet and a reddit post about it (this could be automated, I'll look into it).
 
