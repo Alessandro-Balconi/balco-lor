@@ -116,6 +116,15 @@ master_puuids <- tbl(con, 'utils_players') %>%
   collect() %>% 
   {if(nrow(.) > 0) pull(., puuid) else NA_character_}
 
+# old master leaderboard
+old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds")
+
+# get PUUIDs of old master players (current plat+)
+plat_puuids <- tbl(con, 'utils_players') %>% 
+  filter(region == 'europe', gameName %in% local(old_master_players)) %>% 
+  collect() %>% 
+  {if(nrow(.) > 0) pull(., puuid) else NA_character_}
+
 # 5. convert from BSON to tabular ----
 
 if(nrow(data) == 0){
@@ -204,14 +213,37 @@ if(nrow(data) == 0){
   data <- data %>% 
     mutate(is_master = (puuid %in% master_puuids))
   
+  # add player rank (master, plat+, any)
+  data <- data %>% 
+    mutate(
+      player_rank = case_when(
+        puuid %in% master_puuids ~ 2,
+        puuid %in% plat_puuids ~ 1,
+        TRUE ~ 0
+      )
+    )
+  
+  # add region
+  data <- data %>% 
+    mutate(region = 'europe')
+  
   # 6. save to MySQL db ----
   
   # save matches to db v2
   if(nrow(data) >  0){
     
     data %>% 
-      mutate(region = 'europe') %>% 
+      select(-player_rank) %>% 
       DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
+    
+    # data %>% 
+    #   group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>% 
+    #   summarise(match_rank = sum(player_rank, na.rm = TRUE), .groups = 'drop') %>% 
+    #   DBI::dbWriteTable(conn = con, name = "ranked_match_metadata_30d", value = ., append = TRUE, row.names = FALSE) 
+    
+    # data %>% 
+    #   select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank) %>% 
+    #   DBI::dbWriteTable(conn = con, name = "ranked_match_info_30d", value = ., append = TRUE, row.names = FALSE) 
     
   }
   
