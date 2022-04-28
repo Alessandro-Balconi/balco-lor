@@ -77,13 +77,13 @@ xx %>%
         TRUE ~ 'not_changed'
       )
     ), 
-    bg.r = 0.08, size = 12, na.rm = TRUE) +
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 20)) +
+    bg.r = 0.08, size = 12, na.rm = TRUE, bg.color = 'white') +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 30)) +
   scale_x_discrete(labels = c('Playrate (3.6)', 'Winrate (3.6)', 'Playrate (3.5)', 'Winrate (3.5)', 'ΔPlayrate', 'ΔWinrate'), position = "top") +
   scale_fill_manual(values = c('pr' = 'steelblue', 'wr' = 'forestgreen', 'change' = 'white')) +
-  scale_color_manual(values = c('not_colored' = 'white', 'super_neg' = '#B81D13', 'super_pos' = "#046507", 'pos' = '#149414', 'neg' = 'coral2', 'not_changed' = '#EFB700')) +
-  labs(title = 'Early data from Patch 3.6', subtitle = sprintf('Plat+ - %s decks analyzed', scales::comma(ndecks, accuracy = 1)), x = element_blank(), y = 'Archetype') +
-  theme_classic(base_size = 15) +
-  theme(legend.position = 'none', axis.text.x = element_text(size = 20))
+  scale_color_manual(values = c('not_colored' = 'black', 'super_neg' = '#B81D13', 'super_pos' = "#046507", 'pos' = '#149414', 'neg' = 'coral2', 'not_changed' = '#EFB700')) +
+  labs(title = 'Patch 3.6 - Day 1 Most Played Decks', subtitle = sprintf('Plat+ - %s decks analyzed', scales::comma(ndecks, accuracy = 1)), x = element_blank(), y = element_blank()) +
+  theme_classic(base_size = 20) +
+  theme(legend.position = 'none', axis.text.x = element_text(size = 20), axis.text.y = element_text(size = 20))
 
 DBI::dbDisconnect(con)
