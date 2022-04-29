@@ -6,11 +6,7 @@ tryCatch({
 
   # update mysql raw tables
   tictoc::tic()
-  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/4-ASIA-mongo-to-mysql.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/3-AMERICAS-mongo-to-mysql.R")
-  rm(list = ls(all.names = TRUE))
-  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/2-mongo-to-mysql.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/1-ranked-mongo-to-sql.R")
   cat("MongoDB to MySQL: "); tictoc::toc()
   
   # update data models
@@ -23,6 +19,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/2-ranked_patch_decklists.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/7-ranked_patch_matchups.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/8-ranked_patch_archetypes.R")
   cat("Data Models: "); tictoc::toc()
   
   # update google spreadsheets
