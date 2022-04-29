@@ -57,27 +57,23 @@ min_date <- tbl(con, "lor_match_info_v2") %>%
   pull()
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
-# games played by archetype (needed for next step)
-archetypes <- tbl(con, "ranked_daily_archetypes") %>% 
-  filter(patch %in% local(df_patch$patch), day >= lubridate::as_date(min_date)) %>%
-  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
-  mutate(archetype = coalesce(new_name, archetype)) %>% 
-  group_by(archetype) %>% 
-  summarise(n = sum(match, na.rm = TRUE), .groups = 'drop') %>% 
-  filter(n >= 950) %>% 
+# games played by decklists (filtering out those with <5 games)
+deck_codes <- tbl(con, 'lor_match_info_v2') %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  filter(str_detect(game_version, current_patch), game_start_time_utc >= min_date) %>% 
+  count(deck_code) %>% 
+  filter(n >= 5) %>% 
   collect() %>% 
-  pull(archetype)
-
+  pull(deck_code)
+  
 # 5.2 table of current patch v2 ----
 
 # extract data from MySQL
 data_v2 <- tbl(con, "lor_match_info_v2") %>%
-  filter(str_detect(game_version, current_patch)) %>% 
+  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
+  filter(str_detect(game_version, current_patch), game_start_time_utc >= min_date, deck_code %in% deck_codes) %>% 
   left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
   mutate(archetype = coalesce(new_name, archetype)) %>% 
-  filter(archetype %in% archetypes) %>% 
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-  filter(game_start_time_utc >= min_date) %>% 
   mutate(time_frame = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
   count(game_outcome, archetype, deck_code, time_frame, is_master) %>% 
   collect() %>% 
@@ -90,7 +86,6 @@ data_decks_v2 <- data_v2 %>%
 data_decks_v2 <- data_decks_v2 %>%
   {if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
   mutate(match = win + loss + tie) %>% 
-  filter(match >= 5) %>% 
   {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
   {if(nrow(.)>0) select(., archetype, deck_code, match, winrate, time_frame, is_master) else . }
 
