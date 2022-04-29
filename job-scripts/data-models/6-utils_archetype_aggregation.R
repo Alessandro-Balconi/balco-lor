@@ -11,7 +11,6 @@ suppressPackageStartupMessages(library(googlesheets4)) # working with google spr
 
 options(gargle_oauth_email = "Balco21@outlook.it")
 options(googlesheets4_quiet = TRUE)
-gs4_auth(email = 'Balco21@outlook.it')
 
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
