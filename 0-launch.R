@@ -21,6 +21,8 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/7-ranked_patch_matchups.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/8-ranked_patch_archetypes.R")
+  rm(list = ls(all.names = TRUE))
+  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/9-utils_ranked_patch_decklists_cards.R")
   cat("Data Models: "); tictoc::toc()
   
   # update google spreadsheets
