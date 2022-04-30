@@ -38,10 +38,31 @@ list_df <- map(
   }
 )
 
+# same but filtering only master data
+list_df_master <- map(
+  .x = c('patch' = 0, 'last_7d' = 1, 'last_3d' = 2),
+  .f = function(x){
+    tbl(con, 'ranked_patch_decklists') %>% 
+      filter(time_frame >= x, is_master == 1) %>% 
+      mutate(win = match*winrate) %>% 
+      group_by(archetype, deck_code) %>% 
+      summarise(across(c(match, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
+      arrange(desc(match)) %>% 
+      head(1000) %>% 
+      collect() %>% 
+      mutate(winrate = scales::percent(win / match, accuracy = .1)) %>% 
+      select(-win)
+  }
+)
+
 # update all sheets of the spreadsheet
 with_gs4_quiet(sheet_write(data = list_df[['last_3d']], ss = ss_id, sheet = 'Plat+ - Last 3 days'))
 with_gs4_quiet(sheet_write(data = list_df[['last_7d']], ss = ss_id, sheet = 'Plat+ - Last 7 days'))
 with_gs4_quiet(sheet_write(data = list_df[['patch'  ]], ss = ss_id, sheet = 'Plat+ - Current Patch'))
+with_gs4_quiet(sheet_write(data = list_df_master[['last_3d']], ss = ss_id, sheet = 'Master - Last 3 days'))
+with_gs4_quiet(sheet_write(data = list_df_master[['last_7d']], ss = ss_id, sheet = 'Master - Last 7 days'))
+with_gs4_quiet(sheet_write(data = list_df_master[['patch'  ]], ss = ss_id, sheet = 'Master - Current Patch'))
+
 
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
