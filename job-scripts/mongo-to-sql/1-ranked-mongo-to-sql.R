@@ -256,14 +256,14 @@ mongo_to_sql <- function(input_region){
         select(-player_rank) %>% 
         DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
       
-      # data %>% 
-      #   group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>% 
-      #   summarise(match_rank = sum(player_rank, na.rm = TRUE), .groups = 'drop') %>% 
-      #   DBI::dbWriteTable(conn = con, name = "ranked_match_metadata_30d", value = ., append = TRUE, row.names = FALSE) 
+      data %>%
+        group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>%
+        summarise(match_rank = sum(player_rank, na.rm = TRUE), .groups = 'drop') %>%
+        DBI::dbWriteTable(conn = con, name = "ranked_match_metadata_30d", value = ., append = TRUE, row.names = FALSE)
       
-      # data %>% 
-      #   select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank) %>% 
-      #   DBI::dbWriteTable(conn = con, name = "ranked_match_info_30d", value = ., append = TRUE, row.names = FALSE) 
+      data %>%
+        select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank) %>%
+        DBI::dbWriteTable(conn = con, name = "ranked_match_info_30d", value = ., append = TRUE, row.names = FALSE)
       
     }
  
