@@ -63,7 +63,7 @@ data_v2 <- tbl(con, "lor_match_info_v2") %>%
   left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
   mutate(archetype = coalesce(new_name, archetype)) %>% 
   mutate(time_frame = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
-  count(game_outcome, archetype, time_frame, is_master) %>% 
+  count(game_outcome, archetype, region, time_frame, is_master) %>% 
   collect() %>% 
   ungroup()
 
@@ -72,7 +72,7 @@ data_v2 <- data_v2 %>%
   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
   {if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
   mutate(match = win + loss + tie) %>% 
-  {if(nrow(.)>0) select(., archetype, match, win, time_frame, is_master) else . }
+  {if(nrow(.)>0) select(., archetype, region, time_frame, is_master, match, win) else . }
 
 # 6. save to MySQL db ----
 
