@@ -65,8 +65,12 @@ if(length(old_matchid_v2) > 0){
   DBI::dbWriteTable(con, "ranked_match_info", value = old_info, append = TRUE, row.names = FALSE)
   
   delete_query <- paste0("DELETE FROM lor_match_info_v2 WHERE (match_id IN ('", paste0(old_matchid_v2, collapse = "','"), "'));")
+  delete_query2 <- paste0("DELETE FROM ranked_match_metadata_30d WHERE (match_id IN ('", paste0(old_matchid_v2, collapse = "','"), "'));")
+  delete_query3 <- paste0("DELETE FROM ranked_match_info_30d WHERE (match_id IN ('", paste0(old_matchid_v2, collapse = "','"), "'));")
   
   DBI::dbExecute(con, delete_query)
+  DBI::dbExecute(con, delete_query2)
+  DBI::dbExecute(con, delete_query3)
   
 }
 
