@@ -14,10 +14,6 @@ suppressPackageStartupMessages(library(lubridate)) # working with dates
 # date from which weeks are counted in the report
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date()))
 
-# mysql date to filter
-mysql_start_date <- as.character(Sys.time()-days(22))
-mysql_end_date <- as.character(Sys.time()-days(13))
-
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
@@ -39,9 +35,10 @@ con <- DBI::dbConnect(
 
 # 5. prepare table ----
 
-data <- tbl(con, "lor_match_info_v2") %>%
+data <- tbl(con, "ranked_match_metadata_30d") %>%
+  filter(game_start_time_utc <= local(Sys.time()-days(13)), game_start_time_utc >= local(Sys.time()-days(22))) %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
   select(match_id, game_start_time_utc, starts_with("faction_")) %>%
-  filter(game_start_time_utc <= mysql_end_date, game_start_time_utc >= mysql_start_date) %>% 
   collect()
 
 # prepare data

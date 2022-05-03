@@ -31,7 +31,7 @@ con <- DBI::dbConnect(
 )
 
 # extract list of patches from sql data
-patch_list <- tbl(con, "lor_match_info_v2") %>% 
+patch_list <- tbl(con, "ranked_match_metadata_30d") %>% 
   distinct(game_version) %>% 
   collect()
 
