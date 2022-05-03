@@ -5,6 +5,7 @@
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
+suppressPackageStartupMessages(library(lubridate)) # work with dates
 suppressPackageStartupMessages(library(mongolite)) # connect to MongoDB
 suppressPackageStartupMessages(library(jsonlite))  # convert JSON to R objects
 suppressPackageStartupMessages(library(httr))      # http requests
@@ -105,8 +106,11 @@ mongo_to_sql <- function(input_region){
   m_db <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = mongo_collection)
   
   # get matches already in sql
-  already_in_sql <- tbl(con, "lor_match_info_v2") %>% 
-    filter(region == input_region) %>% 
+  focus_time <- Sys.time()-days(7)
+  mongo_focus_time <- as.character(focus_time) %>% str_replace(pattern = " ", replacement = "T") %>% paste0(., ".000Z")
+  
+  already_in_sql <- tbl(con, "ranked_match_metadata_30d") %>% 
+    filter(region == input_region, game_start_time_utc >= focus_time) %>% 
     distinct(match_id) %>% 
     collect() %>% 
     pull() %>%
@@ -114,7 +118,7 @@ mongo_to_sql <- function(input_region){
     paste0("\"", ., "\"")
   
   # read new data from MongoDB
-  data <- m_db$find(query = sprintf('{"info.game_type":"Ranked", "metadata.match_id" : { "$nin" : [ %s ] } }', already_in_sql))
+  data <- m_db$find(query = sprintf('{"info.game_type":"Ranked", "info.game_start_time_utc" : { "$gte" : "%s"}, "metadata.match_id" : { "$nin" : [ %s ] } }', mongo_focus_time, already_in_sql))
   
   # name of the region-specific leaderboard table in MySQL
   tbl_leaderboard <- switch(
