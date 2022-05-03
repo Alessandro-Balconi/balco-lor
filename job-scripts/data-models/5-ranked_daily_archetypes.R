@@ -38,13 +38,16 @@ patches = tbl(con, 'utils_patch_history') %>%
   select(patch, patch_regex, previous_patch, patch_day)
 
 # count values per day
-data = tbl(con, 'lor_match_info_v2') %>%
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>%
+data <- tbl(con, 'ranked_match_metadata_30d') %>%
   mutate(day = sql("CAST(game_start_time_utc AS DATE)")) %>%
   filter(day >= local(Sys.Date()-days(3))) %>% 
-  mutate(hour = hour(game_start_time_utc)) %>% 
-  mutate(pre_post_patch = if_else(hour < 16, 'pre', 'post')) %>% 
-  count(day, game_version, pre_post_patch, archetype, region, is_master, game_outcome) %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>%
+  mutate(
+    hhour = hour(game_start_time_utc),
+    pre_post_patch = if_else(hhour < 16, 'pre', 'post'),
+    is_master = if_else(player_rank == 2, 1, 0)
+  ) %>%
+  count(day, game_version, pre_post_patch, archetype, region, is_master, game_outcome) %>%
   collect() %>% 
   ungroup()
 
