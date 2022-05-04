@@ -24,25 +24,19 @@ con <- DBI::dbConnect(
 # 3. prepare table ----
 
 # patches to analyze
-df_patch <- tbl(con, "utils_patch_history") %>% 
+current_patch <- tbl(con, "utils_patch_history") %>% 
   collect() %>% 
   arrange(desc(release_date)) %>% 
   mutate(new_change = lag(change)) %>% 
   replace_na(list(new_change = 0)) %>% 
   mutate(cum_change = cumsum(new_change)) %>% 
-  filter(cum_change == min(cum_change)) %>%
-  collect()
-
-# pull regex to match in lor_match_info_v2
-current_patch <- df_patch %>% 
+  filter(cum_change == min(cum_change)) %>% 
   pull(patch_regex) %>% 
   paste0(collapse = "|")
 
 # start collecting matches only 24 hours after the patch
-min_date <- tbl(con, "lor_match_info_v2") %>% 
+min_date <- tbl(con, 'ranked_match_metadata_30d') %>% 
   filter(str_detect(game_version, current_patch)) %>%
-  select(game_start_time_utc) %>% 
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
   collect() %>% 
   mutate(min_date = min_date + lubridate::days(1)) %>% 
@@ -52,9 +46,9 @@ min_date <- tbl(con, "lor_match_info_v2") %>%
 # 5.2 table of current patch v2 ----
 
 # extract data from MySQL
-data_v2 <- tbl(con, "lor_match_info_v2") %>%
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-  filter(str_detect(game_version, current_patch), game_start_time_utc >= min_date) %>% 
+data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
+  filter(game_start_time_utc >= min_date) %>%
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
   left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
   mutate(archetype = coalesce(new_name, archetype)) %>% 
   count(archetype, deck_code, cards) %>% 

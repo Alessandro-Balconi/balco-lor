@@ -4,15 +4,7 @@
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 
-# 2. parameters ----
-
-# date of 3/7 days ago
-last3_date <- (Sys.time() - lubridate::days(3))
-last7_date <- (Sys.time() - lubridate::days(7))
-
-# 3. functions ----
-
-# 4. connect to db & load data ----
+# 2. connect to db & load data ----
 
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
@@ -29,7 +21,7 @@ con <- DBI::dbConnect(
   dbname = db_creds$dbs
 )
 
-# 5. prepare table ----
+# 3. prepare table ----
 
 # patches to analyze
 current_patch <- tbl(con, "utils_patch_history") %>% 
@@ -39,30 +31,30 @@ current_patch <- tbl(con, "utils_patch_history") %>%
   replace_na(list(new_change = 0)) %>% 
   mutate(cum_change = cumsum(new_change)) %>% 
   filter(cum_change == min(cum_change)) %>%
-  collect() %>% 
   pull(patch_regex) %>% 
   paste0(collapse = "|")
 
 # start collecting matches only 24 hours after the patch
-min_date <- tbl(con, "lor_match_info_v2") %>% 
+min_date <- tbl(con, 'ranked_match_metadata_30d') %>% 
   filter(str_detect(game_version, current_patch)) %>%
-  select(game_start_time_utc) %>% 
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
   summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
   collect() %>% 
   mutate(min_date = min_date + lubridate::days(1)) %>% 
   pull()
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
-# 5.2 table of current patch v2 ----
+# 3.2 table of current patch v2 ----
 
 # extract data from MySQL
-data_v2 <- tbl(con, "lor_match_info_v2") %>%
-  mutate(game_start_time_utc = sql("CAST(game_start_time_utc AS DATETIME)")) %>% 
-  filter(str_detect(game_version, current_patch), game_start_time_utc >= min_date) %>% 
+data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
+  filter(game_start_time_utc >= min_date) %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
   left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
-  mutate(archetype = coalesce(new_name, archetype)) %>% 
-  mutate(time_frame = case_when(game_start_time_utc >= last3_date ~ 2, game_start_time_utc >= last7_date ~ 1, TRUE ~ 0)) %>% 
+  mutate(
+    archetype = coalesce(new_name, archetype),
+    time_frame = case_when(game_start_time_utc >= local(Sys.time()-lubridate::days(3)) ~ 2, game_start_time_utc >= local(Sys.time()-lubridate::days(7)) ~ 1, TRUE ~ 0),
+    is_master = if_else(player_rank == 2, 1, 0)
+  ) %>% 
   count(game_outcome, archetype, region, time_frame, is_master) %>% 
   collect() %>% 
   ungroup()
@@ -74,7 +66,7 @@ data_v2 <- data_v2 %>%
   mutate(match = win + loss + tie) %>% 
   {if(nrow(.)>0) select(., archetype, region, time_frame, is_master, match, win) else . }
 
-# 6. save to MySQL db ----
+# 4. save to MySQL db ----
 
 if(nrow(data_v2) >  0){
   
