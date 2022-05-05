@@ -69,7 +69,7 @@ data_v2 <- data_v2 %>%
 if(nrow(data_v2) >  0){
   
   data_v2 %>% 
-    DBI::dbWriteTable(conn = con, name = "utils_decklists_cards", value = ., overwrite = TRUE, row.names = FALSE) 
+    DBI::dbWriteTable(conn = con, name = "utils_ranked_patch_decklists_cards", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
 
