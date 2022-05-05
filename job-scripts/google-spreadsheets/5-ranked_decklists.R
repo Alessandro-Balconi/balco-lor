@@ -31,7 +31,7 @@ list_df <- map(
       group_by(archetype, deck_code) %>% 
       summarise(across(c(match, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
       arrange(desc(match)) %>% 
-      head(1000) %>% 
+      head(2000) %>% 
       collect() %>% 
       mutate(winrate = scales::percent(win / match, accuracy = .1)) %>% 
       select(-win)
