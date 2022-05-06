@@ -25,21 +25,20 @@ patch_labels = tribble(
 
 # date from which extract matches
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date() - days(7)))
-start_date_char <- as.character(start_date)
 mysql_start_date <- (start_date - days(7)) %>% as.character()
 
 # color of Runeterra regions for plots
 region_colors <- c(
   "ShadowIsles" = "#04825d",
-  "Noxus" = "#c24a47",
-  "Shurima" = "#eee22f",
-  "Freljord" = "#a9e6f6",
-  "MtTargon" = "#8b83e9",
-  "Piltover" = "#f4a864",
-  "Ionia" = "#d89baf",
-  "Demacia" = "#e2d6af",
-  "BandleCity" = "#93a908", #"#bbcb1c",
-  "Bilgewater" = "#c66c22"
+  "Noxus"       = "#c24a47",
+  "Shurima"     = "#eee22f",
+  "Freljord"    = "#a9e6f6",
+  "MtTargon"    = "#8b83e9",
+  "Piltover"    = "#f4a864",
+  "Ionia"       = "#d89baf",
+  "Demacia"     = "#e2d6af",
+  "BandleCity"  = "#93a908",
+  "Bilgewater"  = "#c66c22"
 )
 
 # 3. connect to db & load data ----
@@ -53,16 +52,18 @@ if(exists("con")){ DBI::dbDisconnect(con) }
 # connect to db
 con <- DBI::dbConnect(
   RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = db_creds$uid,
+  db_host  = "127.0.0.1",
+  user     = db_creds$uid,
   password = db_creds$pwd,
-  dbname = db_creds$dbs
+  dbname   = db_creds$dbs
 )
 
 # master matches of the past week (if >= 10000, we only collect these)
-weekly_master_match <- tbl(con, "lor_match_info_v2") %>% 
-  filter(is_master == 1, game_start_time_utc >= mysql_start_date) %>% 
-  mutate(week = ifelse(game_start_time_utc >= start_date_char, "current", "last")) %>% 
+weekly_master_match <- tbl(con, 'ranked_match_metadata_30d') %>% 
+  filter(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(14)))), match_rank >= 2) %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
+  filter(player_rank == 2) %>% 
+  mutate(week = ifelse(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(7)))), "current", "last")) %>% 
   distinct(week, match_id) %>%
   collect()
 

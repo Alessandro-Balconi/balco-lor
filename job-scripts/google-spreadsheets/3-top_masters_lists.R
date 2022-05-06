@@ -90,9 +90,10 @@ df_players <- df_players %>%
   left_join(db_players, by = c('name' = 'gameName', 'region'))
 
 # main df with cards data
-df <- tbl(con, 'lor_match_info_v2') %>% 
-  mutate(day = sql('CAST(game_start_time_utc AS DATE)')) %>% 
-  filter(day >= local(Sys.Date()-lubridate::days(7)), puuid %in% local(df_players$puuid)) %>% 
+df <- tbl(con, 'ranked_match_metadata_30d') %>% 
+  filter(game_start_time_utc >= local(Sys.Date()-lubridate::days(7))) %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
+  filter(puuid %in% local(df_players$puuid)) %>% 
   count(puuid, archetype, deck_code, cards) %>% 
   collect()
 
