@@ -67,7 +67,7 @@ data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
     TRUE ~ 0
   )) %>% 
   mutate(is_master = if_else(player_rank == 2, 1, 0)) %>% 
-  count(game_outcome, archetype, deck_code, time_frame, is_master) %>% 
+  count(game_outcome, archetype, deck_code, time_frame, is_master, region) %>% 
   collect() %>% 
   ungroup()
 
@@ -79,7 +79,7 @@ data_decks_v2 <- data_decks_v2 %>%
   {if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
   mutate(match = win + loss + tie) %>% 
   {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
-  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate, time_frame, is_master) else . }
+  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate, time_frame, is_master, region) else . }
 
 # 4. save to MySQL db ----
 
