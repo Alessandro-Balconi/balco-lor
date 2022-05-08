@@ -66,8 +66,7 @@ with_gs4_quiet(sheet_write(data = list_df_master[['patch'  ]], ss = ss_id, sheet
 
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
-info <- "WIPWIPWIP"
-info <- tibble(" " = c(update, info))
+info <- tibble(" " = c(update))
 with_gs4_quiet(sheet_write(data = info,   ss = ss_id, sheet = "Data Information"))
 
 # names of the spreadsheet to update
