@@ -86,14 +86,15 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
     arrange(-playrate)
   
   # top decks info (winrate)
-  y_wr <- tbl(con, "ranked_patch_matchups") %>% 
+  yy_wr <- tbl(con, "ranked_patch_matchups") %>% 
     filter(time_frame >= local(time_frame), is_master >= local(is_master), archetype_1 %in% top) %>%
-    collect()
-  
-  yy_wr <- y_wr %>% 
+    mutate(wins = n*winrate) %>% 
     group_by(archetype_1) %>% 
-    summarise(winrate = weighted.mean(winrate, w = n, na.rm = TRUE), .groups = "drop")
-  
+    summarise(n = sum(n, na.rm = TRUE), wins = sum(wins, na.rm = TRUE), .groups = 'drop') %>% 
+    mutate(winrate = wins / n) %>% 
+    select(archetype_1, n, winrate) %>% 
+    collect()
+
   # prepare matchup table
   x <- x %>% 
     distinct() %>% 
