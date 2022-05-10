@@ -1,6 +1,9 @@
 library(tidyverse)
 library(lubridate)
 
+# parameter: rank to analyze
+focus_rank<- 700
+
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
@@ -17,7 +20,7 @@ con <- DBI::dbConnect(
 rm(db_creds)
 
 x <- tbl(con, 'leaderboard_daily') %>% 
-  filter(rank == 700) %>% 
+  filter(rank == local(focus_rank)) %>% 
   select(day, region, lp) %>% 
   collect()
 
@@ -62,4 +65,4 @@ x %>%
   theme(legend.position = 'bottom') +
   expand_limits(x = season_end+1) +
   scale_color_discrete(labels = c('asia' = 'APAC', 'americas' = 'Americas', 'europe' = 'Europe')) +
-  labs(x = 'Day', y = 'LP', title = 'Rank 700 Master LP by Day', color = 'Region')
+  labs(x = 'Day', y = 'LP', title = sprintf('Rank %s Master LP by Day', focus_rank), color = 'Region')
