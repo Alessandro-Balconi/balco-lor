@@ -11,10 +11,6 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
-# date of 3/7 days ago
-last7_date <- (Sys.time() - lubridate::days(7))
-last3_date <- (Sys.time() - lubridate::days(3))
-
 # 3. functions ----
 
 # 4. connect to db & load data ----
@@ -62,7 +58,7 @@ data_matchup_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
   mutate(archetype = coalesce(new_name, archetype)) %>% 
   mutate(time_frame = case_when(game_start_time_utc >= local(Sys.time()-lubridate::days(3)) ~ 2, game_start_time_utc >= local(Sys.time()-lubridate::days(7)) ~ 1, TRUE ~ 0)) %>% 
   mutate(is_master = if_else(player_rank == 2, 1, 0)) %>% 
-  select(match_id, game_outcome, archetype, time_frame, is_master) %>% 
+  select(match_id, game_outcome, archetype, time_frame, is_master, region) %>% 
   collect()
 
 data_matchup_v2 <- data_matchup_v2 %>% 
@@ -81,14 +77,13 @@ data_matchup_v2 <- data_matchup_v2 %>%
   rename(archetype_1 = archetype)
 
 n_match <- data_matchup_v2 %>% 
-  count(archetype_1, archetype_2, time_frame, is_master)
+  count(archetype_1, archetype_2, time_frame, is_master, region)
 
 data_matchup_v2 <- data_matchup_v2 %>%
-  group_by(archetype_1, archetype_2, time_frame, is_master) %>% 
-  summarise(wins = sum(game_outcome == "win"), .groups = "drop") %>% 
-  left_join(n_match, by = c("archetype_1", "archetype_2", "time_frame", "is_master")) %>% 
-  mutate(winrate = ifelse(archetype_1 == archetype_2, 0.5, wins / n)) %>% 
-  select(-wins)
+  group_by(archetype_1, archetype_2, time_frame, is_master, region) %>% 
+  summarise(win = sum(game_outcome == "win"), .groups = "drop") %>% 
+  left_join(n_match, by = c("archetype_1", "archetype_2", "time_frame", "is_master", 'region')) %>% 
+  mutate(winrate = ifelse(archetype_1 == archetype_2, 0.5, win / n))
 
 # 6. save to MySQL db ----
 
