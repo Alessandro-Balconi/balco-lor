@@ -27,7 +27,6 @@ list_df <- map(
   .f = function(x){
     tbl(con, 'ranked_patch_decklists') %>% 
       filter(time_frame >= x) %>% 
-      mutate(win = match*winrate) %>% 
       group_by(archetype, deck_code) %>% 
       summarise(across(c(match, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
       arrange(desc(match)) %>% 
@@ -44,7 +43,6 @@ list_df_master <- map(
   .f = function(x){
     tbl(con, 'ranked_patch_decklists') %>% 
       filter(time_frame >= x, is_master == 1) %>% 
-      mutate(win = match*winrate) %>% 
       group_by(archetype, deck_code) %>% 
       summarise(across(c(match, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
       arrange(desc(match)) %>% 

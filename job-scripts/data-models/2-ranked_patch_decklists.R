@@ -79,7 +79,7 @@ data_decks_v2 <- data_decks_v2 %>%
   {if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
   mutate(match = win + loss + tie) %>% 
   {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
-  {if(nrow(.)>0) select(., archetype, deck_code, match, winrate, time_frame, is_master, region) else . }
+  {if(nrow(.)>0) select(., archetype, deck_code, match, win, winrate, time_frame, is_master, region) else . }
 
 # 4. save to MySQL db ----
 
