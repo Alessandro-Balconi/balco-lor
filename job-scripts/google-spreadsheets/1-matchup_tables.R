@@ -54,10 +54,9 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
   x <- tbl(con, "ranked_patch_matchups") %>%
     filter(time_frame >= local(time_frame), is_master >= local(is_master)) %>% 
     mutate(archetype_1 = if_else(archetype_1 %in% top, archetype_1, 'Other'), archetype_2 = if_else(archetype_2 %in% top, archetype_2, 'Other')) %>% 
-    mutate(wins = n*winrate) %>% 
     group_by(archetype_1, archetype_2) %>% 
-    summarise(n = sum(n, na.rm = TRUE), wins = sum(wins, na.rm = TRUE), .groups = 'drop') %>% 
-    mutate(winrate = wins / n) %>% 
+    summarise(across(c(n, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
+    mutate(winrate = win / n) %>% 
     select(archetype_1, archetype_2, n, winrate) %>% 
     collect()
   
@@ -88,10 +87,9 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
   # top decks info (winrate)
   yy_wr <- tbl(con, "ranked_patch_matchups") %>% 
     filter(time_frame >= local(time_frame), is_master >= local(is_master), archetype_1 %in% top) %>%
-    mutate(wins = n*winrate) %>% 
     group_by(archetype_1) %>% 
-    summarise(n = sum(n, na.rm = TRUE), wins = sum(wins, na.rm = TRUE), .groups = 'drop') %>% 
-    mutate(winrate = wins / n) %>% 
+    summarise(across(c(n, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
+    mutate(winrate = win / n) %>% 
     select(archetype_1, n, winrate) %>% 
     collect()
 
