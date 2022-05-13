@@ -158,7 +158,8 @@ data <- data %>%
 
 # fix change in game version
 data <- data %>%
-  mutate(game_version = str_replace_all(game_version, pattern = '-', replacement = '_'))
+  mutate(game_version = str_replace_all(game_version, pattern = '-', replacement = '_')) %>% 
+  mutate(game_version = str_replace_all(game_version, pattern = '_green_', replacement = '_'))
 
 # make game_start_time_utc a date
 data <- data %>% 
