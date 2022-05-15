@@ -234,10 +234,6 @@ mongo_to_sql <- function(input_region){
       mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
       mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
     
-    # add check whether the player is master or not
-    data <- data %>% 
-      mutate(is_master = (puuid %in% master_puuids))
-    
     # add player rank (master, plat+, any)
     data <- data %>% 
       mutate(
@@ -256,10 +252,6 @@ mongo_to_sql <- function(input_region){
     
     # save matches to db v2
     if(nrow(data) >  0){
-      
-      data %>% 
-        select(-player_rank) %>% 
-        DBI::dbWriteTable(conn = con, name = "lor_match_info_v2", value = ., append = TRUE, row.names = FALSE) 
       
       data %>%
         group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>%
