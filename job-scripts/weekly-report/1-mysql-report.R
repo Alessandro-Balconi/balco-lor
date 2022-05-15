@@ -58,37 +58,6 @@ con <- DBI::dbConnect(
   dbname   = db_creds$dbs
 )
 
-# master matches of the past week (if >= 10000, we only collect these)
-weekly_master_match <- tbl(con, 'ranked_match_metadata_30d') %>% 
-  filter(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(14)))), match_rank >= 2) %>% 
-  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
-  filter(player_rank == 2) %>% 
-  mutate(week = ifelse(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(7)))), "current", "last")) %>% 
-  distinct(week, match_id) %>%
-  collect()
-
-# number of weekly matches at master
-nweekly_master <- weekly_master_match %>% filter(week == 'current') %>% nrow()
-
-# import match data (only from ranked games)
-data <- tbl(con, "lor_match_info_v2") %>%
-  filter(game_start_time_utc >= mysql_start_date) %>% 
-  {if(nweekly_master >= 10000) filter(., match_id %in% local(weekly_master_match$match_id)) else . } %>% 
-  select(-c(game_mode, game_type, game_version, order_of_play, total_turn_count, cards, is_master)) %>% 
-  rename(shard = region) %>% 
-  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
-  mutate(new_name = coalesce(new_name, archetype)) %>% 
-  collect()
-
-# add flag for "current" or "last" week
-data <- data %>%
-  mutate(game_start_time_utc = as_datetime(game_start_time_utc)) %>% 
-  mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
-
-# number of games by week
-games_by_week <- data %>% 
-  count(week, name = "tot")
-
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
   GET() %>% 
@@ -128,6 +97,44 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     nameRef == "Targon" ~ "MtTargon",
     TRUE ~ nameRef
   ))
+
+# master matches of the past week (if >= 10000, we only collect these)
+weekly_master_match <- tbl(con, 'ranked_match_metadata_30d') %>% 
+  filter(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(14)))), match_rank >= 2) %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
+  filter(player_rank == 2) %>% 
+  mutate(week = ifelse(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(7)))), "current", "last")) %>% 
+  distinct(week, match_id) %>%
+  collect()
+
+# number of weekly matches at master
+nweekly_master <- weekly_master_match %>% filter(week == 'current') %>% nrow()
+
+# import match data (only from ranked games)
+data <- tbl(con, 'ranked_match_metadata_30d') %>% 
+  filter(game_start_time_utc >= local(start_date - days(7))) %>% 
+  {if(nweekly_master >= 10000) filter(., match_id %in% local(weekly_master_match$match_id)) else . } %>% 
+  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
+  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+  mutate(new_name = coalesce(new_name, archetype)) %>%
+  select(match_id, game_start_time_utc, puuid, deck_code, game_outcome, faction_1, faction_2, archetype, shard = region, new_name) %>% 
+  collect()
+
+# add champs codes & week
+data <- data %>% 
+  distinct(archetype) %>% 
+  mutate(
+    champs = str_extract_all(archetype, pattern = paste0(data_champs$name, "\\b", collapse = "|")),
+    champs = map_chr(champs, str_flatten, collapse = " "),
+    champs = str_replace_all(champs, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))
+  ) %>% 
+  left_join(data, by = 'archetype') %>% 
+  relocate(c(champs, archetype), .after = faction_2) %>% 
+  mutate(week = ifelse(game_start_time_utc >= start_date, "current", "last"))
+
+# number of games by week
+games_by_week <- data %>% 
+  count(week, name = "tot")
 
 # 4. define functions ----
 
