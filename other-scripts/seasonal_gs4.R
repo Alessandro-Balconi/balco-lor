@@ -6,6 +6,9 @@
 
 tictoc::tic()
 
+# delay in minutes before adding match to spreadsheet
+minutes_delay <- 0
+
 # id of the cron job associated with this script
 job_id <- ''
 
@@ -298,7 +301,7 @@ data %>%
 
 # pull seasonal data from db
 data <- tbl(con, 'seasonal_match_data') %>% 
-  filter(time >= local(Sys.time()-days(3)), game_mode == 'SeasonalTournamentLobby') %>%
+  filter(time >= local(Sys.time()-days(3)), game_mode == 'SeasonalTournamentLobby', time <= local(Sys.time()-minutes(minutes_delay))) %>%
   select(time, deck_code, game_outcome, archetype, puuid) %>% 
   collect()
 
