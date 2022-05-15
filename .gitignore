@@ -7,3 +7,4 @@ output
 *.rds
 *.csv
 tests.R
+.httr-oauth
