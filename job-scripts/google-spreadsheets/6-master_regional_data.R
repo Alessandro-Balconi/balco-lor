@@ -139,8 +139,7 @@ update_spreadsheet(input_region = 'americas', n = 40, input_time_frame = 1, is_m
 
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
-info <- sprintf("WIPWIPWIP")
-info <- tibble(" " = c(update, info))
+info <- tibble(" " = c(update))
 with_gs4_quiet(sheet_write(data = info, ss = id_ss, sheet = "Data Information"))
 
 # names of the spreadsheet to update
