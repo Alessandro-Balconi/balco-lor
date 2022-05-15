@@ -6,25 +6,24 @@
 
 tictoc::tic()
 
-# delay in minutes before adding match to spreadsheet
-minutes_delay <- 0
-
 # id of the cron job associated with this script
 job_id <- ''
 
-# MANUALLY UPDATE PLAYER LIST
-italian_players <- c(
-  'Balco#EUW',
-  'Broken Ball#EUW',
-  'Edo San#EUW',
-  'Exonarf#EUW',
-  "SouL Who Wanders#1337",
-  "Meliador0#EUW",
-  "Bülat#EUW"
-)
-
-# import lubridate since it's needed below
+# import must have packages (others will be imported later)
 suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
+
+options(gargle_oauth_email = "Balco21@outlook.it")
+options(googlesheets4_quiet = TRUE)
+
+# google spreadsheet id
+ss_id <- "1CV68XxcbXn04gBcC8KPNmTrdhMh14c6FfX6oFlJdn3E"
+
+# delay in minutes before adding match to spreadsheet
+minutes_delay <- pull(range_read(ss = ss_id, sheet = 'Delay', col_names = FALSE, .name_repair = make.names))
+
+# MANUALLY UPDATE PLAYER LIST
+italian_players <- pull(range_read(ss = ss_id, sheet = 'Player List', col_names = FALSE, .name_repair = make.names))
 
 # SEASONAL START TIMES OF MATCHES
 seasonal_match_time <- tibble::tribble(
@@ -48,19 +47,12 @@ suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(httr))
 suppressPackageStartupMessages(library(jsonlite))
-suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
-
-options(gargle_oauth_email = "Balco21@outlook.it")
-options(googlesheets4_quiet = TRUE)
 
 # credentials
 .mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # api key
 .api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
-
-# google spreadsheet it
-ss_id <- "1CV68XxcbXn04gBcC8KPNmTrdhMh14c6FfX6oFlJdn3E"
 
 # connect to mysql db
 con <- DBI::dbConnect(
