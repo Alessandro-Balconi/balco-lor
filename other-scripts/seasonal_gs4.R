@@ -1,9 +1,13 @@
 # HOW TO USE THIS SCRIPT:
 # 1. update the parameters right below these comments
 # 2. THE DAY OF THE SEASONAL: start a cron job every 5 or 10 minutes that does it, and delete it after the seasonal ended
-# 3. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
+# 3. UPDATE THE "job_id" PARAMETER WITH THE ID OF THE JOB !
+# 4. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
 
 tictoc::tic()
+
+# id of the cron job associated with this script
+job_id <- ''
 
 # MANUALLY UPDATE PLAYER LIST
 italian_players <- c(
@@ -371,7 +375,10 @@ walk(.x = sheet_names(ss_id), .f = ~with_gs4_quiet(range_autofit(ss = ss_id, she
 
 DBI::dbDisconnect(con)
 
-tictoc::toc()
+# if seasonal is over, stop executing the job
+if(Sys.time() > max(seasonal_match_time$end_time)){ cronR::cron_rm(id = job_id) }
 
-# A FINE SEASONAL
+# A FINE SEASONAL (could be moved inside the if clause above, assuming everything works as expected)
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
+
+tictoc::toc()
