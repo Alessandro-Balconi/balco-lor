@@ -10,8 +10,14 @@ tictoc::tic()
 job_id <- ''
 
 # import must have packages (others will be imported later)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(purrr))
+suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
+suppressPackageStartupMessages(library(httr))
+suppressPackageStartupMessages(library(jsonlite))
 
 options(gargle_oauth_email = "Balco21@outlook.it")
 options(googlesheets4_quiet = TRUE)
@@ -36,13 +42,6 @@ seasonal_match_time <- tibble::tribble(
 )
 
 # setup ----
-
-suppressPackageStartupMessages(library(dplyr))
-suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(purrr))
-suppressPackageStartupMessages(library(stringr))
-suppressPackageStartupMessages(library(httr))
-suppressPackageStartupMessages(library(jsonlite))
 
 # credentials
 .mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
@@ -369,12 +368,12 @@ with_gs4_quiet(range_write(data = score,   ss = ss_id, sheet = "Score"  , reform
 # adjust spacing of columns in the spreadsheet
 walk(.x = sheet_names(ss_id), .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns")))
 
-DBI::dbDisconnect(con)
-
 # if seasonal is over, stop executing the job
 if(Sys.time() > max(seasonal_match_time$end_time)){ cronR::cron_rm(id = job_id) }
 
 # A FINE SEASONAL (could be moved inside the if clause above, assuming everything works as expected)
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
+
+DBI::dbDisconnect(con)
 
 tictoc::toc()

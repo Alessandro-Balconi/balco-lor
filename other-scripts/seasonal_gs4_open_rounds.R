@@ -10,8 +10,14 @@ tictoc::tic()
 job_id <- ''
 
 # import must have packages (others will be imported later)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(purrr))
+suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
+suppressPackageStartupMessages(library(httr))
+suppressPackageStartupMessages(library(jsonlite))
 
 options(gargle_oauth_email = "Balco21@outlook.it")
 options(googlesheets4_quiet = TRUE)
@@ -40,13 +46,6 @@ seasonal_match_time <- tibble::tribble(
 )
 
 # setup ----
-
-suppressPackageStartupMessages(library(dplyr))
-suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(purrr))
-suppressPackageStartupMessages(library(stringr))
-suppressPackageStartupMessages(library(httr))
-suppressPackageStartupMessages(library(jsonlite))
 
 # credentials
 .mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
