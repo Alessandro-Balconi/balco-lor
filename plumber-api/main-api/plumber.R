@@ -37,7 +37,7 @@ function() { as.list(DBI::dbListTables(con)) }
 #* @get /matchup
 #* @param deck_1
 #* @param deck_2
-function(deck_1, deck_2) {
+function() {
 
     # tbl(con, 'ranked_patch_matchups') %>% 
     # filter(archetype_1 == deck_1, archetype_2 == deck_2) %>% 
