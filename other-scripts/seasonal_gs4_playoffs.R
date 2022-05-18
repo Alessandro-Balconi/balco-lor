@@ -353,7 +353,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   info <- tibble(
     " " = c(
       sprintf("Last Update: %s UTC", Sys.time()), 
-      "This is a test, so maybe it doesn't work; if you notice any error, please message me on discord (Balco#7067)."
+      "This is a test, so maybe it doesn't work; if you notice any error, please message me on twitter (@Balco21) or discord (Balco#7067)."
     )
   )
   
