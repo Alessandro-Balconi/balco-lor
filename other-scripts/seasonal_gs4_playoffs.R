@@ -123,6 +123,9 @@ extract_match_info <- function(match_id){
     content() %>% 
     .[['info']]
   
+  # if match not collected, return
+  if(is.null(match_data)){ return() }
+  
   # convert from list to df
   match_info <- match_data %>% 
     as_tibble() %>%
@@ -165,6 +168,11 @@ seasonal_match_time <- seasonal_match_time %>%
   mutate(end_time = lead(start_time)) %>% 
   replace_na(list(end_time = max(seasonal_match_time$start_time + minutes(65))))
 
+# list of already collected matches
+already_collected <- tbl(con, 'seasonal_match_data') %>% 
+  distinct(match_id) %>% 
+  pull()
+
 # keep fetching data while seasonal is running
 while(Sys.time() < max(seasonal_match_time$end_time)){
   
@@ -200,11 +208,18 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     )
     
     # extract content in JSON format
-    missing_puuids <- map_dfr(get_new_players, content) %>% 
-      mutate(player = paste(gameName, tagLine, sep = "#"), .keep = 'unused')
+    missing_puuids <- map_dfr(get_new_players, content) %>%
+      {if("status" %in% colnames(.)) select(., -status) %>% drop_na() else . }
     
-    # add those players to the list of italians
-    df_players <- bind_rows(df_players, missing_puuids)
+    if(ncol(missing_puuids) > 0 ){
+      
+      missing_puuids <- missing_puuids %>% 
+        mutate(player = paste(gameName, tagLine, sep = "#"), .keep = 'unused')
+      
+      # add those players to the list of italians
+      df_players <- bind_rows(df_players, missing_puuids)
+      
+    }
     
   }
   
@@ -231,11 +246,6 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     as_tibble() %>% 
     pivot_longer(cols = everything(), names_to = "player", values_to = "match_id")
   
-  # list of already collected matches
-  already_collected <- tbl(con, 'seasonal_match_data') %>% 
-    distinct(match_id) %>% 
-    pull()
-  
   # keep only new matches
   new_matches <- setdiff(matches_list$match_id, already_collected)
   
@@ -253,6 +263,10 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       filter(deck_code != "") %>% 
       mutate(cards_list = map_chr(deck_code, function(x) { lordecks::get_decklist_from_code(x, format = "simple") %>% paste0(collapse = " ") } )) %>% 
       left_join(x = data, y = ., by = "deck_code")
+    
+    # keep only relevant columns
+    data <- data %>% 
+      select(all_of(c("match_id", "game_mode", "game_start_time_utc", "puuid", "deck_code", "game_outcome", "faction_1", "faction_2", "cards_list")))
     
     # get deck champions & archetype
     data <- data %>%
@@ -292,6 +306,9 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     # save results to db
     data %>% 
       DBI::dbWriteTable(conn = con, name = "seasonal_match_data", value = ., append = TRUE, row.names = FALSE)
+    
+    # list of already collected matches
+    already_collected <- c(already_collected, new_matches)
     
   }
   
@@ -358,8 +375,8 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   )
   
   # update all sheets of the spreadsheet
-  with_gs4_quiet(sheet_write(data = info,    ss = ss_id, sheet = "Info"   , reformat = FALSE))
-  with_gs4_quiet(sheet_write(data = lineups, ss = ss_id, sheet = "Lineups", reformat = FALSE))
+  with_gs4_quiet(range_write(data = info,    ss = ss_id, sheet = "Info"   , reformat = FALSE))
+  with_gs4_quiet(range_write(data = lineups, ss = ss_id, sheet = "Lineups", reformat = FALSE))
   with_gs4_quiet(range_write(data = score,   ss = ss_id, sheet = "Score"  , reformat = FALSE))
   
   # adjust spacing of columns in the spreadsheet
