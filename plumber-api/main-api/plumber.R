@@ -34,16 +34,11 @@ function() {
 function() { as.list(DBI::dbListTables(con)) }
 
 #* LoR-Meta Tier List
-#* @get /matchup
-#* @param deck_1
-#* @param deck_2
-function() {
+#* @get /player/<region>/<name>
+function(region = '', name = '') {
 
-    # tbl(con, 'ranked_patch_matchups') %>% 
-    # filter(archetype_1 == deck_1, archetype_2 == deck_2) %>% 
-    # summarise(across(c(win, n), sum, na.rm = TRUE), .groups = 'drop') %>% 
-    # collect()
-  
-  data.frame(x = c(1, 2), y = c('a', 'b'))
+    tbl(con, 'utils_players') %>% 
+      filter(region == local(region), gameName == local(URLdecode(name))) %>% 
+      pull(tagLine)
 
 }
