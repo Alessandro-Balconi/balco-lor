@@ -1,6 +1,6 @@
 # HOW TO USE THIS SCRIPT:
 # 1. update the parameters right below these comments [ss_id and the seasonal_match_time]
-# 2. THE DAY OF THE SEASONAL: start a local job that runs this script
+# 2. THE DAY OF THE SEASONAL: start a local job that runs this script -> should be a trycatch wrapper to restart if it fails
 # 3. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
 
 # import must have packages (others will be imported later)
@@ -16,8 +16,11 @@ suppressPackageStartupMessages(library(jsonlite))
 options(gargle_oauth_email = "Balco21@outlook.it")
 options(googlesheets4_quiet = TRUE)
 
-# google spreadsheet id
+# google spreadsheet id to write to 
 ss_id <- "1SCKUvK0aj8b8OEBnmTkxiRLlRadkaUkCtgmuzSDdGC0"
+
+# google spreadsheet id with the parameters 
+params_ss_id <- "1qdqGJApS59kw3RdxCwNUcME0Wnj_ZILMbDVudllnmGc"
 
 # SEASONAL START TIMES OF MATCHES
 seasonal_match_time <- tibble::tribble(
@@ -177,10 +180,10 @@ already_collected <- tbl(con, 'seasonal_match_data') %>%
 while(Sys.time() < max(seasonal_match_time$end_time)){
   
   # delay in minutes before adding match to spreadsheet
-  minutes_delay <- pull(range_read(ss = ss_id, sheet = 'Delay', col_names = FALSE, .name_repair = make.names))
+  minutes_delay <- pull(range_read(ss = params_ss_id, sheet = 'Delay', col_names = FALSE, .name_repair = make.names))
   
   # MANUALLY UPDATE PLAYER LIST
-  italian_players <- pull(range_read(ss = ss_id, sheet = 'Player List', col_names = FALSE, .name_repair = make.names))
+  italian_players <- pull(range_read(ss = params_ss_id, sheet = 'Player List', col_names = FALSE, .name_repair = make.names))
   
   # get puuids from player list ----
   
@@ -235,7 +238,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         add_headers("X-Riot-Token" = .api_key), 
         config = config(connecttimeout = 60)
       ),
-      rate = rate_delay(0.25)
+      rate = rate_delay(0.5)
     )
   )
   
@@ -310,77 +313,78 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     # list of already collected matches
     already_collected <- c(already_collected, new_matches)
     
+    if(nrow(data) > 0){
+      
+      # update gs4 ----
+      
+      # pull seasonal data from db
+      gs4_data <- tbl(con, 'seasonal_match_data') %>% 
+        filter(time >= local(Sys.time()-days(3)), game_mode == 'SeasonalTournamentLobby', time <= local(Sys.time()-minutes(minutes_delay))) %>%
+        select(time, deck_code, game_outcome, archetype, puuid) %>% 
+        collect()
+      
+      # use player names
+      gs4_data <- gs4_data %>% 
+        inner_join(df_players, by = 'puuid') %>% 
+        select(-puuid)
+      
+      # add round number to data
+      gs4_data <- gs4_data %>% 
+        mutate(round = map_dbl(time, get_match_round))
+      
+      # "anonymize" player tags
+      gs4_data <- gs4_data %>% 
+        mutate(player = str_remove_all(player, pattern = '#.*'))
+      
+      # player lineups
+      lineups <- gs4_data %>% 
+        count(player, archetype, deck_code, game_outcome) %>% 
+        pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+        {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
+        {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
+        {if("tie"  %in% colnames(.)) . else mutate(., tie  = 0)} %>% 
+        mutate(match = loss+win+tie, winrate = scales::percent(win / match, accuracy = .1)) %>% 
+        select(-c(win, loss, tie))
+      
+      # aesthetical fixes
+      lineups <- lineups %>%
+        rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
+        rename_with(str_to_title)
+      
+      # get matches data
+      score <- gs4_data %>% 
+        count(player, round, game_outcome) %>% 
+        pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+        unite(col = score, c(win, loss), sep = "-") %>% 
+        pivot_wider(names_from = round, values_from = score, values_fill = "-", names_prefix = "round_")
+      
+      # aesthetical fixes
+      score <- score %>% 
+        rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
+        rename_with(str_to_title)
+      
+      # spreadsheet info
+      info <- tibble(
+        " " = c(
+          sprintf("Last Update: %s UTC", Sys.time()), 
+          "This is a test, so maybe it doesn't work; if you notice any error, please message me on twitter (@Balco21) or discord (Balco#7067)."
+        )
+      )
+      
+      # update all sheets of the spreadsheet
+      with_gs4_quiet(range_write(data = info,    ss = ss_id, sheet = "Info"   , reformat = FALSE))
+      with_gs4_quiet(range_write(data = lineups, ss = ss_id, sheet = "Lineups", reformat = FALSE))
+      with_gs4_quiet(range_write(data = score,   ss = ss_id, sheet = "Score",   reformat = FALSE))
+      
+      # adjust spacing of columns in the spreadsheet
+      walk(.x = sheet_names(ss_id), .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns")))
+      
+    }
+    
   }
   
-  # update gs4 ----
-  
-  # pull seasonal data from db
-  data <- tbl(con, 'seasonal_match_data') %>% 
-    filter(time >= local(Sys.time()-days(3)), game_mode == 'SeasonalTournamentLobby', time <= local(Sys.time()-minutes(minutes_delay))) %>%
-    select(time, deck_code, game_outcome, archetype, puuid) %>% 
-    collect()
-  
-  # use player names
-  data <- data %>% 
-    inner_join(df_players, by = 'puuid') %>% 
-    select(-puuid)
-  
-  # add round number to data
-  data <- data %>% 
-    mutate(round = map_dbl(time, get_match_round))
-  
-  # player lineups
-  lineups <- data %>% 
-    count(player, archetype, deck_code, game_outcome) %>% 
-    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
-    {if("tie" %in% colnames(.)) . else mutate(., tie = 0)} %>% 
-    mutate(match = loss+win+tie, winrate = scales::percent(win / match, accuracy = .1)) %>% 
-    select(-c(win, loss, tie))
-  
-  # aesthetical fixes
-  lineups <- lineups %>%
-    rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
-    rename_with(str_to_title)
-  
-  # get matches data
-  score <- data %>% 
-    count(player, round, game_outcome) %>% 
-    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
-    unite(col = score, c(win, loss), sep = "-") %>% 
-    pivot_wider(names_from = round, values_from = score, values_fill = "???", names_prefix = "round_")
-  
-  # overall score
-  ovr_score <- data %>% 
-    count(player, round, game_outcome) %>% 
-    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
-    mutate(match_outcome = if_else(win > loss, 'win', 'loss')) %>% 
-    count(player, match_outcome) %>% 
-    pivot_wider(names_from = match_outcome, values_from = n, values_fill = 0) %>% 
-    arrange(desc(win), loss) %>% 
-    unite(col = overall, c(win, loss), sep = "-")
-  
-  # aesthetical fixes
-  score <- ovr_score %>% 
-    left_join(score, by = 'player') %>%
-    relocate(overall, .after = everything()) %>% 
-    rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
-    rename_with(str_to_title)
-  
-  # spreadsheet info
-  info <- tibble(
-    " " = c(
-      sprintf("Last Update: %s UTC", Sys.time()), 
-      "This is a test, so maybe it doesn't work; if you notice any error, please message me on twitter (@Balco21) or discord (Balco#7067)."
-    )
-  )
-  
-  # update all sheets of the spreadsheet
-  with_gs4_quiet(range_write(data = info,    ss = ss_id, sheet = "Info"   , reformat = FALSE))
-  with_gs4_quiet(range_write(data = lineups, ss = ss_id, sheet = "Lineups", reformat = FALSE))
-  with_gs4_quiet(range_write(data = score,   ss = ss_id, sheet = "Score"  , reformat = FALSE))
-  
-  # adjust spacing of columns in the spreadsheet
-  walk(.x = sheet_names(ss_id), .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns")))
+  # print "1" at the end of the cycle
+  print('1')
   
 }
 
