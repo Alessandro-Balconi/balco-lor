@@ -14,25 +14,6 @@ con <- pool::dbPool(
   idleTimeout = 0
 )
 
-#* Echo back the input
-#* @param msg The message to echo
-#* @get /echo
-function(msg="") {
-  list(msg = paste0("The message is: '", msg, "'"))
-}
-
-#* Plot a histogram
-#* @serializer png
-#* @get /plot
-function() {
-  rand <- rnorm(100)
-  hist(rand)
-}
-
-#* LoR-Meta Tier List
-#* @get /tables
-function() { as.list(DBI::dbListTables(con)) }
-
 #* LoR-Meta Tier List
 #* @get /player/<region>/<name>
 function(region = '', name = '') {
