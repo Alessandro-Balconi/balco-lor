@@ -169,7 +169,8 @@ data <- data %>%
 # extract card codes from deck code
 data <- data %>%
   distinct(deck_code) %>%
-  mutate(cards_list = map(.x = deck_code, .f = lor_deckcodes$decode$decode_deck)) %>%
+  #mutate(cards_list = map(.x = deck_code, .f = lor_deckcodes$decode$decode_deck)) %>%
+  mutate(cards_list = map(deck_code, lordecks::get_decklist_from_code, format = 'simple')) %>% 
   left_join(x = data, y = ., by = "deck_code")
 
 # get deck champions & cards
