@@ -89,7 +89,9 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     nameRef == "PiltoverZaun" ~ "Piltover",
     nameRef == "Targon" ~ "MtTargon",
     TRUE ~ nameRef
-  ))
+  )) %>% 
+  mutate(abbreviation = if_else(abbreviation %in% data_champs$name, 'RU', abbreviation)) # fix RU champs
+
 
 # function to pull region specific data and make the update
 mongo_to_sql <- function(input_region){
