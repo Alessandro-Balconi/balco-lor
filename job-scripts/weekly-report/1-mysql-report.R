@@ -121,6 +121,10 @@ data <- tbl(con, 'ranked_match_metadata_30d') %>%
   select(match_id, game_start_time_utc, puuid, deck_code, game_outcome, faction_1, faction_2, archetype, shard = region, new_name) %>% 
   collect()
 
+# fix "Runeterra" region
+data <- data %>% 
+  mutate(across(starts_with('faction_'), function(x) ifelse(x %in% data_champs$name, 'Runeterra', x)))
+
 # add champs codes & week
 data <- data %>% 
   distinct(archetype) %>% 
@@ -375,6 +379,12 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/champs_pr.html", backgro
 
 data_history <- tbl(con, "ranked_weekly_region_ngames") %>% 
   collect()
+
+# add fix for "Runeterra" region
+data_history <- data_history %>% 
+  mutate(value = ifelse(value %in% data_champs$name, 'Runeterra', value)) %>% 
+  group_by(week, value, tot_games) %>% 
+  summarise(n = sum(n, na.rm = TRUE), .groups = 'drop')
 
 patches <- tbl(con, 'utils_patch_history') %>%
   filter(release_date >= local(Sys.Date()-months(6)), change == 1) %>% 
