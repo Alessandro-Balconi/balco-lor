@@ -43,7 +43,7 @@ update_leaderboard <- function(region){
     if(nrow(leaderboard) == 0){ leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double()) }
     
     ### TEMPORARY !!! SEND EMPTY LEADERBOARD SINCE THE CURRENT ONE IS BUGGED ###
-    leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double())
+    #leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double())
     
     # time of the update
     upd_time <- tibble(

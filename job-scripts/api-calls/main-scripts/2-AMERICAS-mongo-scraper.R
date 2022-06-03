@@ -102,7 +102,7 @@ while(TRUE){
         {if(nrow(.) > 0) pull(., name) else NA_character_ }
       
       ### TEMPORARY !!! SEND EMPTY LEADERBOARD SINCE THE CURRENT ONE IS BUGGED ###
-      master_players <- NA_character_
+      #master_players <- NA_character_
       
       # save current master players
       if(length(master_players) >= 10){
