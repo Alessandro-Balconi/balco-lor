@@ -23,7 +23,7 @@ ss_id <- "1srxnNQ-cSM3npsGgYd9eCyIujMVQ1A5xrvOB5FScF2s"
 
 # days with at least 100 master players
 days <- tbl(con, 'leaderboard_daily') %>% 
-  filter(region == 'europe', rank == 100, day >= local(Sys.Date()-lubridate::days(180))) %>%
+  filter(region == 'europe', rank == 50, day >= local(Sys.Date()-lubridate::days(180))) %>%
   select(day) %>% 
   collect()
 
