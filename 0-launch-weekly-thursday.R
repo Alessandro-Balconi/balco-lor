@@ -15,8 +15,8 @@ tryCatch({
 rm(list = ls(all.names = TRUE))
 tryCatch({
   tictoc::tic()
-  source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/9-expeditions-mongo-to-sql.R")
-  rm(list = ls(all.names = TRUE))
+  #source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/9-expeditions-mongo-to-sql.R")
+  #rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/weekly-db-cleanup/expedition-mysql-cleanup.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/1-expedition_cards.R")
