@@ -5,7 +5,7 @@ tryCatch({
   RPushbullet::pbPost(
     "note", 
     title = "LoR-Meta AMERICAS server", 
-    body = "There was an error. Restarting process..."
+    body = sprintf("Restarting process... (%s)", e$message)
   )
   print(e)
 }, finally = {
