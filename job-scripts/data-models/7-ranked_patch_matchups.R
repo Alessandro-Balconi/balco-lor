@@ -13,6 +13,27 @@ db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # 3. functions ----
 
+# function to get data from query
+db_get_query <- function(conn, qry, limit = -1, print_text = TRUE, print_df = FALSE, convert_int64 = TRUE){
+  
+  # print query if needed
+  if(print_text){ cat(stringr::str_glue(qry)) }
+  
+  # get data & convert to tibble
+  df <- DBI::dbGetQuery(conn = con, statement = stringr::str_glue(qry), n = limit) %>% 
+    tibble::as_tibble()
+  
+  # print first rows of df if needed
+  if(print_df){ head(df) }
+  
+  # fix column format
+  if(convert_int64){ df <- df %>% mutate(across(where(bit64::is.integer64), as.numeric)) }
+  
+  # return df
+  return(df)
+  
+}
+
 # 4. connect to db & load data ----
 
 # close previous connections to MySQL database (if any)
@@ -50,46 +71,70 @@ min_date <- tbl(con, 'ranked_match_metadata_30d') %>%
 
 # 5.3 table v2 ----
 
-# extract data from MySQL
-data_matchup_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
-  filter(game_start_time_utc >= min_date) %>% 
-  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
-  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
-  mutate(archetype = coalesce(new_name, archetype)) %>% 
-  mutate(time_frame = case_when(game_start_time_utc >= local(Sys.time()-lubridate::days(3)) ~ 2, game_start_time_utc >= local(Sys.time()-lubridate::days(7)) ~ 1, TRUE ~ 0)) %>% 
-  mutate(is_master = if_else(player_rank == 2, 1, 0)) %>% 
-  select(match_id, game_outcome, archetype, time_frame, is_master, region) %>% 
-  collect()
+df <- db_get_query(
+  conn = con,
+  qry = "
+  WITH 
+  metadata AS (
+    SELECT
+      match_id,
+      CASE 
+        WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(3)}' THEN 2
+        WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(7)}' THEN 1
+        ELSE 0 END AS time_frame,
+      region
+    FROM ranked_match_metadata_30d
+    WHERE game_start_time_utc >= '{min_date}'
+  ),
+  info AS (
+    SELECT
+      match_id, 
+      game_outcome,
+      COALESCE(new_name, archetype) AS archetype,
+      time_frame,
+      CASE WHEN player_rank = 2 THEN 1 ELSE 0 END AS is_master,
+      region,
+      ROW_NUMBER() OVER (PARTITION BY match_id ORDER BY archetype) AS id
+    FROM metadata
+    LEFT JOIN ranked_match_info_30d rmi
+    USING(match_id)
+    LEFT JOIN utils_archetype_aggregation uaa
+    ON rmi.archetype = uaa.old_name
+  ),
+  opponent_data AS (
+    SELECT
+      match_id,
+      CASE WHEN id = 2 THEN 1 WHEN id = 1 THEN 2 ELSE 0 END AS id,
+      archetype AS archetype_2
+    FROM info
+  )
+  
+  SELECT 
+    archetype AS archetype_1,
+    archetype_2,
+    time_frame, 
+    is_master,
+    region,
+    SUM(game_outcome = 'win') AS win,
+    COUNT(*) AS n
+  FROM info
+  LEFT JOIN opponent_data
+  USING(match_id, id)
+  GROUP BY 1, 2, 3, 4, 5
+  ORDER BY 1, 2, 3, 4, 5
+  ",
+  print_text = FALSE
+)
 
-data_matchup_v2 <- data_matchup_v2 %>% 
-  arrange(match_id, archetype) %>% 
-  group_by(match_id) %>% 
-  mutate(id = row_number()) %>% 
-  ungroup()
-
-opponent_data <- data_matchup_v2 %>% 
-  mutate(id = case_when(id == 1 ~ 2, id == 2 ~ 1, TRUE ~ 0)) %>% 
-  select(match_id, id, archetype_2 = archetype)
-
-data_matchup_v2 <- data_matchup_v2 %>% 
-  left_join(opponent_data, by = c("match_id", "id")) %>% 
-  select(-id) %>% 
-  rename(archetype_1 = archetype)
-
-n_match <- data_matchup_v2 %>% 
-  count(archetype_1, archetype_2, time_frame, is_master, region)
-
-data_matchup_v2 <- data_matchup_v2 %>%
-  group_by(archetype_1, archetype_2, time_frame, is_master, region) %>% 
-  summarise(win = sum(game_outcome == "win"), .groups = "drop") %>% 
-  left_join(n_match, by = c("archetype_1", "archetype_2", "time_frame", "is_master", 'region')) %>% 
+# add winrate (default to 0.5 if mirror match)
+df <- df %>% 
   mutate(winrate = ifelse(archetype_1 == archetype_2, 0.5, win / n))
 
 # 6. save to MySQL db ----
 
-if(nrow(data_matchup_v2) >  0){
+if(nrow(df) >  0){
   
-  data_matchup_v2 %>% 
+  df %>% 
     DBI::dbWriteTable(conn = con, name = "ranked_patch_matchups", value = ., overwrite = TRUE, row.names = FALSE) 
 
   # time of the update
