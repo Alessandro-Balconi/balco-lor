@@ -27,14 +27,11 @@ con <- DBI::dbConnect(
 
 # 3. extract old matches from dbs ----
 
-match_times <- tbl(con, "expedition_match") %>% 
-  distinct(match_id, game_start_time_utc) %>% 
-  collect()
-
-old_matchid <- match_times %>% 
-  mutate(game_start_time_utc = as.POSIXct(game_start_time_utc)) %>% 
-  filter(date(game_start_time_utc) <  Sys.Date() - days(90)) %>% 
-  pull(match_id)
+old_matchid <- tbl(con, "expedition_match") %>% 
+  mutate(day = sql('CAST(game_start_time_utc AS DATE)')) %>%
+  filter(day < local(Sys.Date()-days(90))) %>% 
+  distinct(match_id) %>% 
+  pull()
 
 # 4. add those to "old_db" and remove them from main collections ----
 
@@ -46,9 +43,7 @@ if(length(old_matchid) > 0){
   
   already_in_old_db <- tbl(con, 'expedition_match_old') %>% 
     filter(match_id %in% old_matchid) %>% 
-    select(match_id) %>% 
-    distinct() %>% 
-    collect() %>% 
+    distinct(match_id) %>% 
     pull()
   
   old <- old %>% filter(!match_id %in% already_in_old_db)
