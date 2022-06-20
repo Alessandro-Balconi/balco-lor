@@ -58,12 +58,15 @@ mysql_patch <- tbl(con, "utils_patch_history") %>%
 # 5. perform calculations ----
 if(mysql_patch == last_patch){
   
-  RPushbullet::pbPost(
-    "note", 
-    title = "Weekly patch history table update", 
-    body = "No update performed. Table was already up to date."
-  )
-  
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = 'Weekly patch history table update'
+  ) %>% 
+    discordr::send_webhook_message(
+      message = "No update performed. Table was already up to date.",
+      conn = .
+    )
+
 } else {
   
   # patches are different! check if there is any difference
@@ -201,11 +204,14 @@ if(mysql_patch == last_patch){
 
   }
   
-  RPushbullet::pbPost(
-    "note", 
-    title = "Weekly patch history table update", 
-    body = sprintf("The weekly update was performed correctly; added patch %s", last_patch)
-  )
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = 'Weekly patch history table update'
+  ) %>% 
+    discordr::send_webhook_message(
+      message = sprintf("The weekly update was performed correctly; added patch %s", last_patch), 
+      conn = .
+    )
 
 }
 

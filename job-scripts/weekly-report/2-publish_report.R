@@ -68,8 +68,11 @@ writeLines(weekly_report, sprintf("/home/balco/dev/lor-meta-report/templates/out
 # push to "lor-meta.com" and bundle exec jekyll build
 system("scp -r /home/balco/dev/lor-meta-report/templates/output/* balco@lor-meta.com:/home/balco/www/_posts/")
 
-RPushbullet::pbPost(
-  "note", 
-  title = "Weekly Report Uploaded", 
-  body = "The weekly report was uploaded correctly."
-)
+discordr::create_discord_connection(
+  webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+  username = "Weekly Report Uploaded"
+) %>% 
+  discordr::send_webhook_message(
+    message = "The weekly report was uploaded correctly.", 
+    conn = .
+  )

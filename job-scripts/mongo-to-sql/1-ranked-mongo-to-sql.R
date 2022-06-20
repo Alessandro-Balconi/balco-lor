@@ -154,11 +154,14 @@ mongo_to_sql <- function(input_region){
   
   if(nrow(data) == 0){
     
-    RPushbullet::pbPost(
-      "note",
-      title = sprintf("%s - Daily database update", toupper(input_region)),
-      body = "No new matches found since the last update. Check for issues."
-    )
+    discordr::create_discord_connection(
+      webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+      username = sprintf("%s - Daily database update", toupper(input_region))
+    ) %>% 
+      discordr::send_webhook_message(
+        message = "No new matches found since the last update. Check for issues.", 
+        conn = .
+      )
     
   } else {
     

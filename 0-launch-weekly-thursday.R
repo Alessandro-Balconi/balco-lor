@@ -4,11 +4,14 @@ tryCatch({
   cat(sprintf("--- %s --- \n", Sys.Date()))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/4-utils_patch_history.R")
 }, error = function(e) {
-  RPushbullet::pbPost(
-    "note",
-    title = "Weekly Patch History Update",
-    body = "There was an error during the patch history update. Manual intervention required."
-  )
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = "Weekly Patch History Update"
+  ) %>% 
+    discordr::send_webhook_message(
+      message = "There was an error during the patch history update. Manual intervention required.", 
+      conn = .
+    )
   print(e)
 })
 
@@ -22,10 +25,13 @@ tryCatch({
   #source("/home/balco/dev/lor-meta-report/job-scripts/data-models/1-expedition_cards.R")
   tictoc::toc()
 }, error = function(e) {
-  RPushbullet::pbPost(
-    "note",
-    title = "Weekly Expedition Update",
-    body = "There was an error during the expedition update. Manual intervention required."
-  )
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = "Weekly Expedition Update"
+  ) %>% 
+    discordr::send_webhook_message(
+      message = "There was an error during the expedition update. Manual intervention required.", 
+      conn = .
+    )
   print(e)
 })

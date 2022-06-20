@@ -9,10 +9,13 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/weekly-report/2-publish_report.R")
   tictoc::toc()
 }, error = function(e) {
-  RPushbullet::pbPost(
-    "note",
-    title = "Weekly Report Release",
-    body = "There was an error during the relase of the report. Manual intervention required."
-  )
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = "Weekly Report Release"
+  ) %>% 
+    discordr::send_webhook_message(
+      message = "There was an error during the relase of the report. Manual intervention required.", 
+      conn = .
+    )
   print(e)
 })
