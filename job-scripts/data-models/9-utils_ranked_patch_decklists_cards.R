@@ -45,24 +45,29 @@ min_date <- tbl(con, 'ranked_match_metadata_30d') %>%
 
 # 5.2 table of current patch v2 ----
 
+# deck codes already extracted
+already_extracted <- tbl(con, 'utils_ranked_patch_decklists_cards') %>% 
+  distinct(deck_code) %>% 
+  pull()
+
 # extract data from MySQL
 data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
   filter(game_start_time_utc >= min_date) %>%
   left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
   left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+  filter(!deck_code %in% already_extracted) %>%
   mutate(archetype = coalesce(new_name, archetype)) %>% 
   count(archetype, deck_code, cards) %>% 
   filter(n >= 5) %>% 
+  select(-n) %>% 
   collect() %>% 
   ungroup()
 
 # reshape df
 data_v2 <- data_v2 %>% 
-  select(-n) %>% 
   separate(col = cards, into = sprintf('card_%s', 1:40), sep = ' ', fill = 'right') %>% 
-  pivot_longer(cols = -c(archetype, deck_code), values_drop_na = TRUE) %>% 
-  separate(col = value, into = c('count', 'card_code'), sep = ':') %>% 
-  select(-name)
+  pivot_longer(cols = -c(archetype, deck_code), values_drop_na = TRUE, names_to = NULL) %>% 
+  separate(col = value, into = c('count', 'card_code'), sep = ':')
 
 # 6. save to MySQL db ----
 

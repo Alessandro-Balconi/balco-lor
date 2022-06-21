@@ -43,49 +43,51 @@ min_date <- tbl(con, 'ranked_match_metadata_30d') %>%
   pull()
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
-# games played by decklists (filtering out those with <5 games)
-deck_codes <- tbl(con, 'ranked_match_metadata_30d') %>% 
-  filter(str_detect(game_version, current_patch), game_start_time_utc >= min_date) %>% 
-  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
-  count(deck_code) %>% 
-  filter(n >= 5) %>% 
-  collect() %>% 
-  pull(deck_code)
-
-# 3.2 table of current patch v2 ----
-
 # extract data from MySQL
-data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
-  filter(game_start_time_utc >= min_date) %>% 
-  left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
-  filter(deck_code %in% deck_codes) %>% 
-  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
-  mutate(archetype = coalesce(new_name, archetype)) %>% 
-  mutate(time_frame = case_when(
-    game_start_time_utc >= local(Sys.Date()-lubridate::days(3)) ~ 2, 
-    game_start_time_utc >= local(Sys.Date()-lubridate::days(7)) ~ 1, 
-    TRUE ~ 0
-  )) %>% 
-  mutate(is_master = if_else(player_rank == 2, 1, 0)) %>% 
-  count(game_outcome, archetype, deck_code, time_frame, is_master, region) %>% 
-  collect() %>% 
-  ungroup()
+df <- db_get_query(
+  conn = con,
+  qry = "
+  WITH 
+  decklists AS (
+    SELECT deck_code, COUNT(*) AS n
+    FROM ranked_match_metadata_30d meta
+    JOIN ranked_match_info_30d info
+    USING(match_id)
+    WHERE game_start_time_utc >= '{min_date}'
+    GROUP BY deck_code
+    HAVING n >= 5
+  )
+  
+  SELECT 
+    COALESCE(aa.new_name, info.archetype) AS archetype, 
+    deck_code,
+    COUNT(*) AS \"match\",
+    SUM(game_outcome = 'win') AS win,
+    (1.0 * SUM(game_outcome = 'win') / COUNT(*)) AS winrate,
+    CASE 
+      WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(3)}' THEN 2
+      WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(7)}' THEN 1
+      ELSE 0 END AS time_frame,
+    CASE WHEN player_rank = 2 THEN 1 ELSE 0 END AS is_master,
+    region
+  FROM decklists
+  JOIN ranked_match_info_30d info
+  USING(deck_code)
+  JOIN ranked_match_metadata_30d meta
+  USING(match_id)
+  LEFT JOIN utils_archetype_aggregation aa
+  ON info.archetype = aa.old_name
+  GROUP BY 1, 2, 6, 7, 8
+  ",
+  print_text = FALSE
+)
 
-# calculate information
-data_decks_v2 <- data_v2 %>% 
-  pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0)
-
-data_decks_v2 <- data_decks_v2 %>%
-  {if(!'tie' %in% colnames(.)) mutate(., tie = 0) else . } %>% 
-  mutate(match = win + loss + tie) %>% 
-  {if(nrow(.)>0) mutate(., winrate = win / match) else . } %>% 
-  {if(nrow(.)>0) select(., archetype, deck_code, match, win, winrate, time_frame, is_master, region) else . }
 
 # 4. save to MySQL db ----
 
 if(nrow(data_decks_v2) >  0){
   
-  data_decks_v2 %>% 
+  df %>% 
     DBI::dbWriteTable(conn = con, name = "ranked_patch_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
   
 }
