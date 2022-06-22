@@ -10,6 +10,8 @@ tryCatch({
       message = sprintf("Restarting process... (%s)", e$message), 
       conn = .
     )
+  print(e)
+}, finally = {
   Sys.sleep(180)
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/api-calls/1-launch-asia.R")
