@@ -1,8 +1,29 @@
 # Creates a MySQL table with decklists information for the current patch (from data of MySQL databases)
 
-# 1. libraries ----
+# 1. libraries & functions ----
 
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
+
+# function to get data from query
+db_get_query <- function(conn, qry, limit = -1, print_text = TRUE, print_df = FALSE, convert_int64 = TRUE){
+  
+  # print query if needed
+  if(print_text){ cat(stringr::str_glue(qry)) }
+  
+  # get data & convert to tibble
+  df <- DBI::dbGetQuery(conn = con, statement = stringr::str_glue(qry), n = limit) %>% 
+    tibble::as_tibble()
+  
+  # print first rows of df if needed
+  if(print_df){ head(df) }
+  
+  # fix column format
+  if(convert_int64){ df <- df %>% mutate(across(where(bit64::is.integer64), as.numeric)) }
+  
+  # return df
+  return(df)
+  
+}
 
 # 2. connect to db & load data ----
 
@@ -85,7 +106,7 @@ df <- db_get_query(
 
 # 4. save to MySQL db ----
 
-if(nrow(data_decks_v2) >  0){
+if(nrow(df) >  0){
   
   df %>% 
     DBI::dbWriteTable(conn = con, name = "ranked_patch_decklists", value = ., overwrite = TRUE, row.names = FALSE) 
