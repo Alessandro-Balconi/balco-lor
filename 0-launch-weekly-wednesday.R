@@ -14,7 +14,7 @@ tryCatch({
     username = "Weekly Report Release"
   ) %>% 
     discordr::send_webhook_message(
-      message = "There was an error during the relase of the report. Manual intervention required.", 
+      message = sprintf("Manual intervention required. (%s)", e$message), 
       conn = .
     )
   print(e)
