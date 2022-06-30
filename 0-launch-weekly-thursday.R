@@ -35,3 +35,31 @@ tryCatch({
     )
   print(e)
 })
+
+rm(list = ls(all.names = TRUE))
+tryCatch({
+  tictoc::tic()
+
+  # list of files to update
+  gs_list <- list.files('/home/balco/dev/lor-meta-report/job-scripts/weekly-google-spreadsheets')
+  
+  # function to update spreadsheet
+  update_ss <- function(ss){
+    source(paste0("/home/balco/dev/lor-meta-report/job-scripts/weekly-google-spreadsheets/", ss))
+  }
+  
+  # apply function to all spreadsheets
+  lapply(X = gs_list, FUN = update_ss)
+  
+  tictoc::toc()
+}, error = function(e) {
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = "Weekly Google Spreadsheets Update"
+  ) %>% 
+    discordr::send_webhook_message(
+      message = "There was an error during the spreadsheets update. Manual intervention required.", 
+      conn = .
+    )
+  print(e)
+})
