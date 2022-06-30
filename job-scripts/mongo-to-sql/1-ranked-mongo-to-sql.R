@@ -195,7 +195,7 @@ mongo_to_sql <- function(input_region){
     # fix change in game version
     data <- data %>%
       mutate(game_version = str_replace_all(game_version, pattern = '-', replacement = '_')) %>% 
-      mutate(game_version = str_replace_all(game_version, pattern = '_green_', replacement = '_'))
+      mutate(game_version = str_replace_all(game_version, pattern = '_green_|_blue_', replacement = '_'))
     
     # reshape (keeping only 1 row per deck)
     data <- data %>% 
