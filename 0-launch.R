@@ -30,11 +30,11 @@ tryCatch({
   tictoc::tic()
   
   # list of files to update
-  gs_list <- list.files('/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets')
+  gs_list <- list.files('/home/balco/dev/lor-meta-report/job-scripts/daily-google-spreadsheets')
   
   # function to update spreadsheet
   update_ss <- function(ss){
-    source(paste0("/home/balco/dev/lor-meta-report/job-scripts/google-spreadsheets/", ss))
+    source(paste0("/home/balco/dev/lor-meta-report/job-scripts/daily-google-spreadsheets/", ss))
   }
   
   # apply function to all spreadsheets
