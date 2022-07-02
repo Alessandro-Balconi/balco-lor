@@ -52,7 +52,11 @@ data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%
   left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
   mutate(
     archetype = coalesce(new_name, archetype),
-    time_frame = case_when(game_start_time_utc >= local(Sys.time()-lubridate::days(3)) ~ 2, game_start_time_utc >= local(Sys.time()-lubridate::days(7)) ~ 1, TRUE ~ 0),
+    time_frame = case_when(
+      game_start_time_utc >= local(Sys.time()-lubridate::days(1)) ~ 3, 
+      game_start_time_utc >= local(Sys.time()-lubridate::days(3)) ~ 2, 
+      game_start_time_utc >= local(Sys.time()-lubridate::days(7)) ~ 1, 
+      TRUE ~ 0),
     is_master = if_else(player_rank == 2, 1, 0)
   ) %>% 
   count(game_outcome, archetype, region, time_frame, is_master) %>% 

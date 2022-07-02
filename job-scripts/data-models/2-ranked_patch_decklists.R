@@ -86,6 +86,7 @@ df <- db_get_query(
     SUM(game_outcome = 'win') AS win,
     (1.0 * SUM(game_outcome = 'win') / COUNT(*)) AS winrate,
     CASE 
+      WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(1)}' THEN 3
       WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(3)}' THEN 2
       WHEN game_start_time_utc >= '{Sys.time()-lubridate::days(7)}' THEN 1
       ELSE 0 END AS time_frame,

@@ -20,7 +20,7 @@ con <- DBI::dbConnect(
 update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_id){
   
   # ndays to use to check for patches
-  patch_ndays <- switch(as.character(input_time_frame), "0" = 1e3, "1" = 7, "2" = 3)
+  patch_ndays <- switch(as.character(input_time_frame), "0" = 1e3, "1" = 7, "2" = 3, "3" = 1)
   
   # date to be considered
   last_n_days <- local(Sys.time()-lubridate::days(patch_ndays))
@@ -132,6 +132,7 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
 id_ss <- "1BBQCxDkrdG-CIZAqdMV-wAxnm64O9Rk1y0t2hIfsVgU"
 
 # update all tables
+update_spreadsheet(input_region = 'europe',   n = 25, input_time_frame = 3, is_master = 1, ss_id = id_ss)
 update_spreadsheet(input_region = 'europe',   n = 40, input_time_frame = 2, is_master = 1, ss_id = id_ss)
 update_spreadsheet(input_region = 'americas', n = 40, input_time_frame = 2, is_master = 1, ss_id = id_ss)
 update_spreadsheet(input_region = 'europe',   n = 40, input_time_frame = 1, is_master = 1, ss_id = id_ss)
