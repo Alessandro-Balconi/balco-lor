@@ -99,6 +99,7 @@ df <- db_get_query(
   USING(match_id)
   LEFT JOIN utils_archetype_aggregation aa
   ON info.archetype = aa.old_name
+  WHERE game_start_time_utc >= '{min_date}'
   GROUP BY 1, 2, 6, 7, 8
   ",
   print_text = FALSE
