@@ -9,7 +9,7 @@ tryCatch({
     username = "Weekly Patch History Update"
   ) %>% 
     discordr::send_webhook_message(
-      message = "There was an error during the patch history update. Manual intervention required.", 
+      message = sprintf("Manual intervention required. (%s)", e$message), 
       conn = .
     )
   print(e)
@@ -30,7 +30,7 @@ tryCatch({
     username = "Weekly Expedition Update"
   ) %>% 
     discordr::send_webhook_message(
-      message = "There was an error during the expedition update. Manual intervention required.", 
+      message = sprintf("Manual intervention required. (%s)", e$message), 
       conn = .
     )
   print(e)
@@ -58,7 +58,7 @@ tryCatch({
     username = "Weekly Google Spreadsheets Update"
   ) %>% 
     discordr::send_webhook_message(
-      message = "There was an error during the spreadsheets update. Manual intervention required.", 
+      message = sprintf("Manual intervention required. (%s)", e$message), 
       conn = .
     )
   print(e)
