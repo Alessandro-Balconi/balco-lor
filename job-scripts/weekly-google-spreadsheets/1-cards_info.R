@@ -81,5 +81,3 @@ map(
   .x = ss_names,
   .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
 )
-
-DBI::dbDisconnect(con)
