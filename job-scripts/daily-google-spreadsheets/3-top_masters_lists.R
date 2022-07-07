@@ -5,9 +5,6 @@ suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets AP
 suppressPackageStartupMessages(library(jsonlite)) # work with JSON objects
 suppressPackageStartupMessages(library(httr)) # make GET calls
 
-options(gargle_oauth_email = "Balco21@outlook.it")
-options(googlesheets4_quiet = TRUE)
-
 # load mysql db credentials
 db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
