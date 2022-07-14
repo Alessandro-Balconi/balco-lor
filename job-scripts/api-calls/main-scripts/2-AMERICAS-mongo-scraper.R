@@ -94,11 +94,11 @@ while(TRUE){
     # if status == 200 (good response)
     if(get_leaderboard$status_code == 200){
       
-      # get content of the leaderboard
-      leaderboard <- get_leaderboard %>% content() %>% unname() %>% bind_rows()
-      
       # list of players in master (the ones we are collecting games from)
-      master_players <- leaderboard %>% 
+      master_players <- get_leaderboard %>% 
+        content() %>% 
+        unname() %>% 
+        bind_rows() %>% 
         {if(nrow(.) > 0) pull(., name) else NA_character_ }
       
       ### TEMPORARY !!! SEND EMPTY LEADERBOARD SINCE THE CURRENT ONE IS BUGGED ###
