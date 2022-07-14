@@ -5,9 +5,6 @@ suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets AP
 suppressPackageStartupMessages(library(httr))
 suppressPackageStartupMessages(library(jsonlite))
 
-options(gargle_oauth_email = "Balco21@outlook.it")
-options(googlesheets4_quiet = TRUE)
-
 # id of the spreadsheet 
 ss_id <- "1eWTbWBmyYYO2Qwj_q0xEHgZTi3NvtL3oOfz8sxC92Hs"
 

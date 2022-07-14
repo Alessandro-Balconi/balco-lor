@@ -40,6 +40,15 @@ rm(list = ls(all.names = TRUE))
 tryCatch({
   tictoc::tic()
 
+  #options(gargle_oauth_email = "Balco21@outlook.it")
+  options(googlesheets4_quiet = TRUE)
+  
+  # set google API Key & Oauth credentials
+  google_creds <- config::get("google", file = "/home/balco/my_rconfig.yml")
+  gargle::oauth_app_from_json(google_creds$client_secret)
+  googlesheets4::gs4_auth_configure(api_key = google_creds$api_key)
+  googlesheets4::gs4_auth(path = google_creds$auth_path)
+  
   # list of files to update
   gs_list <- list.files('/home/balco/dev/lor-meta-report/job-scripts/weekly-google-spreadsheets')
   
