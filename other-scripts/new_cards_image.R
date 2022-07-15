@@ -1,7 +1,14 @@
 library(tidyverse)
 
 # list of images to plot
-images <- c("06PZ043","06SI037","06BW043","06BC040","06IO036","06DE042","06MT043","06NX037","06SH042")
+images <- c("06FR029",
+            "06FR037",
+            "06NX031",
+            "06MT044",
+            "06RU025T1",
+            "06RU025T2",
+            "06RU025T9"
+            )
 
 # to test format before cards come out
 #images <- rep('06IO004', length(images))
@@ -11,7 +18,7 @@ set_number <- 6
 
 # number of columns, rows in the plot
 n_rows <- 2
-n_cols <- 5
+n_cols <- 4
 
 # convert to df
 data <- tibble(code = images) %>% 
