@@ -8,3 +8,4 @@ output
 *.csv
 tests.R
 .httr-oauth
+data_dumps
