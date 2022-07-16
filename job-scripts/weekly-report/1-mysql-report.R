@@ -375,20 +375,21 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/champs_pr.html", backgro
 
 # 6.3. historical play-rate ----
 
+# pull data (add fix for "Runeterra" region)
 data_history <- tbl(con, "ranked_weekly_region_ngames") %>% 
-  collect()
-
-# add fix for "Runeterra" region
-data_history <- data_history %>% 
   mutate(value = ifelse(value %in% data_champs$name, 'Runeterra', value)) %>% 
   group_by(week, value, tot_games) %>% 
-  summarise(n = sum(n, na.rm = TRUE), .groups = 'drop')
+  summarise(n = sum(n, na.rm = TRUE), .groups = 'drop') %>%
+  arrange(week, value, tot_games) %>% 
+  collect()
 
+# collect patch data for the past 6 months
 patches <- tbl(con, 'utils_patch_history') %>%
   filter(release_date >= local(Sys.Date()-months(6)), change == 1) %>% 
   select(patch, date = release_date) %>% 
   collect()
 
+# add nicer label to patch name (or use "Balance" if not provided)
 patches <- patches %>% 
   mutate(date = as_date(date)) %>% 
   left_join(patch_labels, by = 'patch') %>% 
