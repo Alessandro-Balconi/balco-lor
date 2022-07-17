@@ -3,6 +3,9 @@
 # 2. THE DAY OF THE SEASONAL: start a local job that runs this script -> should be a trycatch wrapper to restart if it fails
 # 3. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
 
+# CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
+#DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
+
 # import must have packages (others will be imported later)
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
@@ -14,6 +17,7 @@ suppressPackageStartupMessages(library(httr))
 suppressPackageStartupMessages(library(jsonlite))
 
 options(googlesheets4_quiet = TRUE)
+httr::set_config(httr::config(http_version = 0))
 
 # set google API Key & Oauth credentials
 google_creds <- config::get("google", file = "/home/balco/my_rconfig.yml")
@@ -100,7 +104,8 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     nameRef == "PiltoverZaun" ~ "Piltover",
     nameRef == "Targon" ~ "MtTargon",
     TRUE ~ nameRef
-  ))
+  )) %>% 
+  mutate(abbreviation = if_else(abbreviation %in% data_champs$name, 'RU', abbreviation)) # fix RU champs
 
 # extract region from monoregion champs
 get_monoregion <- function(champs){
@@ -269,60 +274,63 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     # extract data from matches
     data <- map_dfr(.x = new_matches, .f = extract_match_info)
     
-    # extract card codes from deck code
+    # remove matches where there is no deck code
     data <- data %>% 
-      distinct(deck_code) %>%
-      filter(deck_code != "") %>% 
-      mutate(cards_list = map_chr(deck_code, function(x) { lordecks::get_decklist_from_code(x, format = "simple") %>% paste0(collapse = " ") } )) %>% 
-      left_join(x = data, y = ., by = "deck_code")
-    
-    # keep only relevant columns
-    data <- data %>% 
-      select(all_of(c("match_id", "game_mode", "game_start_time_utc", "puuid", "deck_code", "game_outcome", "faction_1", "faction_2", "cards_list")))
-    
-    # get deck champions & archetype
-    data <- data %>%
-      distinct(across(c(starts_with("faction_"), cards_list))) %>% 
-      mutate(
-        cards = map_chr(cards_list, str_flatten, collapse = " "),
-        champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
-        champs = map_chr(champs, str_flatten, collapse = " "),
-        champs_factions = map_chr(champs, get_monoregion)
-      ) %>% 
-      left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
-      left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
-      unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
-      mutate(
-        factions = str_remove_all(factions, pattern = " NA|NA "),
-        across(c(champs, champs_factions, factions),  function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))),
-        no_fix = map2_lgl(.x = factions, .y = champs_factions, .f = ~grepl(pattern = .x, x = .y)),
-        champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
-        champs_factions = paste0(champs_factions, "| "),
-        factions_to_add = str_remove_all(factions, pattern = champs_factions),
-        archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
-      ) %>% 
-      left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
-      select(-c(cards_list, champs_factions, no_fix, starts_with('faction'), cards, champs))
-    
-    # make archetype name nicer
-    data <- data %>% 
-      mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
-      mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
-    
-    # add new matches to db ----
-    
-    # fix time column format
-    data <- data %>% 
-      mutate(time = as_datetime(game_start_time_utc), .keep = 'unused', .after = match_id)
-    
-    # save results to db
-    data %>% 
-      DBI::dbWriteTable(conn = con, name = "seasonal_match_data", value = ., append = TRUE, row.names = FALSE)
-    
-    # list of already collected matches
-    already_collected <- c(already_collected, new_matches)
+      filter(deck_code != "")
     
     if(nrow(data) > 0){
+      
+      # extract card codes from deck code
+      data <- data %>% 
+        distinct(deck_code) %>%
+        mutate(cards_list = map_chr(deck_code, function(x) { lordecks::get_decklist_from_code(x, format = "simple") %>% paste0(collapse = " ") } )) %>% 
+        left_join(x = data, y = ., by = "deck_code")
+      
+      # keep only relevant columns
+      data <- data %>% 
+        select(all_of(c("match_id", "game_mode", "game_start_time_utc", "puuid", "deck_code", "game_outcome", "faction_1", "faction_2", "cards_list")))
+      
+      # get deck champions & archetype
+      data <- data %>%
+        distinct(across(c(starts_with("faction_"), cards_list))) %>% 
+        mutate(
+          cards = map_chr(cards_list, str_flatten, collapse = " "),
+          champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
+          champs = map_chr(champs, str_flatten, collapse = " "),
+          champs_factions = map_chr(champs, get_monoregion)
+        ) %>% 
+        left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
+        left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
+        unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
+        mutate(
+          factions = str_remove_all(factions, pattern = " NA|NA "),
+          across(c(champs, champs_factions, factions),  function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))),
+          no_fix = map2_lgl(.x = factions, .y = champs_factions, .f = ~grepl(pattern = .x, x = .y)),
+          champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
+          champs_factions = paste0(champs_factions, "| "),
+          factions_to_add = str_remove_all(factions, pattern = champs_factions),
+          archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
+        ) %>% 
+        left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
+        select(-c(cards_list, champs_factions, no_fix, starts_with('faction'), cards, champs))
+      
+      # make archetype name nicer
+      data <- data %>% 
+        mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
+        mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
+      
+      # add new matches to db ----
+      
+      # fix time column format
+      data <- data %>% 
+        mutate(time = as_datetime(game_start_time_utc), .keep = 'unused', .after = match_id)
+      
+      # save results to db
+      data %>% 
+        DBI::dbWriteTable(conn = con, name = "seasonal_match_data", value = ., append = TRUE, row.names = FALSE)
+      
+      # list of already collected matches
+      already_collected <- c(already_collected, new_matches)
       
       # update gs4 ----
       
@@ -404,6 +412,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # complete data and reshape
       score <- score %>% 
         unite(col = score, c(win, loss), sep = "-") %>% 
+        mutate(score = ifelse(score == "NA-NA", '-', score)) %>% 
         pivot_wider(names_from = round, values_from = score, values_fill = "-", names_prefix = "round_")
       
       # add overall score
@@ -422,7 +431,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
           sprintf("Ultimo Aggiornamento: %s UTC", Sys.time()), 
           "Se volete esser aggiunti a questo foglio (o se trovate degli errori), contattatemi su discord (Balco#7067).",
           "Nei casi in cui non sia possibile risalire al risultato tramite API (es. BYE, drop, match terminati 1-1 causa timer, 
-          match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo."
+match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo."
         )
       )
       
@@ -442,8 +451,5 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   print('1')
   
 }
-
-# A FINE SEASONAL (could be moved inside the if clause above, assuming everything works as expected)
-#DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
 
 DBI::dbDisconnect(con)
