@@ -13,10 +13,10 @@ mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
 mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # connect to mongodb
-m_match <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
+m_match <- mongo(
+  url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), 
+  collection = "lor_match_info_asia"
+  )
 
 # connect to mysql db
 con <- DBI::dbConnect(
@@ -27,18 +27,16 @@ con <- DBI::dbConnect(
   dbname = mysql_creds$dbs
 )
 
-# 3. set api parameters ----
+# 3. set parameters ----
 
 # API path
-base.url           <- "https://sea.api.riotgames.com/" # americas, asia, europe, sea
-path_match_history <- "lor/match/v1/matches/by-puuid/"
-path_match_info    <- "lor/match/v1/matches/"
-
-# initialize parameters
-i <- 1 # cycle parameter
+base.url <- "https://sea.api.riotgames.com/" # americas, asia, europe, sea
 
 # api key
 api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
+
+# initialize cycle parameter
+i <- 1
 
 # 4. define functions ----
 
@@ -69,6 +67,9 @@ add_player_to_db <- function(player, region = 'asia'){
 
 # 5. make calls ----
 
+# matches already collected (to prevent collecting them again)
+already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
+
 while(TRUE){
   
   # at the start of each cycle, initialize list of players to extract match from
@@ -80,10 +81,6 @@ while(TRUE){
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
     m_match$remove('{"status.status_code":{"$exists": true}}')
-    
-    # matches already collected (to prevent collecting them again)
-    # could be done just once but doing it every cicle for safety
-    already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
     
     # number of matches in the db at the start of a cycle
     n_start <- length(already_in_mongo)
@@ -144,7 +141,12 @@ while(TRUE){
   puuid_i <- puuid_list[i]
   
   # collect matches
-  get_matches <- GET(base.url, path = paste0(path_match_history, puuid_i, "/ids") , add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 120))
+  get_matches <- GET(
+    base.url, 
+    path = paste0("lor/match/v1/matches/by-puuid/", puuid_i, "/ids") , 
+    add_headers("X-Riot-Token" = api_key), 
+    config = config(connecttimeout = 120)
+  )
   
   # if status == 200 (good response)
   if(get_matches$status_code == 200){
@@ -160,7 +162,12 @@ while(TRUE){
       X = matches,
       FUN = function(x){
         Sys.sleep(1)
-        GET(base.url, path = paste0(path_match_info, x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 120))
+        GET(
+          base.url, 
+          path = paste0("lor/match/v1/matches/", x), 
+          add_headers("X-Riot-Token" = api_key), 
+          config = config(connecttimeout = 120)
+        )
       }
     )
     
