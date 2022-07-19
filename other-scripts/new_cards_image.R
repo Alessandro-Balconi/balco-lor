@@ -1,24 +1,24 @@
-library(tidyverse)
+# parameters:
+# images
+
+library(tibble)
+library(dplyr)
+library(ggplot2)
 
 # list of images to plot
-images <- c("06FR029",
-            "06FR037",
-            "06NX031",
-            "06MT044",
-            "06RU025T1",
-            "06RU025T2",
-            "06RU025T9"
-            )
+images <- c(
+  "06SH048","06BC039","06BC035","06BW021","06RU025T3","06RU025T10"
+)
 
 # to test format before cards come out
 #images <- rep('06IO004', length(images))
 
 # number of the current set
-set_number <- 6
+set_number <- substr(images[1], start = 2, stop = 2)
 
-# number of columns, rows in the plot
-n_rows <- 2
-n_cols <- 4
+# number of rows in the plot
+n_rows <- ceiling(length(images)/5)
+n_cols <- ceiling(length(images) / n_rows)
 
 # convert to df
 data <- tibble(code = images) %>% 
@@ -34,11 +34,14 @@ data <- data %>%
 # make plot
 plot <- ggplot(data) +
   geom_rect(aes(xmin = -Inf, ymin = -Inf, xmax = Inf, ymax = Inf), fill = 'mediumslateblue', alpha = 0.05) +
-  ggimage::geom_image(aes(image = img, x = x, y = y), size = 1/(n_cols+1), asp = (1024/680)) +
+  expand_limits(y = c(0.5, n_rows+0.5), x = c(0.5, n_cols+0.5)) +
   theme_void() +
-  expand_limits(y = c(0.5, n_rows+0.5), x = c(0.5, n_cols+0.5))
+  ggimage::geom_image(aes(image = img, x = x, y = y), asp = (1024/680), size = size = 1/(n_cols+1))
   
 # add background
 plot <- ggimage::ggbackground(plot, background = "https://i.imgur.com/t71V6K2.jpeg")
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/data_dumps/new_cards.png", plot = plot, width = 3, height = 2, dpi = 840)
+p_width  <- (680*(n_cols*1.1+0.2))/840
+p_height <- (680*(n_rows*1.1+0.2))/840
+
+ggsave(filename = "/home/balco/dev/lor-meta-report/data_dumps/new_cards.png", plot = plot, width = p_width, height = p_height, dpi = 840)
