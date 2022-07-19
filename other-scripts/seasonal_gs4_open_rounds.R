@@ -6,6 +6,9 @@
 # CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
 
+# !!! per il me del futuro !!!
+# AVEVO CAMBIATO IL FORMATO DELLO SHEET LINEUP, VA SISTEMATO
+
 # import must have packages (others will be imported later)
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
@@ -353,21 +356,31 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       gs4_data <- gs4_data %>% 
         mutate(player = str_remove_all(player, pattern = '#.*'))
       
+      # OLD VERSION OF LINEUPS, WITH TOO MUCH INFO
+      # lineups <- gs4_data %>% 
+      #   count(player, archetype, deck_code, game_outcome) %>% 
+      #   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+      #   {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
+      #   {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
+      #   {if("tie"  %in% colnames(.)) . else mutate(., tie  = 0)} %>% 
+      #   mutate(match = loss+win+tie, winrate = scales::percent(win / match, accuracy = .1)) %>% 
+      #   select(-c(win, loss, tie))
+
       # player lineups
       lineups <- gs4_data %>% 
-        count(player, archetype, deck_code, game_outcome) %>% 
-        pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
-        {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
-        {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
-        {if("tie"  %in% colnames(.)) . else mutate(., tie  = 0)} %>% 
-        mutate(match = loss+win+tie, winrate = scales::percent(win / match, accuracy = .1)) %>% 
-        select(-c(win, loss, tie))
-      
+        distinct(player, archetype) %>% 
+        with_groups(.groups = player, .f = mutate, id = row_number()) %>% 
+        pivot_wider(names_from = id, values_from = archetype, values_fill = '', names_prefix = 'deck_') %>% 
+        {if("deck_1" %in% colnames(.)) . else mutate(., deck_1 = '')} %>% 
+        {if("deck_2" %in% colnames(.)) . else mutate(., deck_2 = '')} %>% 
+        {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} 
+        
       # aesthetical fixes
       lineups <- lineups %>%
+        arrange(player) %>% 
         rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
         rename_with(str_to_title)
-      
+
       # get matches data
       score <- gs4_data %>% 
         count(player, round, game_outcome) %>% 
@@ -440,15 +453,9 @@ match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo."
       with_gs4_quiet(range_write(data = lineups, ss = ss_id, sheet = "Lineups", reformat = FALSE))
       with_gs4_quiet(range_write(data = score,   ss = ss_id, sheet = "Score",   reformat = FALSE))
       
-      # adjust spacing of columns in the spreadsheet
-      #walk(.x = sheet_names(ss_id), .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns")))
-      
     }
     
   }
-  
-  # print "1" at the end of the cycle
-  print('1')
   
 }
 
