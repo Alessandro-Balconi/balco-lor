@@ -69,6 +69,10 @@ add_player_to_db <- function(player, region = 'europe'){
 
 # 5. make calls ----
 
+# matches already collected (to prevent collecting them again)
+# could be done just once but doing it every cicle for safety
+already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
+
 while(TRUE){
   
   # at the start of each cycle, initialize list of players to extract match from
@@ -80,10 +84,6 @@ while(TRUE){
     # clean database from matches unable to collect (so they can be collected again)
     #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
     m_match$remove('{"status.status_code":{"$exists": true}}')
-    
-    # matches already collected (to prevent collecting them again)
-    # could be done just once but doing it every cicle for safety
-    already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
     
     # number of matches in the db at the start of a cycle
     n_start <- length(already_in_mongo)
