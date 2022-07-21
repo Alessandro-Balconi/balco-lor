@@ -377,7 +377,7 @@ saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/champs_pr.html", backgro
 
 # pull data (add fix for "Runeterra" region)
 data_history <- tbl(con, "ranked_weekly_region_ngames") %>% 
-  mutate(value = ifelse(value %in% data_champs$name, 'Runeterra', value)) %>% 
+  mutate(value = ifelse(value %in% local(data_champs$name), 'Runeterra', value)) %>% 
   group_by(week, value, tot_games) %>% 
   summarise(n = sum(n, na.rm = TRUE), .groups = 'drop') %>%
   arrange(week, value, tot_games) %>% 
