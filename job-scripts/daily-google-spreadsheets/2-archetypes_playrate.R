@@ -106,7 +106,7 @@ create_spreadsheet_page <- function(patches, start_date = '2000-01-01', only_mas
     select(archetype, region, match, pr, wr) %>% 
     arrange(desc(match)) %>% 
     bind_rows(df_patch_region) %>% 
-    pivot_wider(names_from = region, values_from = c(match, pr, wr), values_fill = 0)
+    {if(nrow(.)> 0) pivot_wider(., names_from = region, values_from = c(match, pr, wr), values_fill = 0) else .}
   
   # prettify numbers
   df = df %>% 
