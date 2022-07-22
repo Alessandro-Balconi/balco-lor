@@ -216,8 +216,10 @@ mongo_to_sql <- function(input_region){
       distinct(across(c(starts_with("faction_"), cards_list))) %>% 
       mutate(
         cards = map_chr(cards_list, str_flatten, collapse = " "),
-        champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
+        champs = str_extract_all(cards, pattern = paste0('[1-3]:', data_champs$cardCode, collapse = "|")),
         champs = map_chr(champs, str_flatten, collapse = " "),
+        champs = str_remove_all(champs, pattern = paste0('[2-3]:|', paste0('1:', data_champs$cardCode, collapse = "|"))),
+        champs = str_squish(champs),
         champs_factions = map_chr(champs, get_monoregion)
       ) %>% 
       left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
