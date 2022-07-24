@@ -1,13 +1,11 @@
 # HOW TO USE THIS SCRIPT:
-# 1. update the parameters right below these comments [ss_id and the seasonal_match_time]
-# 2. THE DAY OF THE SEASONAL: start a local job that runs this script -> should be a trycatch wrapper to restart if it fails
-# 3. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
+# 1. update the parameters right below these comments [ss_id and the seasonal_day]
+# 2. GIVE TO THE AUTOUPDATER EDIT PERMISSIONS ON THE SPREADSHEET !
+# 3. THE DAY OF THE SEASONAL: start a local job that runs this script (it's the trycatch wrapper job)
+# 4. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
 
-# CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
+# PER IL PUNTO 3 CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
-
-# !!! per il me del futuro !!!
-# AVEVO CAMBIATO IL FORMATO DELLO SHEET LINEUP, VA SISTEMATO
 
 # import must have packages (others will be imported later)
 suppressPackageStartupMessages(library(dplyr))
@@ -28,8 +26,11 @@ gargle::oauth_app_from_json(google_creds$client_secret)
 googlesheets4::gs4_auth_configure(api_key = google_creds$api_key)
 googlesheets4::gs4_auth(path = google_creds$auth_path)
 
+# day of the seasonal (if not known, leave Sys.Date())
+seasonal_day <- Sys.Date()
+
 # google spreadsheet id
-ss_id <- "1CV68XxcbXn04gBcC8KPNmTrdhMh14c6FfX6oFlJdn3E"
+ss_id <- "1d80uUZ03VLSO-faLwDej8JRDbnZSPG9MhVmVZSXFgoE"
 
 # google spreadsheet id with the parameters 
 params_ss_id <- "1pCixyJwIRkcceX3W9cwsd6tNNpOK4E75i88K1pXCN8A"
@@ -37,16 +38,17 @@ params_ss_id <- "1pCixyJwIRkcceX3W9cwsd6tNNpOK4E75i88K1pXCN8A"
 # SEASONAL START TIMES OF MATCHES
 seasonal_match_time <- tibble::tribble(
   ~round, ~start_time,
-  1, as_datetime(paste0(Sys.Date(), " 09:55:00")),
-  2, as_datetime(paste0(Sys.Date(), " 11:00:00")),
-  3, as_datetime(paste0(Sys.Date(), " 12:05:00")),
-  4, as_datetime(paste0(Sys.Date(), " 13:10:00")),
-  5, as_datetime(paste0(Sys.Date(), " 14:15:00")),
-  6, as_datetime(paste0(Sys.Date(), " 15:45:00")),
-  7, as_datetime(paste0(Sys.Date(), " 16:50:00")),
-  8, as_datetime(paste0(Sys.Date(), " 17:55:00")),
-  9, as_datetime(paste0(Sys.Date(), " 19:00:00"))
-)
+  1, " 09:55:00",
+  2, " 11:00:00",
+  3, " 12:05:00",
+  4, " 13:10:00",
+  5, " 14:15:00",
+  6, " 15:45:00",
+  7, " 16:50:00",
+  8, " 17:55:00",
+  9, " 19:00:00"
+) %>% 
+  mutate(start_time = as_datetime(paste0(seasonal_day, start_time)))
 
 # setup ----
 
@@ -200,25 +202,29 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   minutes_delay <- pull(range_read(ss = params_ss_id, sheet = 'Delay', col_names = FALSE, .name_repair = make.names))
   
   # MANUALLY UPDATE PLAYER LIST
-  italian_players <- pull(range_read(ss = params_ss_id, sheet = 'Player List', col_names = FALSE, .name_repair = make.names))
+  italian_players <- pull(range_read(ss = params_ss_id, sheet = 'Giocatori Italiani', col_names = FALSE, .name_repair = make.names))
+  other_players   <- pull(range_read(ss = params_ss_id, sheet = 'Other Players', col_names = FALSE, .name_repair = make.names))
   
   # get puuids from player list ----
   
   df_players <- tbl(con, 'utils_players') %>% 
     mutate(player = paste(gameName, tagLine, sep = "#")) %>% 
-    filter(region == 'europe', player %in% italian_players) %>% 
+    filter(region == 'europe', player %in% c(italian_players, other_players)) %>% 
     select(player, puuid) %>% 
     collect()
   
   # players with missing puuid
-  missing_puuids <- setdiff(tolower(italian_players), tolower(df_players$player))
+  missing_puuids <- setdiff(
+    tolower(c(italian_players, other_players)), 
+    tolower(df_players$player)
+  )
   
   # if needed, collect them
   if(length(missing_puuids) > 0){
     
     # call API to get missing players name+tag 
     get_new_players <- map(
-      .x = missing_puuids,
+      .x = set_names(missing_puuids, missing_puuids),
       .f = function(x) GET(
         base.url, 
         path = paste0("/riot/account/v1/accounts/by-riot-id/", str_replace(utils::URLencode(x, reserved = TRUE), pattern = "%23", replacement = "/")), 
@@ -228,13 +234,10 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     )
     
     # extract content in JSON format
-    missing_puuids <- map_dfr(get_new_players, content) %>%
+    missing_puuids <- map_dfr(get_new_players, content, .id = 'player') %>%
       {if("status" %in% colnames(.)) select(., -status) %>% drop_na() else . }
     
     if(ncol(missing_puuids) > 0 ){
-      
-      missing_puuids <- missing_puuids %>% 
-        mutate(player = paste(gameName, tagLine, sep = "#"), .keep = 'unused')
       
       # add those players to the list of italians
       df_players <- bind_rows(df_players, missing_puuids)
@@ -286,12 +289,26 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # extract card codes from deck code
       data <- data %>% 
         distinct(deck_code) %>%
-        mutate(cards_list = map_chr(deck_code, function(x) { lordecks::get_decklist_from_code(x, format = "simple") %>% paste0(collapse = " ") } )) %>% 
+        mutate(cards_list = map_chr(deck_code, function(x) { 
+          lordecks::get_decklist_from_code(x, format = "simple") %>% 
+            paste0(collapse = " ") 
+          } 
+        )) %>% 
         left_join(x = data, y = ., by = "deck_code")
       
       # keep only relevant columns
       data <- data %>% 
-        select(all_of(c("match_id", "game_mode", "game_start_time_utc", "puuid", "deck_code", "game_outcome", "faction_1", "faction_2", "cards_list")))
+        select(all_of(c(
+          "match_id", 
+          "game_mode", 
+          "game_start_time_utc", 
+          "puuid", 
+          "deck_code", 
+          "game_outcome", 
+          "faction_1", 
+          "faction_2", 
+          "cards_list"
+        )))
       
       # get deck champions & archetype
       data <- data %>%
@@ -339,6 +356,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       
       # pull seasonal data from db
       gs4_data <- tbl(con, 'seasonal_match_data') %>% 
+        #filter(game_mode == 'SeasonalTournamentLobby') %>% # for tests
         filter(time >= local(Sys.time()-days(3)), game_mode == 'SeasonalTournamentLobby', time <= local(Sys.time()-minutes(minutes_delay))) %>%
         select(time, deck_code, game_outcome, archetype, puuid) %>% 
         collect()
@@ -351,10 +369,6 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # add round number to data
       gs4_data <- gs4_data %>% 
         mutate(round = map_dbl(time, get_match_round))
-      
-      # "anonymize" player tags
-      gs4_data <- gs4_data %>% 
-        mutate(player = str_remove_all(player, pattern = '#.*'))
       
       # OLD VERSION OF LINEUPS, WITH TOO MUCH INFO
       # lineups <- gs4_data %>% 
@@ -369,12 +383,13 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # player lineups
       lineups <- gs4_data %>% 
         distinct(player, archetype) %>% 
+        mutate(player = str_remove_all(player, pattern = '#.*')) %>% 
         with_groups(.groups = player, .f = mutate, id = row_number()) %>% 
         pivot_wider(names_from = id, values_from = archetype, values_fill = '', names_prefix = 'deck_') %>% 
         {if("deck_1" %in% colnames(.)) . else mutate(., deck_1 = '')} %>% 
         {if("deck_2" %in% colnames(.)) . else mutate(., deck_2 = '')} %>% 
         {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} 
-        
+      
       # aesthetical fixes
       lineups <- lineups %>%
         arrange(player) %>% 
@@ -448,10 +463,20 @@ match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo."
         )
       )
       
+      # split italians and others
+      score_ita <- score %>% 
+        filter(Player %in% italian_players) %>% 
+        mutate(Player = str_remove_all(Player, pattern = '#.*'))
+      
+      score_other <- score %>% 
+        filter(Player %in% other_players) %>% 
+        mutate(Player = str_remove_all(Player, pattern = '#.*'))
+      
       # update all sheets of the spreadsheet
-      with_gs4_quiet(range_write(data = info,    ss = ss_id, sheet = "Info"   , reformat = FALSE))
-      with_gs4_quiet(range_write(data = lineups, ss = ss_id, sheet = "Lineups", reformat = FALSE))
-      with_gs4_quiet(range_write(data = score,   ss = ss_id, sheet = "Score",   reformat = FALSE))
+      range_write(data = info,        ss = ss_id, sheet = "Info"   ,       reformat = FALSE)
+      range_write(data = lineups,     ss = ss_id, sheet = "Lineups",       reformat = FALSE)
+      range_write(data = score_ita,   ss = ss_id, sheet = "Score (ITA)",   reformat = FALSE)
+      range_write(data = score_other, ss = ss_id, sheet = "Score (Other)", reformat = FALSE)
       
     }
     
