@@ -51,12 +51,12 @@ list_df_master <- map(
 )
 
 # update all sheets of the spreadsheet
-with_gs4_quiet(sheet_write(data = list_df[['last_3d']], ss = ss_id, sheet = 'Plat+ - Last 3 days'))
-with_gs4_quiet(sheet_write(data = list_df[['last_7d']], ss = ss_id, sheet = 'Plat+ - Last 7 days'))
-with_gs4_quiet(sheet_write(data = list_df[['patch'  ]], ss = ss_id, sheet = 'Plat+ - Current Patch'))
-with_gs4_quiet(sheet_write(data = list_df_master[['last_3d']], ss = ss_id, sheet = 'Master - Last 3 days'))
-with_gs4_quiet(sheet_write(data = list_df_master[['last_7d']], ss = ss_id, sheet = 'Master - Last 7 days'))
-with_gs4_quiet(sheet_write(data = list_df_master[['patch'  ]], ss = ss_id, sheet = 'Master - Current Patch'))
+sheet_write(data = list_df[['last_3d']], ss = ss_id, sheet = 'Plat+ - Last 3 days')
+sheet_write(data = list_df[['last_7d']], ss = ss_id, sheet = 'Plat+ - Last 7 days')
+sheet_write(data = list_df[['patch'  ]], ss = ss_id, sheet = 'Plat+ - Current Patch')
+sheet_write(data = list_df_master[['last_3d']], ss = ss_id, sheet = 'Master - Last 3 days')
+sheet_write(data = list_df_master[['last_7d']], ss = ss_id, sheet = 'Master - Last 7 days')
+sheet_write(data = list_df_master[['patch'  ]], ss = ss_id, sheet = 'Master - Current Patch')
 
 
 # additional information
@@ -68,9 +68,6 @@ with_gs4_quiet(sheet_write(data = info,   ss = ss_id, sheet = "Data Information"
 ss_names <- sheet_names(ss_id)
 
 # adjust spacing of columns in the spreadsheet
-map(
-  .x = ss_names,
-  .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
-)
+walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
 
 DBI::dbDisconnect(con)

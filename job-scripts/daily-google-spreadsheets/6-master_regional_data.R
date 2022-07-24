@@ -120,9 +120,9 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
     select(-win)
 
   # update all sheets of the spreadsheet
-  with_gs4_quiet(sheet_write(data = deck_info, ss = ss_id, sheet = sprintf("%s - %s days - Meta", str_to_title(input_region), patch_ndays)))
-  with_gs4_quiet(sheet_write(data = x_wr, ss = ss_id, sheet = sprintf("%s - %s days - Matchups", str_to_title(input_region), patch_ndays)))
-  with_gs4_quiet(sheet_write(data = list_df_master, ss = ss_id, sheet = sprintf("%s - %s days - Decklists", str_to_title(input_region), patch_ndays)))
+  sheet_write(data = deck_info, ss = ss_id, sheet = sprintf("%s - %s days - Meta", str_to_title(input_region), patch_ndays))
+  sheet_write(data = x_wr, ss = ss_id, sheet = sprintf("%s - %s days - Matchups", str_to_title(input_region), patch_ndays))
+  sheet_write(data = list_df_master, ss = ss_id, sheet = sprintf("%s - %s days - Decklists", str_to_title(input_region), patch_ndays))
 
 }
 
@@ -144,9 +144,6 @@ with_gs4_quiet(sheet_write(data = info, ss = id_ss, sheet = "Data Information"))
 ss_names <- sheet_names(id_ss)
 
 # adjust spacing of columns in the spreadsheet
-map(
-  .x = ss_names,
-  .f = ~with_gs4_quiet(range_autofit(ss = id_ss, sheet = ., dimension = "columns"))
-)
+walk(.x = ss_names, .f = ~range_autofit(ss = id_ss, sheet = ., dimension = "columns"))
 
 DBI::dbDisconnect(con)

@@ -175,6 +175,7 @@ if(nrow(df) > 0){
     mutate(name = str_remove(name, pattern = '^n_')) %>% 
     with_groups(.groups = c(archetype, card, what), .f = mutate, value = row_number()) %>% 
     pivot_wider(names_from = value, values_from = name, names_prefix = 'x') %>% 
+    {if('x3' %in% colnames(.)) . else mutate(., x3 = NA_character_)} %>% 
     unite(col = quantity, c(x3, x2, x1), sep = ' or ', na.rm = TRUE) %>% 
     arrange(archetype, what, desc(n_ovr), desc(quantity)) %>% 
     select(-n_ovr)
@@ -200,10 +201,7 @@ if(nrow(df) > 0){
   ss_names <- sheet_names(ss_id)
   
   # adjust spacing of columns in the spreadsheet
-  map(
-    .x = ss_names,
-    .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
-  )
+  walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
   
 }
 

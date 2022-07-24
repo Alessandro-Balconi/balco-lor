@@ -27,7 +27,7 @@ days <- tbl(con, 'leaderboard_daily') %>%
 # day of the season start
 season_start <- days %>% 
   mutate(has_100 = 1) %>% 
-  complete(day = seq.Date(from = min(days$day), to = max(days$day), by = 'day')) %>%
+  complete(day = seq.Date(from = min(days$day), to = Sys.Date(), by = 'day')) %>%
   filter(is.na(has_100)) %>% 
   mutate(days_diff = (day - lag(day)) %>% as.numeric()) %>% 
   filter(days_diff != 1) %>% 
@@ -79,8 +79,8 @@ update_sheet_region <- function(input_region){
   )
   
   # update all sheets of the spreadsheet
-  with_gs4_quiet(sheet_write(data = df,     ss = ss_id, sheet = sprintf('%s - Players', nice_region)))
-  with_gs4_quiet(sheet_write(data = df_lps, ss = ss_id, sheet = sprintf('%s - LP', nice_region)))
+  sheet_write(data = df,     ss = ss_id, sheet = sprintf('%s - Players', nice_region))
+  sheet_write(data = df_lps, ss = ss_id, sheet = sprintf('%s - LP', nice_region))
   
 }
 
@@ -101,9 +101,6 @@ with_gs4_quiet(sheet_write(data = info,   ss = ss_id, sheet = "Data Information"
 ss_names <- sheet_names(ss_id)
 
 # adjust spacing of columns in the spreadsheet
-map(
-  .x = ss_names,
-  .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
-)
+walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
 
 DBI::dbDisconnect(con)
