@@ -28,12 +28,11 @@ patches <- tbl(con, "utils_patch_history") %>%
 # functions ----
 
 # get most 50 played archetypes
-get_top_played_decks <- function(patches, start_date = '2000-01-01', only_master = FALSE, n_top = 50){
+get_top_played_decks <- function(patches, time_frame = 0, only_master = FALSE, n_top = 50){
   
-  top = tbl(con, 'ranked_daily_archetypes') %>% 
-    filter(patch %in% patches) %>%
+  top = tbl(con, 'ranked_patch_archetypes') %>% 
     {if (only_master) filter(., is_master == 1) else . } %>% 
-    filter(day >= local(ymd(start_date))) %>% 
+    filter(time_frame >= local(time_frame)) %>% 
     left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
     mutate(archetype = coalesce(new_name, archetype)) %>% 
     group_by(archetype) %>% 
@@ -47,13 +46,12 @@ get_top_played_decks <- function(patches, start_date = '2000-01-01', only_master
 }
 
 # number of daily games by region
-daily_region_games <- function(patches, start_date = '2000-01-01', only_master = FALSE){
+daily_region_games <- function(patches, time_frame = 0, only_master = FALSE){
   
-  ngames = tbl(con, 'ranked_daily_archetypes') %>% 
-    filter(patch %in% patches) %>% 
+  ngames = tbl(con, 'ranked_patch_archetypes') %>% 
     {if (only_master) filter(., is_master == 1) else . } %>% 
-    filter(day >= local(ymd(start_date))) %>% 
-    group_by(region, day) %>% 
+    filter(time_frame >= local(time_frame)) %>% 
+    group_by(region) %>% 
     summarise(tot_match = sum(match, na.rm = TRUE), .groups = 'drop') %>% 
     collect()
   
@@ -61,15 +59,15 @@ daily_region_games <- function(patches, start_date = '2000-01-01', only_master =
 }
 
 # daily data for top archetypes by region
-get_daily_data <- function(patches, archetypes, start_date = '2000-01-01', only_master = FALSE){
+get_daily_data <- function(patches, archetypes, time_frame = 0, only_master = FALSE){
   
-  df = tbl(con, 'ranked_daily_archetypes') %>% 
+  df = tbl(con, 'ranked_patch_archetypes') %>% 
     {if (only_master) filter(., is_master == 1) else . } %>% 
-    filter(patch %in% patches, day >= local(ymd(start_date))) %>% 
+    filter(time_frame >= local(time_frame)) %>% 
     left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
     mutate(archetype = coalesce(new_name, archetype)) %>% 
     filter(archetype %in% archetypes) %>% 
-    group_by(archetype, day, region) %>% 
+    group_by(archetype, region) %>% 
     summarise(across(c(match, win),  sum, na.rm = TRUE), .groups = 'drop') %>% 
     collect()
   
@@ -78,17 +76,17 @@ get_daily_data <- function(patches, archetypes, start_date = '2000-01-01', only_
 }
 
 # create spreadsheet page with info needed
-create_spreadsheet_page <- function(patches, start_date = '2000-01-01', only_master = FALSE, n_top = 50){
+create_spreadsheet_page <- function(patches, time_frame = 0, only_master = FALSE, n_top = 50){
   
   #most played archetypes
-  top50 = get_top_played_decks(patches = patches, start_date = start_date, only_master = only_master, n_top = n_top)
+  top50 = get_top_played_decks(patches = patches, time_frame = time_frame, only_master = only_master, n_top = n_top)
   
   # number of decks by shard, day
-  daily_region_ngames = daily_region_games(patches = patches, start_date = start_date, only_master = only_master)
+  daily_region_ngames = daily_region_games(patches = patches, time_frame = time_frame, only_master = only_master)
   
   # get daily data and add number of daily decks analyzed
-  df = get_daily_data(patches = patches, archetypes = top50, start_date = start_date, only_master = only_master) %>% 
-    left_join(daily_region_ngames, by = c('day', 'region'))
+  df = get_daily_data(patches = patches, archetypes = top50, time_frame = time_frame, only_master = only_master) %>% 
+    left_join(daily_region_ngames, by = c('region'))
   
   # region numbers
   df_patch_region = df %>% 
@@ -122,14 +120,11 @@ create_spreadsheet_page <- function(patches, start_date = '2000-01-01', only_mas
 
 # create pages ----
 
-# date of 7 days ago
-last_week = as.character(Sys.Date()-days(7))
-
 # plat+, all patch
 df1 = create_spreadsheet_page(patches = patches, only_master = FALSE)
-df2 = create_spreadsheet_page(patches = patches, only_master = FALSE, start_date = last_week)
+df2 = create_spreadsheet_page(patches = patches, only_master = FALSE, time_frame = 1)
 df3 = create_spreadsheet_page(patches = patches, only_master = TRUE )
-df4 = create_spreadsheet_page(patches = patches, only_master = TRUE,  start_date = last_week)
+df4 = create_spreadsheet_page(patches = patches, only_master = TRUE,  time_frame = 1)
 
 # edit spreadsheet ----
 
@@ -145,19 +140,16 @@ info <- tibble(
 ss_id <- "1itUlBIY0gz0kZUnl2zBVz0x-fAjQrvTfCcDqxPLFURQ"
 
 # update all sheets of the spreadsheet
-with_gs4_quiet(sheet_write(data = info, ss = ss_id, sheet = "Data Information"      ))
-with_gs4_quiet(sheet_write(data = df1,  ss = ss_id, sheet = "Plat+ - Current Patch" ))
-with_gs4_quiet(sheet_write(data = df2,  ss = ss_id, sheet = "Plat+ - Last 7 Days"   ))
-with_gs4_quiet(sheet_write(data = df3,  ss = ss_id, sheet = "Master - Current Patch"))
-with_gs4_quiet(sheet_write(data = df4,  ss = ss_id, sheet = "Master - Last 7 Days"  ))
+sheet_write(data = info, ss = ss_id, sheet = "Data Information"      )
+sheet_write(data = df1,  ss = ss_id, sheet = "Plat+ - Current Patch" )
+sheet_write(data = df2,  ss = ss_id, sheet = "Plat+ - Last 7 Days"   )
+sheet_write(data = df3,  ss = ss_id, sheet = "Master - Current Patch")
+sheet_write(data = df4,  ss = ss_id, sheet = "Master - Last 7 Days"  )
 
 # names of the spreadsheet to update
 ss_names <- sheet_names(ss_id)
 
 # adjust spacing of columns in the spreadsheet
-map(
-  .x = ss_names,
-  .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
-)
+walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
 
 DBI::dbDisconnect(con)
