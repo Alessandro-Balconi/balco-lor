@@ -25,6 +25,12 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/9-utils_ranked_patch_decklists_cards.R")
   cat("Data Models: "); tictoc::toc()
   
+  # send tweet
+  rm(list = ls(all.names = TRUE))
+  tictoc::tic()
+  source("/home/balco/dev/lor-meta-report/job-scripts/daily-tweets/master_leaderboard_updates.R")
+  cat("Twitter Posts: "); tictoc::toc()
+  
   # update google spreadsheets
   rm(list = ls(all.names = TRUE))
   tictoc::tic()
