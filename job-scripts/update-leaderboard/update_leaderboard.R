@@ -75,7 +75,7 @@ update_leaderboard <- function(region){
     )
     
     # once a day, also save a daily leaderboard snapshot
-    if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) > 29){
+    if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) < 29){
       
       # calculate current day (based on region)
       cur_date = Sys.Date()
