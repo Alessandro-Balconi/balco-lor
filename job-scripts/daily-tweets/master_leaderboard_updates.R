@@ -361,5 +361,3 @@ if(nrow(data) > 20){
   
   
 }
-
-DBI::dbDisconnect(con)
