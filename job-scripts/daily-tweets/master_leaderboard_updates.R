@@ -138,7 +138,9 @@ make_tweet <- function(token, status, as_reply = FALSE){
   }
   
   # make tweet
-  post_tweet(token = token, status = status, in_reply_to_status_id = reply_id)
+  suppressMessages(
+    post_tweet(token = token, status = status, in_reply_to_status_id = reply_id)
+  )
 
 }
 
@@ -167,8 +169,10 @@ if(nrow(data) > 20){
   tweet_1_header <- sprintf('%s - %s \n Daily #LoR TOP 20 Master Leadboard \n\n', nice_region, format(max_date, '%d %B, %Y'))
   
   # post 1st tweet
-  post_tweet(token = token, status = paste0(tweet_1_header, data_1[1]))
-    
+  suppressMessages(
+    post_tweet(token = token, status = paste0(tweet_1_header, data_1[1]))
+  )
+
   # post the others as replies
   if(length(data_1) > 1){
     walk(
@@ -196,8 +200,10 @@ if(nrow(data) > 20){
   tweet_2_header <- sprintf('%s - %s \n #LoR TOP 20 Master Players that Gained more LP \n\n', nice_region, format(max_date, '%d %B, %Y'))
   
   # post 1st tweet
-  post_tweet(token = token, status = paste0(tweet_2_header, data_2[1]))
-  
+  suppressMessages(
+    post_tweet(token = token, status = paste0(tweet_2_header, data_2[1]))
+  )
+
   # post the others as replies
   if(length(data_2) > 1){
     walk(
@@ -225,8 +231,10 @@ if(nrow(data) > 20){
   tweet_3_header <- sprintf('%s - %s \n #LoR TOP 20 Unluckiest Master Players \n\n', nice_region, format(max_date, '%d %B, %Y'))
   
   # post 1st tweet
-  post_tweet(token = token, status = paste0(tweet_3_header, data_3[1]))
-  
+  suppressMessages(
+    post_tweet(token = token, status = paste0(tweet_3_header, data_3[1]))
+  )
+
   # post the others as replies
   if(length(data_3) > 1){
     walk(
@@ -333,8 +341,14 @@ if(nrow(data) > 20){
   tweet_5_header <- sprintf('%s - %s \n #LoR TOP Archetypes at Master Rank by Playrate \n\n', nice_region, format(max_date, '%d %B, %Y'))
   
   # post 1st tweet
-  post_tweet(token = token, status = paste0(tweet_5_header, data_5), media = "/home/balco/dev/lor-meta-report/templates/tweet-plots/plot.png")
-  
+  suppressMessages(
+    post_tweet(
+      token = token, 
+      status = paste0(tweet_5_header, data_5), 
+      media = "/home/balco/dev/lor-meta-report/templates/tweet-plots/plot.png"
+    )
+  )
+
   # top 3 played decklists of the day
   data_4 <- data_decks %>% 
     mutate(
