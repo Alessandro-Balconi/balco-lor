@@ -27,7 +27,7 @@ days <- tbl(con, 'leaderboard_daily') %>%
 # day of the season start
 season_start <- days %>% 
   mutate(has_100 = 1) %>% 
-  complete(day = seq.Date(from = min(days$day), to = Sys.Date(), by = 'day')) %>%
+  complete(day = seq.Date(from = min(days$day), to = Sys.Date()-1, by = 'day')) %>%
   filter(is.na(has_100)) %>% 
   mutate(days_diff = (day - lag(day)) %>% as.numeric()) %>% 
   filter(days_diff != 1) %>% 
