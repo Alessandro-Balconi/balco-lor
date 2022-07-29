@@ -122,8 +122,6 @@ most_played_version <- tbl(con, 'ranked_match_metadata_30d') %>%
   select(aggregate = new_name, original = archetype) %>% 
   collect()
 
-DBI::dbDisconnect(con)
-
 # last date available
 max_date <- max(data$day)
 
@@ -152,34 +150,34 @@ if(nrow(data) > 20){
     mutate(day = if_else(day == max(day), 'today', 'yesterday')) %>% 
     pivot_wider(names_from = day, values_from = c(lp, rank))
   
-  # top 20 leaderboard
-  data_1 <- data %>% 
-    slice_min(n = 20, order_by = rank_today, with_ties = FALSE) %>% 
-    select(name, lp_today, rank_today)
-  
-  # convert to string
-  data_1 <- data_1 %>% 
-    mutate(tweet = ceiling(rank_today/5)) %>% 
-    split(.$tweet) %>% 
-    map(mutate, string = paste0(rank_today, '. ', name, ' [', lp_today, ']')) %>% 
-    map(pull, string) %>% 
-    map_chr(paste0, collapse = "\n")
-  
-  # for each tweet, get previous id and post it as an answer
-  tweet_1_header <- sprintf('%s - %s \n Daily #LoR TOP 20 Master Leadboard \n\n', nice_region, format(max_date, '%d %B, %Y'))
-  
-  # post 1st tweet
-  suppressMessages(
-    post_tweet(token = token, status = paste0(tweet_1_header, data_1[1]))
-  )
-
-  # post the others as replies
-  if(length(data_1) > 1){
-    walk(
-      .x = 2:length(data_1), 
-      .f = ~make_tweet(token = token, status = paste0(tweet_1_header, data_1[.]), as_reply = TRUE)
-    )
-  }
+  # # top 20 leaderboard
+  # data_1 <- data %>% 
+  #   slice_min(n = 20, order_by = rank_today, with_ties = FALSE) %>% 
+  #   select(name, lp_today, rank_today)
+  # 
+  # # convert to string
+  # data_1 <- data_1 %>% 
+  #   mutate(tweet = ceiling(rank_today/5)) %>% 
+  #   split(.$tweet) %>% 
+  #   map(mutate, string = paste0(rank_today, '. ', name, ' [', lp_today, ']')) %>% 
+  #   map(pull, string) %>% 
+  #   map_chr(paste0, collapse = "\n")
+  # 
+  # # for each tweet, get previous id and post it as an answer
+  # tweet_1_header <- sprintf('%s - %s \n Daily #LoR TOP 20 Master Leadboard \n\n', nice_region, format(max_date, '%d %B, %Y'))
+  # 
+  # # post 1st tweet
+  # suppressMessages(
+  #   post_tweet(token = token, status = paste0(tweet_1_header, data_1[1]))
+  # )
+  # 
+  # # post the others as replies
+  # if(length(data_1) > 1){
+  #   walk(
+  #     .x = 2:length(data_1), 
+  #     .f = ~make_tweet(token = token, status = paste0(tweet_1_header, data_1[.]), as_reply = TRUE)
+  #   )
+  # }
 
   # top 20 highest climbers
   data_2 <- data %>% 
@@ -187,6 +185,50 @@ if(nrow(data) > 20){
     filter(lp_diff > 0) %>% 
     slice_max(n = 20, order_by = lp_diff, with_ties = FALSE) %>% 
     select(name, lp_diff)
+  
+  # for the top 3 pull deck
+  top3_players <- data_2 %>% 
+    slice_max(n = 3, order_by = lp_diff, with_ties = FALSE) %>% 
+    pull(name)
+  
+  # pull deck
+  top3_puuids <- tbl(con, 'utils_players') %>% 
+    filter(gameName %in% top3_players, region == update_region) %>% 
+    select(puuid, gameName) %>% 
+    collect()
+  
+  data_top3 <- tbl(con, 'ranked_match_info_30d') %>% 
+    filter(puuid %in% local(top3_puuids$puuid)) %>% 
+    left_join(tbl(con, 'ranked_match_metadata_30d'), by = 'match_id') %>% 
+    filter(region == update_region, game_start_time_utc >= local(Sys.time()-lubridate::days(1))) %>% 
+    count(puuid, archetype, deck_code, game_outcome) %>% 
+    collect()
+  
+  deck_top3 <- data_top3 %>% 
+    left_join(top3_puuids, by = 'puuid') %>%
+    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+    {if('tie' %in% colnames(.)) . else mutate(., tie = 0)} %>% 
+    mutate(match = win + loss + tie) %>% 
+    group_by(gameName, archetype, deck_code) %>% 
+    summarise(across(c(match, win), sum), .groups = 'drop') %>% 
+    group_by(gameName) %>% 
+    slice_max(n = 1, order_by = match, with_ties = FALSE) %>% 
+    ungroup() %>% 
+    mutate(wr = win / match)
+  
+  deck_top3 <- deck_top3 %>% 
+    left_join(data_2, by = c('gameName' = 'name')) %>% 
+    arrange(desc(lp_diff)) %>% 
+    mutate(tweet = row_number()) %>% 
+    split(.$tweet) %>% 
+    map(mutate, string = paste0(
+      'Most played deck by ', gameName, 
+      ' to climb +', lp_diff, ' LP: \n\n',
+      deck_code, '\n\n',
+      archetype, ' - N: ', match, ' - WR: ', scales::percent(wr, accuracy = .1)
+    )) %>% 
+    map(pull, string) %>% 
+    map_chr(paste0, collapse = "\n")
   
   # convert to string
   data_2 <- data_2 %>% 
@@ -212,12 +254,64 @@ if(nrow(data) > 20){
     ) 
   }
   
+  # post the others as replies
+  if(length(deck_top3) > 1){
+    walk(
+      .x = 1:length(deck_top3), 
+      .f = ~make_tweet(token = token, status = deck_top3[.], as_reply = TRUE)
+    ) 
+  }
+  
   # unluckiest 20
   data_3 <- data %>% 
     mutate(lp_diff = lp_today - lp_yesterday) %>% 
     filter(lp_diff < 0) %>% 
     slice_min(n = 20, order_by = lp_diff, with_ties = FALSE) %>% 
     select(name, lp_diff)
+  
+  # for the top 3 pull deck
+  bot3_players <- data_3 %>% 
+    slice_min(n = 3, order_by = lp_diff, with_ties = FALSE) %>% 
+    pull(name)
+  
+  # pull deck
+  bot3_puuids <- tbl(con, 'utils_players') %>% 
+    filter(gameName %in% bot3_players, region == update_region) %>% 
+    select(puuid, gameName) %>% 
+    collect()
+  
+  data_bot3 <- tbl(con, 'ranked_match_info_30d') %>% 
+    filter(puuid %in% local(bot3_puuids$puuid)) %>% 
+    left_join(tbl(con, 'ranked_match_metadata_30d'), by = 'match_id') %>% 
+    filter(region == update_region, game_start_time_utc >= local(Sys.time()-lubridate::days(1))) %>% 
+    count(puuid, archetype, deck_code, game_outcome) %>% 
+    collect()
+  
+  deck_bot3 <- data_bot3 %>% 
+    left_join(bot3_puuids, by = 'puuid') %>%
+    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+    {if('tie' %in% colnames(.)) . else mutate(., tie = 0)} %>% 
+    mutate(match = win + loss + tie) %>% 
+    group_by(gameName, archetype, deck_code) %>% 
+    summarise(across(c(match, win), sum), .groups = 'drop') %>% 
+    group_by(gameName) %>% 
+    slice_max(n = 1, order_by = match, with_ties = FALSE) %>% 
+    ungroup() %>% 
+    mutate(wr = win / match)
+  
+  deck_bot3 <- deck_bot3 %>% 
+    left_join(data_3, by = c('gameName' = 'name')) %>% 
+    arrange(lp_diff) %>% 
+    mutate(tweet = row_number()) %>% 
+    split(.$tweet) %>% 
+    map(mutate, string = paste0(
+      'Most played deck by ', gameName, 
+      ' to lose ', lp_diff, ' LP: \n\n',
+      deck_code, '\n\n',
+      archetype, ' - N: ', match, ' - WR: ', scales::percent(wr, accuracy = .1)
+    )) %>% 
+    map(pull, string) %>% 
+    map_chr(paste0, collapse = "\n")
   
   # convert to string
   data_3 <- data_3 %>% 
@@ -242,6 +336,15 @@ if(nrow(data) > 20){
       .f = ~make_tweet(token = token, status = paste0(tweet_3_header, data_3[.]), as_reply = TRUE)
     )
   }
+  
+  # post the others as replies
+  if(length(deck_bot3) > 1){
+    walk(
+      .x = 1:length(deck_bot3), 
+      .f = ~make_tweet(token = token, status = deck_bot3[.], as_reply = TRUE)
+    ) 
+  }
+  
   
   # top 3 played decklists of the day
   data_5 <- data_meta %>% 
@@ -373,5 +476,7 @@ if(nrow(data) > 20){
     )
   }
   
-  
 }
+
+DBI::dbDisconnect(con)
+
