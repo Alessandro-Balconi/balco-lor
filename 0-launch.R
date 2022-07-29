@@ -1,16 +1,28 @@
 #Runs analysis + shows error if anything happens
+cat(sprintf("--- %s --- \n", Sys.time()))
+
 tryCatch({
   
-  # update time
-  cat(sprintf("--- %s --- \n", Sys.time()))
-
-  # update mysql raw tables
   tictoc::tic()
   source("/home/balco/dev/lor-meta-report/job-scripts/mongo-to-sql/1-ranked-mongo-to-sql.R")
   cat("MongoDB to MySQL: "); tictoc::toc()
+
+}, error = function(e) {
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = 'Daily database update - MongoDB to MySQL'
+  ) %>% 
+    discordr::send_webhook_message(
+      message = sprintf("Manual intervention required. (%s)", e$message), 
+      conn = .
+    )
+  print(e)
+})
+
+rm(list = ls(all.names = TRUE))
+
+tryCatch({
   
-  # update data models
-  rm(list = ls(all.names = TRUE))
   tictoc::tic()
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/6-utils_archetype_aggregation.R")
   rm(list = ls(all.names = TRUE))
@@ -25,14 +37,42 @@ tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/9-utils_ranked_patch_decklists_cards.R")
   cat("Data Models: "); tictoc::toc()
   
-  # send tweet
-  rm(list = ls(all.names = TRUE))
+}, error = function(e) {
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = 'Daily database update - MongoDB to MySQL'
+  ) %>% 
+    discordr::send_webhook_message(
+      message = sprintf("Manual intervention required. (%s)", e$message), 
+      conn = .
+    )
+  print(e)
+})
+
+rm(list = ls(all.names = TRUE))
+
+tryCatch({
+  
   tictoc::tic()
   source("/home/balco/dev/lor-meta-report/job-scripts/daily-tweets/master_leaderboard_updates.R")
   cat("Twitter Posts: "); tictoc::toc()
   
-  # update google spreadsheets
-  rm(list = ls(all.names = TRUE))
+}, error = function(e) {
+  discordr::create_discord_connection(
+    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
+    username = 'Daily database update - MongoDB to MySQL'
+  ) %>% 
+    discordr::send_webhook_message(
+      message = sprintf("Manual intervention required. (%s)", e$message), 
+      conn = .
+    )
+  print(e)
+})
+
+rm(list = ls(all.names = TRUE))
+
+tryCatch({
+  
   tictoc::tic()
   
   #options(gargle_oauth_email = "Balco21@outlook.it")
