@@ -142,6 +142,79 @@ make_tweet <- function(token, status, as_reply = FALSE){
 
 }
 
+# perform GET calls but with a delay in them
+get_slowly <- function(..., delay = 0.1){
+  
+  Sys.sleep(delay)
+  
+  GET(...)
+  
+}
+
+# get country of a player from name and shard
+get_country <- function(name, shard){
+  
+  # manual fix for asia / apac shard
+  if(shard == 'asia'){ shard <- 'apac' }
+  
+  get_call <- sprintf("https://runeterra.ar/Users/get/country/%s/%s", shard, name) %>% 
+    utils::URLencode() %>% 
+    get_slowly()
+  
+  status <- status_code(get_call)
+  
+  content <- content(get_call)
+  
+  country <- ifelse(status == 200, content, NA_character_) #%>% 
+  #str_flatten(collapse = " ")
+  
+  return(country)
+  
+}
+
+# get emoji from country code or name
+get_country_emoji <- function(country){
+  
+  if(!is.na(country)){ 
+    
+    tryCatch({
+      
+      country <- emo::ji(country)  
+      
+    },
+    
+    error = function(e){
+      
+      tryCatch({
+        
+        country <<- country %>%  
+          countrycode::countrycode(
+            origin = 'iso2c', 
+            destination = 'country.name') %>% 
+          emo::ji()
+      },
+      error = function(e){
+        
+        country <<- ''
+        
+      }
+      
+      )
+      
+    }
+    
+    )
+    
+  } else {
+    country <- ''
+  }
+  
+  country <- as.character(country)
+  
+  return(country)
+  
+}
+
 # run this thing only if there are at least 10 people in master
 if(nrow(data) > 20){
   
@@ -150,41 +223,19 @@ if(nrow(data) > 20){
     mutate(day = if_else(day == max(day), 'today', 'yesterday')) %>% 
     pivot_wider(names_from = day, values_from = c(lp, rank))
   
-  # # top 20 leaderboard
-  # data_1 <- data %>% 
-  #   slice_min(n = 20, order_by = rank_today, with_ties = FALSE) %>% 
-  #   select(name, lp_today, rank_today)
-  # 
-  # # convert to string
-  # data_1 <- data_1 %>% 
-  #   mutate(tweet = ceiling(rank_today/5)) %>% 
-  #   split(.$tweet) %>% 
-  #   map(mutate, string = paste0(rank_today, '. ', name, ' [', lp_today, ']')) %>% 
-  #   map(pull, string) %>% 
-  #   map_chr(paste0, collapse = "\n")
-  # 
-  # # for each tweet, get previous id and post it as an answer
-  # tweet_1_header <- sprintf('%s - %s \n Daily #LoR TOP 20 Master Leadboard \n\n', nice_region, format(max_date, '%d %B, %Y'))
-  # 
-  # # post 1st tweet
-  # suppressMessages(
-  #   post_tweet(token = token, status = paste0(tweet_1_header, data_1[1]))
-  # )
-  # 
-  # # post the others as replies
-  # if(length(data_1) > 1){
-  #   walk(
-  #     .x = 2:length(data_1), 
-  #     .f = ~make_tweet(token = token, status = paste0(tweet_1_header, data_1[.]), as_reply = TRUE)
-  #   )
-  # }
-
   # top 20 highest climbers
   data_2 <- data %>% 
     mutate(lp_diff = lp_today - lp_yesterday) %>% 
     filter(lp_diff > 0) %>% 
     slice_max(n = 20, order_by = lp_diff, with_ties = FALSE) %>% 
     select(name, lp_diff)
+  
+  # add country info and emoji
+  data_2 <- data_2 %>% 
+    mutate(
+      country = map_chr(.x = name, .f = get_country, shard = update_region),
+      emoji = map_chr(.x = country, .f = get_country_emoji)
+    )
   
   # for the top 3 pull deck
   top3_players <- data_2 %>% 
@@ -232,9 +283,15 @@ if(nrow(data) > 20){
   
   # convert to string
   data_2 <- data_2 %>% 
-    mutate(id = row_number(), tweet = ceiling(id/5)) %>% 
+    mutate(id = row_number(), tweet = ceiling(id/5)) %>%
+    mutate(id = case_when(
+      id == 1 ~ "🥇",
+      id == 2 ~ "🥈",
+      id == 3 ~ "🥉",
+      TRUE ~ as.character(id)
+    )) %>% 
     split(.$tweet) %>% 
-    map(mutate, string = paste0(id, '. ', name, ' [+', lp_diff, ']')) %>% 
+    map(mutate, string = paste0(id, '. ', name, ' ', emoji, ' [+', lp_diff, ']')) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
@@ -268,6 +325,13 @@ if(nrow(data) > 20){
     filter(lp_diff < 0) %>% 
     slice_min(n = 20, order_by = lp_diff, with_ties = FALSE) %>% 
     select(name, lp_diff)
+  
+  # add country info and emoji
+  data_3 <- data_3 %>% 
+    mutate(
+      country = map_chr(.x = name, .f = get_country, shard = update_region),
+      emoji = map_chr(.x = country, .f = get_country_emoji)
+    )
   
   # for the top 3 pull deck
   bot3_players <- data_3 %>% 
@@ -316,8 +380,14 @@ if(nrow(data) > 20){
   # convert to string
   data_3 <- data_3 %>% 
     mutate(id = row_number(), tweet = ceiling(id/5)) %>% 
+    mutate(id = case_when(
+      id == 1 ~ "🥇",
+      id == 2 ~ "🥈",
+      id == 3 ~ "🥉",
+      TRUE ~ as.character(id)
+    )) %>% 
     split(.$tweet) %>% 
-    map(mutate, string = paste0(id, '. ', name, ' [', lp_diff, ']')) %>% 
+    map(mutate, string = paste0(id, '. ', name, ' ', emoji, ' [', lp_diff, ']')) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
@@ -349,8 +419,15 @@ if(nrow(data) > 20){
   # top 3 played decklists of the day
   data_5 <- data_meta %>% 
     head(3) %>% 
-    mutate(winrate = scales::percent(win / match, accuracy = .1)) %>% 
-    mutate(string = paste0(row_number(), '. ', archetype, ' (N: ', match, ' - WR: ', winrate, ')')) %>% 
+    mutate(
+      winrate = scales::percent(win / match, accuracy = .1),
+      emoji = case_when(
+        row_number() == 1 ~ "🥇",
+        row_number() == 2 ~ "🥈",
+        row_number() == 3 ~ "🥉",
+        TRUE ~ ''
+    )) %>% 
+    mutate(string = paste0(emoji, ' ', archetype, ' (N: ', match, ' - WR: ', winrate, ')')) %>% 
     pull(string) %>% 
     paste0(collapse = "\n")
   
@@ -456,12 +533,16 @@ if(nrow(data) > 20){
   data_4 <- data_decks %>% 
     mutate(
       winrate = scales::percent(winrate, accuracy = .1),
-      tweet = row_number(),
-      ar_link = paste0('https://runeterra.ar/decks/code/', deck_code)
+      tweet = row_number()
     ) %>% 
     split(.$tweet) %>% 
+    map(mutate, emoji = case_when(
+      tweet == 1 ~ "🥇",
+      tweet == 2 ~ "🥈",
+      tweet == 3 ~ "🥉",
+      TRUE ~ as.character(tweet)
+    )) %>% 
     map(mutate, string = paste0(tweet, '. ', deck_code, ' (', archetype, ') \n\n', '# Match: ', match, ' - WR: ', winrate)) %>% 
-    #map(mutate, string = paste0(tweet, '. ', deck_code, ' (', archetype, ') \n\n', '# Match: ', match, ' - WR: ', winrate, '\n\n', ar_link)) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
