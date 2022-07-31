@@ -348,7 +348,7 @@ if(nrow(data) > 20){
   
   # top 3 played decklists of the day
   data_5 <- data_meta %>% 
-    head(5) %>% 
+    head(3) %>% 
     mutate(winrate = scales::percent(win / match, accuracy = .1)) %>% 
     mutate(string = paste0(row_number(), '. ', archetype, ' (N: ', match, ' - WR: ', winrate, ')')) %>% 
     pull(string) %>% 
