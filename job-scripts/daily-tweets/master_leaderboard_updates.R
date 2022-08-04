@@ -180,6 +180,12 @@ get_country <- function(name, shard){
 # get emoji from country code or name
 get_country_emoji <- function(country){
   
+  # manual fixes for wrong countries
+  if(country == 'id'){return(as.character(emo::ji('indonesia')))}
+  if(country == 'hk'){return(as.character(emo::ji('hong_kong')))}
+  if(country == 'cl'){return(as.character(emo::ji('chile')))}
+  if(country == 'tt'){return(as.character(emo::ji('trinidad_tobago')))}
+  
   if(!is.na(country)){ 
     
     tryCatch({
