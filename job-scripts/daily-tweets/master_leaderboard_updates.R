@@ -86,9 +86,14 @@ con <- DBI::dbConnect(
 )
 
 # leaderboard data
+max_date <- tbl(con, 'leaderboard_daily') %>% 
+  filter(region == update_region) %>% 
+  summarise(max(day, na.rm = TRUE)) %>% 
+  pull()
+
 data <- tbl(con, 'leaderboard_daily') %>% 
   filter(region == update_region) %>% 
-  filter(day >= max(day, na.rm = TRUE)-1) %>% 
+  filter(day >= local(max_date-lubridate::days(1))) %>% 
   select(name, rank, lp, day) %>% 
   collect()
 
