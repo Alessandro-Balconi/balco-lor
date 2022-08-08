@@ -68,9 +68,7 @@ con <- DBI::dbConnect(
 )
 
 # API path
-base.url           <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
-path_match_history <- "lor/match/v1/matches/by-puuid/"
-path_match_info    <- "lor/match/v1/matches/"
+base.url <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
 
 # get most recent set number (to read sets JSONs)
 last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
@@ -138,7 +136,7 @@ extract_match_info <- function(match_id){
   # extract info
   match_data <- GET(
     base.url, 
-    path = paste0(path_match_info, match_id), 
+    path = paste0("lor/match/v1/matches/", match_id), 
     add_headers("X-Riot-Token" = .api_key), 
     config = config(connecttimeout = 60)
   ) %>%
@@ -254,7 +252,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     .f = slowly(
       function(x) GET(
         base.url, 
-        path = paste0(path_match_history, x, "/ids") , 
+        path = paste0("lor/match/v1/matches/by-puuid/", x, "/ids") , 
         add_headers("X-Riot-Token" = .api_key), 
         config = config(connecttimeout = 60)
       ),
