@@ -446,7 +446,8 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # add overall score
       score <- score %>% 
         left_join(overall, by = 'player') %>% 
-        arrange(desc(overall))
+        arrange(desc(overall), desc(across(all_of(sprintf('round_%s', 1:length(seasonal_match_time))))), player)
+        #arrange(desc(overall))
       
       # aesthetical fixes
       score <- score %>% 
