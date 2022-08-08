@@ -29,15 +29,7 @@ nice_region <- switch(
 )
 
 # get most recent set number (to read sets JSONs)
-last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["sets"]] %>% 
-  mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
-  mutate(set = as.numeric(set)) %>% 
-  summarise(max(set, na.rm = TRUE)) %>% 
-  pull()
+last_set <- lorr::last_set()
 
 # champions names / codes / images from set JSONs
 data_champs <- map_dfr(
@@ -73,17 +65,8 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
     TRUE ~ nameRef
   ))
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host  = "127.0.0.1",
-  user     = db_creds$uid,
-  password = db_creds$pwd,
-  dbname   = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # leaderboard data
 max_date <- tbl(con, 'leaderboard_daily') %>% 

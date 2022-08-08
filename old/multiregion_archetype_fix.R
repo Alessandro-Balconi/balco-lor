@@ -41,15 +41,7 @@ con <- DBI::dbConnect(
 )
 
 # get most recent set number (to read sets JSONs)
-last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["sets"]] %>% 
-  mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
-  mutate(set = as.numeric(set)) %>% 
-  summarise(max(set, na.rm = TRUE)) %>% 
-  pull()
+last_set <- lorr::last_set()
 
 # champions names / codes / regions from set JSONs
 data_champs <- map_dfr(

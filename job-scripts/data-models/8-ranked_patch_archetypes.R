@@ -6,20 +6,8 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 
 # 2. connect to db & load data ----
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = db_creds$uid,
-  password = db_creds$pwd,
-  dbname = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # 3. prepare table ----
 

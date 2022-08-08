@@ -10,25 +10,10 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 suppressPackageStartupMessages(library(jsonlite))  # convert JSON to R objects
 suppressPackageStartupMessages(library(httr))      # http requests
 
-# 2. parameters ----
-
-# load db credentials
-mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
-# 3. functions ----
-# 4. connect to db & load data ----
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
+# 2. connect to db & load data ----
 
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = mysql_creds$uid,
-  password = mysql_creds$pwd,
-  dbname = mysql_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # extract list of patches from sql data
 patch_list <- tbl(con, "ranked_match_metadata_30d") %>% 

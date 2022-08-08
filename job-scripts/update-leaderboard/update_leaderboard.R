@@ -10,17 +10,23 @@ suppressPackageStartupMessages(library(lubridate)) # work with dates
 
 # 2. functions ----
 
-# run call to update leaderboard for the selected region (region must be one of "europe", "americas", "asia")
+# run call to update leaderboard for the selected region 
+# (region must be one of "europe", "americas", "asia")
 update_leaderboard <- function(region){
   
-  # base url to perform API call
-  base.url <- sprintf("https://%s.api.riotgames.com/", region) # americas, asia, europe, sea
+  # base url to perform API call (americas, asia, europe, sea)
+  base.url <- sprintf("https://%s.api.riotgames.com/", region)
   
   # fastest way to fix the change in endpoint (asia -> sea)
   if(region == 'asia'){ base.url <- "https://sea.api.riotgames.com/" }
   
   # GET call
-  get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
+  get_leaderboard <- GET(
+    base.url, 
+    path = "/lor/ranked/v1/leaderboards", 
+    add_headers("X-Riot-Token" = api_key), 
+    config = config(connecttimeout = 60)
+  )
   
   # if status == 200 (good response)
   if(get_leaderboard$status_code == 200){
@@ -29,7 +35,9 @@ update_leaderboard <- function(region){
     leaderboard <- get_leaderboard %>% content() %>% unname() %>% bind_rows()
     
     # fix rank (it starts from 0, should start from 1)
-    if(nrow(leaderboard) > 0){ leaderboard <- leaderboard %>% mutate(rank = rank + 1) }
+    if(nrow(leaderboard) > 0){ 
+      leaderboard <- leaderboard %>% mutate(rank = rank + 1) 
+    }
     
     # choose table name based on region
     sql_collection <- switch(
@@ -40,10 +48,20 @@ update_leaderboard <- function(region){
     )
     
     # if no master players, initialize empty table
-    if(nrow(leaderboard) == 0){ leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double()) }
+    if(nrow(leaderboard) == 0){ 
+      leaderboard <- tibble(
+        name = as.character(), 
+        rank = as.double(), 
+        lb = as.double()
+      ) 
+    }
     
-    ### TEMPORARY !!! SEND EMPTY LEADERBOARD SINCE THE CURRENT ONE IS BUGGED ###
-    #leaderboard <- tibble(name = as.character(), rank = as.double(), lb = as.double())
+    ### TEMPORARY! SEND EMPTY LEADERBOARD SINCE THE CURRENT ONE IS BUGGED ###
+    # leaderboard <- tibble(
+    #   name = as.character(), 
+    #   rank = as.double(), 
+    #   lb = as.double()
+    # )
     
     # time of the update
     upd_time <- tibble(
@@ -59,12 +77,22 @@ update_leaderboard <- function(region){
         (table_name, time)
         VALUES
         (%s);",
-        paste0("'", paste0(c(upd_time$table_name, upd_time$time), collapse = "', '"), "'")
+        paste0(
+          "'", 
+          paste0(c(upd_time$table_name, upd_time$time), collapse = "', '"), 
+          "'"
+        )
       )
     )
     
     # update leadeboard in SQL
-    DBI::dbWriteTable(conn = con, name = sql_collection, value = leaderboard, overwrite = TRUE, row.names = FALSE)
+    DBI::dbWriteTable(
+      conn = con, 
+      name = sql_collection, 
+      value = leaderboard, 
+      overwrite = TRUE, 
+      row.names = FALSE
+    )
     
     # hour at which the snapshot is taken (UTC time)
     daily_hour <- switch(
@@ -75,7 +103,7 @@ update_leaderboard <- function(region){
     )
     
     # once a day, also save a daily leaderboard snapshot
-    if(lubridate::hour(Sys.time()) == daily_hour & lubridate::minute(Sys.time()) < 29){
+    if(hour(Sys.time()) == daily_hour & minute(Sys.time()) < 29){
       
       # calculate current day (based on region)
       cur_date = Sys.Date()
@@ -86,7 +114,13 @@ update_leaderboard <- function(region){
         mutate(region = region, day = cur_date)
       
       # update leadeboard in SQL
-      DBI::dbWriteTable(conn = con, name = 'leaderboard_daily', value = leaderboard, append = TRUE, row.names = FALSE)
+      DBI::dbWriteTable(
+        conn = con, 
+        name = 'leaderboard_daily', 
+        value = leaderboard, 
+        append = TRUE, 
+        row.names = FALSE
+      )
       
     }
     
@@ -102,22 +136,10 @@ update_leaderboard <- function(region){
 # api key
 api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 
-# MySQL credentials
-sql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
 # 4. connect to db ----
 
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = sql_creds$uid,
-  password = sql_creds$pwd,
-  dbname = sql_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # 5. launch function calls ----
 

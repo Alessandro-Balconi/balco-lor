@@ -5,17 +5,8 @@ suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets AP
 suppressPackageStartupMessages(library(jsonlite)) # work with JSON objects
 suppressPackageStartupMessages(library(httr)) # make GET calls
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = db_creds$uid,
-  password = db_creds$pwd,
-  dbname = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # fucntion to get names of top % masters from region
 get_top_masters <- function(region, prop = 0.1, add_region = TRUE){
@@ -47,15 +38,7 @@ get_top_masters <- function(region, prop = 0.1, add_region = TRUE){
 }
 
 # get most recent set number (to read sets JSONs)
-last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["sets"]] %>% 
-  mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
-  mutate(set = as.numeric(set)) %>% 
-  summarise(max(set, na.rm = TRUE)) %>% 
-  pull()
+last_set <- lorr::last_set()
 
 # champions names / codes / regions from set JSONs
 db_cards <- map_dfr(

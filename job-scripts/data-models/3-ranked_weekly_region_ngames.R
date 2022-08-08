@@ -14,24 +14,10 @@ suppressPackageStartupMessages(library(lubridate)) # working with dates
 # date from which weeks are counted in the report
 start_date <- as_datetime(sprintf("%sT16:50:00", Sys.Date()))
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
-# 3. functions ----
-
-# 4. connect to db & load data ----
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
+# 3. connect to db & load data ----
 
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = db_creds$uid,
-  password = db_creds$pwd,
-  dbname = "db_prova"
-)
+con <- lorr::create_db_con()
 
 # 5. prepare table ----
 

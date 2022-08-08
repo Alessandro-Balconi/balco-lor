@@ -3,17 +3,8 @@
 suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host  = "127.0.0.1",
-  user     = db_creds$uid,
-  password = db_creds$pwd,
-  dbname   = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # id of the spreadsheet 
 ss_id <- "1l9I-g7XboyaBt4wMD3c8E9rDrTpxfPLDR3-_Z24fMPU"

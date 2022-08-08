@@ -10,22 +10,12 @@ suppressPackageStartupMessages(library(lubridate))
 
 # credentials
 mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
-mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # connect to db
 m_match   <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info")
 
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # connect to mysql db
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = mysql_creds$uid,
-  password = mysql_creds$pwd,
-  dbname = mysql_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # 3. set api parameters ----
 

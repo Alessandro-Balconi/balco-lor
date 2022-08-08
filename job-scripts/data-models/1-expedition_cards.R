@@ -9,35 +9,13 @@ suppressPackageStartupMessages(library(lubridate)) # working with dates
 suppressPackageStartupMessages(library(jsonlite))  # convert JSON to R objects
 suppressPackageStartupMessages(library(httr))      # http requests
 
-# 2. parameters ----
-
-# load db credentials
-db_creds = config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
-# 3. connect to db & load data ----
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
+# 2. connect to db & load data ----
 
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = db_creds$uid,
-  password = db_creds$pwd,
-  dbname = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # get most recent set number (to read sets JSONs)
-last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["sets"]] %>% 
-  mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
-  mutate(set = as.numeric(set)) %>% 
-  summarise(max(set, na.rm = TRUE)) %>% 
-  pull()
+last_set <- lorr::last_set()
 
 # cards names / codes / rarity from set JSONs
 data_cards <- map_dfr(
