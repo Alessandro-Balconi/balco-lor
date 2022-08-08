@@ -187,6 +187,9 @@ get_country_emoji <- function(country){
     if(country == 'hk'){return(as.character(emo::ji('hong_kong')))}
     if(country == 'cl'){return(as.character(emo::ji('chile')))}
     if(country == 'tt'){return(as.character(emo::ji('trinidad_tobago')))}
+    if(country == 'sa'){return(as.character(emo::ji('saudi_arabia')))}
+    if(country == 'no'){return(as.character(emo::ji('norway')))}
+    if(country == 'ae'){return(as.character(emo::ji('united_arab_emirates')))}
     
     tryCatch({
       
@@ -571,4 +574,3 @@ if(nrow(data) > 20){
 }
 
 DBI::dbDisconnect(con)
-
