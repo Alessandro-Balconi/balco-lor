@@ -8,14 +8,10 @@ tryCatch({
   cat("MongoDB to MySQL: "); tictoc::toc()
 
 }, error = function(e) {
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'Daily database update - MongoDB to MySQL'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = sprintf("Manual intervention required. (%s)", e$message), 
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'Daily MongoDB to MySQL Update',
+    message = sprintf("Manual intervention required. (%s)", e$message)
+  )
   print(e)
 })
 
@@ -38,14 +34,10 @@ tryCatch({
   cat("Data Models: "); tictoc::toc()
   
 }, error = function(e) {
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'Daily database update - MongoDB to MySQL'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = sprintf("Manual intervention required. (%s)", e$message), 
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'Daily Data Models Update',
+    message = sprintf("Manual intervention required. (%s)", e$message)
+  )
   print(e)
 })
 
@@ -58,14 +50,10 @@ tryCatch({
   cat("Twitter Posts: "); tictoc::toc()
   
 }, error = function(e) {
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'Daily database update - MongoDB to MySQL'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = sprintf("Manual intervention required. (%s)", e$message), 
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'Daily Twitter Posts Update',
+    message = sprintf("Manual intervention required. (%s)", e$message)
+  )
   print(e)
 })
 
@@ -99,13 +87,9 @@ tryCatch({
   cat("Google Spreadsheets: "); tictoc::toc()
   
 }, error = function(e) {
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'Daily database update'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = sprintf("Manual intervention required. (%s)", e$message), 
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'Daily Google Spreadsheets Update',
+    message = sprintf("Manual intervention required. (%s)", e$message)
+  )
   print(e)
 })
