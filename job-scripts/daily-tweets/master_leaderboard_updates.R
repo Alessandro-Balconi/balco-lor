@@ -243,7 +243,8 @@ if(nrow(data) > 20){
   top3_puuids <- tbl(con, 'utils_players') %>% 
     filter(gameName %in% top3_players, region == update_region) %>% 
     select(puuid, gameName) %>% 
-    collect()
+    collect() %>% 
+    filter(gameName %in% top3_players) # these forces exact matching
   
   data_top3 <- tbl(con, 'ranked_match_info_30d') %>% 
     filter(puuid %in% local(top3_puuids$puuid)) %>% 
@@ -339,7 +340,8 @@ if(nrow(data) > 20){
   bot3_puuids <- tbl(con, 'utils_players') %>% 
     filter(gameName %in% bot3_players, region == update_region) %>% 
     select(puuid, gameName) %>% 
-    collect()
+    collect() %>% 
+    filter(gameName %in% bot3_players) # these forces exact matching
   
   data_bot3 <- tbl(con, 'ranked_match_info_30d') %>% 
     filter(puuid %in% local(bot3_puuids$puuid)) %>% 
