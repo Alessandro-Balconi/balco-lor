@@ -12,7 +12,14 @@ suppressPackageStartupMessages(library(lubridate))
 mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
 
 # connect to db
-m_match   <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info")
+m_match <- mongo(
+  url = sprintf(
+    "mongodb://%s:%s@localhost:27017/admin", 
+    mongo_creds$uid, 
+    mongo_creds$pwd
+  ), 
+  collection = "lor_match_info"
+)
 
 # connect to mysql db
 con <- lorr::create_db_con()
@@ -20,9 +27,7 @@ con <- lorr::create_db_con()
 # 3. set api parameters ----
 
 # API path
-base.url           <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
-path_match_history <- "lor/match/v1/matches/by-puuid/"
-path_match_info    <- "lor/match/v1/matches/"
+base.url <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
 
 # initialize parameters
 i <- 1 # cycle parameter
@@ -61,7 +66,8 @@ add_player_to_db <- function(player, region = 'europe'){
 
 # matches already collected (to prevent collecting them again)
 # could be done just once but doing it every cicle for safety
-already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% pull()
+already_in_mongo <- m_match$aggregate('[{"$group":{"_id":"$metadata.match_id"}}]') %>% 
+  pull()
 
 while(TRUE){
   
@@ -72,14 +78,20 @@ while(TRUE){
     cat(sprintf("S: %s ", Sys.time()))
     
     # clean database from matches unable to collect (so they can be collected again)
-    #m_match$remove('{"status.status_code":{"$in": [403, 503]}}') [these makes sense only if I also save matchids of these games]
+    # m_match$remove('{"status.status_code":{"$in": [403, 503]}}') 
+    # [^ these makes sense only if I also save matchids of these games]
     m_match$remove('{"status.status_code":{"$exists": true}}')
     
     # number of matches in the db at the start of a cycle
     n_start <- length(already_in_mongo)
     
     # get leaderboard
-    get_leaderboard <- GET(base.url, path = "/lor/ranked/v1/leaderboards", add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
+    get_leaderboard <- GET(
+      base.url, 
+      path = "/lor/ranked/v1/leaderboards", 
+      add_headers("X-Riot-Token" = api_key), 
+      config = config(connecttimeout = 60)
+    )
     
     # if status == 200 (good response)
     if(get_leaderboard$status_code == 200){
@@ -98,20 +110,30 @@ while(TRUE){
       if(length(master_players) >= 10){
         
         # save masters (for when next season hits)
-        saveRDS(object = master_players, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/europe.rds")
+        saveRDS(
+          object = master_players, 
+          file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/europe.rds"
+        )
         
       } else if (Sys.time()-lubridate::days(30) >= R.utils::lastModified("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds")){
         
-        old_masters <- readRDS(file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/europe.rds")
+        old_masters <- readRDS(
+          file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/europe.rds"
+        )
         
         cat(sprintf(" - Saving Old Master Leaderboards: %s", Sys.time()))
         
-        saveRDS(object = old_masters, file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds")
+        saveRDS(
+          object = old_masters, 
+          file = "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds"
+        )
         
       }
       
       # last season master players (collecting data from them)
-      old_master_players <- readRDS("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds")
+      old_master_players <- readRDS(
+        "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_europe.rds"
+      )
       
       # get players to read match data from (old season masters + current masters)
       player_data <- tbl(con, 'utils_players') %>%
@@ -124,7 +146,12 @@ while(TRUE){
         filter(gameName %in% c(master_players, old_master_players)) %>% 
         pull(puuid)
       
-      cat(sprintf(" - %s players (%s masters, %s plat+).", length(puuid_list), length(master_players), length(setdiff(old_master_players, master_players))))
+      cat(sprintf(
+        " - %s players (%s masters, %s plat+).", 
+        length(puuid_list), 
+        length(master_players), 
+        length(setdiff(old_master_players, master_players))
+      ))
       
     }
     
@@ -134,7 +161,12 @@ while(TRUE){
   puuid_i <- puuid_list[i]
   
   # collect matches
-  get_matches <- GET(base.url, path = paste0(path_match_history, puuid_i, "/ids") , add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
+  get_matches <- GET(
+    base.url, 
+    path = paste0("lor/match/v1/matches/by-puuid/", puuid_i, "/ids") , 
+    add_headers("X-Riot-Token" = api_key), 
+    config = config(connecttimeout = 60)
+  )
   
   # if status == 200 (good response)
   if(get_matches$status_code == 200){
@@ -150,7 +182,7 @@ while(TRUE){
       X = matches,
       FUN = function(x){
         Sys.sleep(1)
-        GET(base.url, path = paste0(path_match_info, x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
+        GET(base.url, path = paste0("lor/match/v1/matches/", x), add_headers("X-Riot-Token" = api_key), config = config(connecttimeout = 60))
       }
     )
     
