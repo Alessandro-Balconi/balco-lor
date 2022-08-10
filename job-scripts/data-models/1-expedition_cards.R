@@ -18,18 +18,7 @@ con <- lorr::create_db_con()
 last_set <- lorr::last_set()
 
 # cards names / codes / rarity from set JSONs
-data_cards <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
-) %>% 
-  select(name, cardCode, rarity) %>%
+data_cards <- get_cards_data(select = c('rarity', 'name', 'cardCode')) %>%
   filter(nchar(cardCode) <= 8)
 
 # most recent day in the table (it means we have updated up to this point)
@@ -128,11 +117,10 @@ if(nrow(data) >  0){
 DBI::dbDisconnect(con)
 
 # send update message on discord
-conn_obj <- discordr::create_discord_connection(
-  webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-  username = 'balco-lor.com'
+lorr::send_discord_message(
+  username = 'balco-lor.com',
+  message = sprintf(
+    "Weekly Expedition Update! \n %s new matches found since last update.", 
+    scales::comma(nrow(opponent))
+  )
 )
-
-message = sprintf("Weekly Expedition Update! \n %s new matches found since last update.", scales::comma(nrow(opponent)))
-
-discordr::send_webhook_message(message, conn = conn_obj)
