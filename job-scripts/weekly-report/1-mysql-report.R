@@ -44,47 +44,19 @@ region_colors <- c(
 
 # 3. connect to db & load data ----
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # connect to db
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host  = "127.0.0.1",
-  user     = db_creds$uid,
-  password = db_creds$pwd,
-  dbname   = db_creds$dbs
-)
-
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::last_set()
+con <- lorr::create_db_con()
 
 # champions names / codes / images from set JSONs
-data_champs <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
-) %>% 
-  filter(rarity == "Champion") %>% 
-  select(assets, name, cardCode) %>%
-  unnest(col = assets) %>% 
-  filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
+data_champs <- lorr::get_cards_data(
+  select = c("assets", "name", "cardCode", "rarity")
+  ) %>% 
+  filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
+  select(-rarity) %>%
+  unnest(col = assets)
 
 # regions names / abbreviations / logos from global JSON
-data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["regions"]] %>% 
+data_regions <- lorr::get_regions_data() %>% 
   mutate(nameRef = case_when(
     nameRef == "PiltoverZaun" ~ "Piltover",
     nameRef == "Targon" ~ "MtTargon",
@@ -93,10 +65,17 @@ data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json"
 
 # master matches of the past week (if >= 10000, we only collect these)
 weekly_master_match <- tbl(con, 'ranked_match_metadata_30d') %>% 
-  filter(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(14)))), match_rank >= 2) %>% 
+  filter(
+    game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(14)))), 
+    match_rank >= 2
+  ) %>% 
   left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
   filter(player_rank == 2) %>% 
-  mutate(week = ifelse(game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(7)))), "current", "last")) %>% 
+  mutate(week = ifelse(
+    game_start_time_utc >= local(as_datetime(sprintf("%sT16:50:00", Sys.Date()-days(7)))), 
+    "current", 
+    "last"
+  )) %>% 
   distinct(week, match_id) %>%
   collect()
 
@@ -136,14 +115,31 @@ games_by_week <- data %>%
 # 4. define functions ----
 
 # Render a bar chart with a label on the left
-bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+bar_chart <- function(
+  label, 
+  width = "100%", 
+  height = "14px", 
+  fill = "#00bfc4", 
+  background = NULL
+  ) {
+  
   bar <- div(style = list(background = fill, width = width, height = height))
-  chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+  
+  chart <- div(
+    style = list(flexGrow = 1, marginLeft = "6px", background = background), 
+    bar
+  )
+  
   div(style = list(display = "flex", alignItems = "center"), label, chart)
+  
 }
 
 # create a nice date from  date object
-nice_date <- function(date, short_month = TRUE){ paste(month(date, label = TRUE, abbr = short_month), day(date), sep = " ") }
+nice_date <- function(date, short_month = TRUE){ 
+  
+  paste(month(date, label = TRUE, abbr = short_month), day(date), sep = " ") 
+  
+}
 
 # add vertical lines with patch info to region history plot
 add_patch_vlines <- function(plot, df_patch){
@@ -155,8 +151,20 @@ add_patch_vlines <- function(plot, df_patch){
     label <- df_patch$label[i]
     
     plot <- plot + 
-      geom_segment(x = ymd(date)+3, xend = ymd(date)+3, y = 0, yend = 100, color = "steelblue", linetype = "dotted") +
-      geom_label(x = ymd(date)+3, y = 0, label = paste0(label, " \n P. ", patch), size = 4)
+      geom_segment(
+        x = ymd(date)+3, 
+        xend = ymd(date)+3, 
+        y = 0, 
+        yend = 100, 
+        color = "steelblue", 
+        linetype = "dotted"
+      ) +
+      geom_label(
+        x = ymd(date)+3, 
+        y = 0, 
+        label = paste0(label, " \n P. ", patch), 
+        size = 4
+      )
     
   }
   
@@ -221,23 +229,15 @@ get_slowly <- function(..., delay = 0.1){
 }
 
 # convert a local image to URI (used to display local images in DT objects)
-img_uri <- function(x, size = 1, custom_size = FALSE){ 
+img_uri <- function(x, size = 1){ 
   
-  if(custom_size){
-    
-    sprintf('<img width="%s" src="%s"/>', scales::percent(size, accuracy = 1), knitr::image_uri(x))
-
-  } else{
-    
     sprintf('<img src="%s"/>', knitr::image_uri(x))
-
-  }
 
 }
 
-# 6. images to save ----
+# 6. images to save ------------------------------------------------------------
 
-# 6.0 data info ----
+# 6.0 data info ----------------------------------------------------------------
 
 p1 <- data %>%
   filter(week == "current") %>%
@@ -249,7 +249,11 @@ p1 <- data %>%
     unique_decklists = n_distinct(deck_code),
     tied_match = sum(game_outcome == "tie") / 2
   ) %>%
-  mutate(tied_match = sprintf("%s (%s)", tied_match, scales::percent(tied_match/match_analyzed, accuracy = .01))) %>%
+  mutate(tied_match = sprintf(
+    "%s (%s)", 
+    tied_match, 
+    scales::percent(tied_match / match_analyzed, accuracy = .01)
+  )) %>%
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
   rename_with(str_to_title) %>% 
   mutate(across(!where(is.character), as.character)) %>% 
@@ -265,7 +269,11 @@ p2 <- data %>%
     unique_decklists = n_distinct(deck_code),
     tied_match = ceiling(sum(game_outcome == "tie") / 2)
   ) %>%
-  mutate(tied_match = sprintf("%s (%s)", tied_match, scales::percent(tied_match/match_analyzed, accuracy = .01))) %>%
+  mutate(tied_match = sprintf(
+    "%s (%s)", 
+    tied_match, 
+    scales::percent(tied_match / match_analyzed, accuracy = .01)
+  )) %>%
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
   rename_with(str_to_title) %>% 
   mutate(across(!where(is.character), as.character)) %>%
@@ -279,9 +287,14 @@ p <- left_join(p1, p2, by = " ") %>%
 h <- grid::convertHeight(sum(p$heights), "in", TRUE)
 w <- grid::convertWidth(sum(p$widths), "in", TRUE)
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/data.png", plot = p, width = w+0.01, height = h+0.01)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/data.png", 
+  plot = p, 
+  width = w+0.01, 
+  height = h+0.01
+)
 
-# 6.1. playrate by region ----
+# 6.1. playrate by region ------------------------------------------------------
 
 p <- data %>% 
   select(week, starts_with("faction_")) %>% 
@@ -293,21 +306,59 @@ p <- data %>%
   select(-c(n, tot)) %>% 
   pivot_wider(names_from = week, values_from = playrate) %>% 
   mutate(change = current - last) %>%
-  left_join(data_regions %>% select(logo = iconAbsolutePath, nameRef), by = c("value" = "nameRef")) %>%
+  left_join(
+    y = data_regions %>% select(logo = iconAbsolutePath, nameRef), 
+    by = c("value" = "nameRef")
+  ) %>%
   ggplot(aes(x = reorder(value, current))) +
   geom_col(aes(y = current, fill = value), color = "grey30", alpha = 0.8) +
-  geom_text(aes(label = scales::percent(current, accuracy = .1), y = current), size = 6, hjust = -0.5, vjust = -0.5) +
-  geom_text(size = 5, hjust = -0.375, vjust = 1.5, aes(label = scales_percent_plus(change, accuracy = .1), y = current, 
-                                                       color = case_when(is.na(change) ~ "na", abs(change)<=(0.1/200) ~ "same", change>0 ~ "pos", change<0 ~ "neg"))) +
+  geom_text(
+    aes(label = scales::percent(current, accuracy = .1), y = current), 
+    size = 6, 
+    hjust = -0.5, 
+    vjust = -0.5
+  ) +
+  geom_text(
+    size = 5, 
+    hjust = -0.375, 
+    vjust = 1.5, 
+    aes(
+      label = scales_percent_plus(change, accuracy = .1), 
+      y = current, 
+      color = case_when(
+        is.na(change) ~ "na", 
+        abs(change)<=(0.1/200) ~ "same", 
+        change>0 ~ "pos", 
+        change<0 ~ "neg"
+      )
+    )
+  ) +
   geom_text(aes(label = "", y = 1.1*current), size = 6) +
-  geom_image(aes(image = ifelse(current>0.0495, logo, NA), y = current-0.045*max(current)), size = 0.06, asp = 1.5, na.rm = TRUE) +
+  geom_image(
+    aes(
+      image = ifelse(current>0.0495, logo, NA), 
+      y = current-0.045*max(current)
+    ), 
+    size = 0.06, 
+    asp = 1.5, 
+    na.rm = TRUE
+  ) +
   coord_flip() +
   theme_classic(base_size = 18) +
   scale_fill_manual(values = region_colors) +
-  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2", "na" = "steelblue", "same" = "#EFB700")) +
+  scale_color_manual(values = c(
+    "pos" = "#149414", 
+    "neg" = "coral2",
+    "na" = "steelblue", 
+    "same" = "#EFB700"
+  )) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   theme(legend.position = "none") +
-  labs(x = "Region", y = "% of decks containing the region", title = "Region Playrate")
+  labs(
+    x = "Region", 
+    y = "% of decks containing the region", 
+    title = "Region Playrate"
+  )
 
 ggsave(filename = "/home/balco/dev/lor-meta-report/output/region_pr.png", plot = p, width = 12, height = 8, dpi = 180)
 
@@ -709,21 +760,58 @@ p <- data_score %>%
 h <- grid::convertHeight(sum(p$heights), "in", TRUE)
 w <- grid::convertWidth(sum(p$widths), "in", TRUE)
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/meta_score1.png", plot = p, width = w+0.01, height = h+0.01)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/meta_score1.png", 
+  plot = p, 
+  width = w+0.01, 
+  height = h+0.01
+)
 
 p <- data_score %>% 
   ggplot(aes(x = power_score, y = freq_score)) +
-  geom_point(aes(size = meta_score), fill = "steelblue", color = "grey30", pch = 21) +
-  geom_text_repel(aes(label = paste(scales::comma(meta_score, accuracy = .1), archetype_1, sep = " \n ")), point.padding = 25, min.segment.length = 1) +
-  geom_segment(aes(x = 7.5, y = 100, xend = 100, yend = 100), arrow = arrow(length = unit(0.03, "npc"))) +
-  geom_label(aes(x = 7.5, y = 100), label = "Meta Peak \n Theoretical best deck whose \n frequency and power are \n both the highest.", size = 4, fill = "#FDCE2A") +
+  geom_point(
+    aes(size = meta_score), 
+    fill = "steelblue", 
+    color = "grey30", 
+    pch = 21
+  ) +
+  geom_text_repel(
+    aes(label = paste(
+      scales::comma(meta_score, accuracy = .1), 
+      archetype_1, 
+      sep = " \n ")
+    ), 
+    point.padding = 25, 
+    min.segment.length = 1
+  ) +
+  geom_segment(
+    aes(x = 7.5, y = 100, xend = 100, yend = 100), 
+    arrow = arrow(length = unit(0.03, "npc"))
+  ) +
+  geom_label(
+    aes(x = 7.5, y = 100), 
+    label = "Meta Peak \n Theoretical best deck whose \n frequency and power are \n both the highest.", 
+    size = 4, 
+    fill = "#FDCE2A"
+  ) +
   theme_bw(base_size = 18) +
   expand_limits(x = c(0,100), y = c(0,105)) +
   theme(legend.position = "none") +
   scale_size_continuous(range = c(10,25)) +
-  labs(x = "Power Score", y = "Frequency Score", title = "Meta Score", subtitle = "This chart shows only the 10 most played archetypes")
+  labs(
+    x = "Power Score", 
+    y = "Frequency Score", 
+    title = "Meta Score", 
+    subtitle = "This chart shows only the 10 most played archetypes"
+  )
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/meta_score2.png", plot = p, width = 12, height = 8, dpi = 180)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/meta_score2.png", 
+  plot = p, 
+  width = 12, 
+  height = 8, 
+  dpi = 180
+)
 
 # 6.8 player leaderboard ----
 
@@ -775,7 +863,11 @@ tbl <- top_players %>%
   datatable(
     escape = FALSE, 
     rownames = FALSE,  
-    options = list(pageLength = 10, lengthChange = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all")))
+    options = list(
+      pageLength = 10, 
+      lengthChange = FALSE, 
+      columnDefs = list(list(className = 'dt-center', targets = "_all"))
+    )
   ) %>% 
   formatPercentage(col = "Winrate", digits = 1)
 
@@ -783,7 +875,11 @@ tbl$width  <- "100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
 
-saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/player_leaderboard.html", background = "inherit")
+saveWidget(
+  tbl, 
+  "/home/balco/dev/lor-meta-report/output/player_leaderboard.html", 
+  background = "inherit"
+)
 
 # 6.9 best players ----
 
@@ -802,14 +898,26 @@ tbl <- data %>%
   arrange(-winrate, -match, archetype) %>% 
   mutate(player = map2_chr(.x = player, .y = shard, .f = ~from_puuid_to_riotid(puuid = .x, shard = .y))) %>% 
   mutate(deck_code = sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>% 
-  mutate(get_call = sprintf("https://runeterra.ar/Users/get/country/%s/%s", shard, sub('#[^#]*$', '', player))) %>% 
+  mutate(get_call = sprintf(
+    "https://runeterra.ar/Users/get/country/%s/%s", 
+    shard, 
+    sub('#[^#]*$', '', player)
+  )) %>% 
   mutate(get_call = utils::URLencode(get_call)) %>% 
   mutate(get = map(.x = get_call, .f = get_slowly)) %>% 
   mutate(status = map_int(.x = get, .f = status_code)) %>% 
   mutate(content = map(.x = get, .f = content)) %>% 
   mutate(country = ifelse(status == 200, content, NA_character_)) %>% 
   mutate(country = map_chr(country, str_flatten, collapse = " ")) %>% 
-  select(player, region = shard, country, archetype, deck_code, match, winrate) %>% 
+  select(
+    player, 
+    region = shard, 
+    country, 
+    archetype, 
+    deck_code, 
+    match, 
+    winrate
+  ) %>% 
   mutate(region = ifelse(region == 'asia', 'asia-pacific', region)) %>% 
   mutate(region = str_to_title(region)) %>% 
   mutate(country = ifelse(!is.na(country), sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), country)) %>% 
@@ -818,7 +926,11 @@ tbl <- data %>%
   datatable(
     escape = FALSE, 
     rownames = FALSE,  
-    options = list(pageLength = 10, lengthChange = FALSE, columnDefs = list(list(className = 'dt-center', targets = "_all")))
+    options = list(
+      pageLength = 10, 
+      lengthChange = FALSE, 
+      columnDefs = list(list(className = 'dt-center', targets = "_all"))
+    )
   ) %>% 
   formatPercentage(col = "Winrate", digits = 1)
 
@@ -826,7 +938,11 @@ tbl$width  <- "100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
 
-saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/best_players.html", background = "inherit")
+saveWidget(
+  tbl, 
+  "/home/balco/dev/lor-meta-report/output/best_players.html", 
+  background = "inherit"
+)
 
 # 6.10 best decklists ----
 
@@ -852,7 +968,12 @@ tbl <- data %>%
         defaultSortOrder = "desc",
         cell = function(value) {
           value <- paste0(format(value * 100, digits = 3, nsmall = 1), "%")
-          bar_chart(value, width = value, fill = "#fc5185", background = "#e1e1e1")
+          bar_chart(
+            value, 
+            width = value, 
+            fill = "#fc5185", 
+            background = "#e1e1e1"
+          )
         },
         align = "left"
       ),
@@ -870,7 +991,11 @@ tbl <- data %>%
         name = "Deck Code",
         html = TRUE, 
         cell = function(value) {
-          sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', value, str_trunc(value, width = 18))
+          sprintf(
+            '<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', 
+            value, 
+            str_trunc(value, width = 18)
+          )
         })
     ),
     resizable = TRUE,
@@ -882,11 +1007,18 @@ tbl$width  <- "100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
 
-saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/deck_codes.html", background = "inherit")
+saveWidget(
+  tbl, 
+  "/home/balco/dev/lor-meta-report/output/deck_codes.html", 
+  background = "inherit"
+)
 
 # 7. export charts and tables to "lor-meta.com" ----
 
-reports <- system('ssh balco@lor-meta.com "ls -d /home/balco/www/_posts/*"', intern = TRUE)
+reports <- system(
+  'ssh balco@lor-meta.com "ls -d /home/balco/www/_posts/*"', 
+  intern = TRUE
+)
 
 latest <- reports %>% 
   str_extract(pattern = "\\#[0-9]+") %>% 
