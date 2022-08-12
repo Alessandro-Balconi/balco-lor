@@ -6,7 +6,6 @@
 output
 *.rds
 *.csv
-tests.R
 .httr-oauth
 data_dumps
-test.png
+tests
