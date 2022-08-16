@@ -9,29 +9,11 @@ suppressPackageStartupMessages(library(tidyverse)) # all purposes package
 # create connection to MySQL database
 con <- lorr::create_db_con()
 
-# 3. prepare table ----
-
-# patches to analyze
-current_patch <- tbl(con, "utils_patch_history") %>% 
-  collect() %>% 
-  arrange(desc(release_date)) %>% 
-  mutate(new_change = lag(change)) %>% 
-  replace_na(list(new_change = 0)) %>% 
-  mutate(cum_change = cumsum(new_change)) %>% 
-  filter(cum_change == min(cum_change)) %>%
-  pull(patch_regex) %>% 
-  paste0(collapse = "|")
-
-# start collecting matches only 24 hours after the patch
-min_date <- tbl(con, 'ranked_match_metadata_30d') %>% 
-  filter(str_detect(game_version, current_patch)) %>%
-  summarise(min_date = min(game_start_time_utc, na.rm = TRUE)) %>% 
-  collect() %>% 
-  mutate(min_date = min_date + lubridate::days(1)) %>% 
-  pull()
+# current patch release date
+min_date <- lorr::get_patch_release_date()
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
-# 3.2 table of current patch v2 ----
+# 3. table of current patch v2 ----
 
 # extract data from MySQL
 data_v2 <- tbl(con, "ranked_match_metadata_30d") %>%

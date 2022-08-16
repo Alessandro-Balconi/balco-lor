@@ -9,29 +9,15 @@ suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(lubridate))
 
-# 2. parameters ----
-
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
 # 4. connect to db & load data ----
 
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host  = "127.0.0.1",
-  user     = db_creds$uid,
-  password = db_creds$pwd,
-  dbname   = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # 5. prepare table ----
 
 # get patch data
-patches = tbl(con, 'utils_patch_history') %>% 
+patches <- tbl(con, 'utils_patch_history') %>% 
   collect() %>% 
   mutate(patch_day = as_date(release_date)) %>% 
   mutate(previous_patch = lag(patch)) %>% 
