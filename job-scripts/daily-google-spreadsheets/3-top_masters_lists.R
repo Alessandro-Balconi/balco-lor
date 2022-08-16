@@ -38,7 +38,7 @@ get_top_masters <- function(region, prop = 0.1, add_region = TRUE){
 }
 
 # get most recent set number (to read sets JSONs)
-last_set <- lorr::last_set()
+last_set <- lorr::get_last_set()
 
 # champions names / codes / regions from set JSONs
 db_cards <- map_dfr(

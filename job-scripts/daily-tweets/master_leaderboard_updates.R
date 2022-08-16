@@ -29,7 +29,7 @@ nice_region <- switch(
 )
 
 # get most recent set number (to read sets JSONs)
-last_set <- lorr::last_set()
+last_set <- lorr::get_last_set()
 
 # champions names / codes / images from set JSONs
 data_champs <- map_dfr(
@@ -218,6 +218,9 @@ if(nrow(data) > 20){
   # quick reshaping
   data <- data %>% 
     mutate(day = if_else(day == max(day), 'today', 'yesterday')) %>% 
+    group_by(name, day) %>%
+    slice_max(n = 1, order_by = lp, with_ties = FALSE) %>%
+    ungroup() %>%
     pivot_wider(names_from = day, values_from = c(lp, rank))
   
   # top 20 highest climbers

@@ -15,7 +15,7 @@ suppressPackageStartupMessages(library(httr))      # http requests
 con <- lorr::create_db_con()
 
 # get most recent set number (to read sets JSONs)
-last_set <- lorr::last_set()
+last_set <- lorr::get_last_set()
 
 # cards names / codes / rarity from set JSONs
 data_cards <- get_cards_data(select = c('rarity', 'name', 'cardCode')) %>%

@@ -9,7 +9,7 @@ suppressPackageStartupMessages(library(jsonlite))
 ss_id <- "1eWTbWBmyYYO2Qwj_q0xEHgZTi3NvtL3oOfz8sxC92Hs"
 
 # get most recent set number (to read sets JSONs)
-last_set <- lorr::last_set()
+last_set <- lorr::get_last_set()
 
 # fetcjh info from set JSONs
 data <- map_dfr(
