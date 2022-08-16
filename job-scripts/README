@@ -13,12 +13,18 @@
 
 - "mongo-to-sql": script that reads BSON data from MongoDB and preprocess it, convert to tabular and saves in MySQL. Also saves a table with matchup information.
 
-- "data-models": scripts that generate data models (aggregations of the raw sql tabels, for faster analyses).
+- "daily-data-models": scripts that generate data models (aggregations of the raw sql tabels, for faster analyses).
 
--"google-spreadsheets": generates and updates google spreadsheet with data taken from models.
+-"daily-tweets": generates tweets with data taken from models.
+
+-"daily-google-spreadsheets": generates and updates google spreadsheet with data taken from models.
 
 # WEEKLY
 
-- "generate-report": weekly script that generates the charts and tables used in the weekly report from the ranked data in MySQL. Also publish the script that generates the actual .md file to be used as report, saves it to lor-meta.com..
+- "weekly-report": weekly script that generates the charts and tables used in the weekly report from the ranked data in MySQL. Also publish the script that generates the actual .md file to be used as report, saves it to lor-meta.com.
 
 - "weekly-db-cleanup": scripts that removes from the main MongoDB / MySQL collections all matches older than 1 month; they are moved to "old" collections just for archive purposes, but are no more actively used. 
+
+- "weekly-google-spreadsheets": scripts that update the google spreadsheets that need to be updated once a week. 
+
+- "weekly-data-models": scripts that update the data models that need to be updated once a week. 
