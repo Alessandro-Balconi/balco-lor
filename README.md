@@ -4,7 +4,7 @@ Files in this directory:
 
 - README: this file.
 
-- folder "data_dumps": contains dumps of data that I keep for archive reasons.
+- folder "data-dumps": contains dumps of data that I keep for archive reasons.
 
 - folder "job-launcher": contains scripts that launch the cron jobs.
 

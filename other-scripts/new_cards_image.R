@@ -44,4 +44,4 @@ plot <- ggimage::ggbackground(plot, background = "https://i.imgur.com/t71V6K2.jp
 p_width  <- (680*(n_cols*1.1+0.2))/840
 p_height <- (680*(n_rows*1.1+0.2))/840
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/data_dumps/new_cards.png", plot = plot, width = p_width, height = p_height, dpi = 840)
+ggsave(filename = "/home/balco/dev/lor-meta-report/data-dumps/new_cards.png", plot = plot, width = p_width, height = p_height, dpi = 840)

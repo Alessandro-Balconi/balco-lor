@@ -94,7 +94,7 @@ decks = decks %>%
   mutate(wr_deck = win / n) %>% 
   select(archetype, deck_code, n_deck = n, wr_deck)
 
-res %>% left_join(decks, by = 'archetype') %>% write_csv('./data_dumps/monoshard.csv')
+res %>% left_join(decks, by = 'archetype') %>% write_csv('./data-dumps/monoshard.csv')
 
 players = tbl(con, 'lor_match_info_v2') %>% 
   filter(archetype %in% local(res$archetype)) %>% 
@@ -131,4 +131,4 @@ players %>%
   left_join(players %>% count(archetype, sort = TRUE, name = 'n_players'), by = 'archetype') %>% 
   select(archetype, region, n_tot, n_players, most_dedicated_player = player, n_player, share) %>% 
   arrange(-n_players) %>% 
-  write_csv('./data_dumps/monoshard_players.csv')
+  write_csv('./data-dumps/monoshard_players.csv')

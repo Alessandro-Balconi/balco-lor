@@ -7,6 +7,6 @@ output
 *.rds
 *.csv
 .httr-oauth
-data_dumps
+data-dumps
 tests
 Rplots.pdf
