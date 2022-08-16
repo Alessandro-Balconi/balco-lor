@@ -544,7 +544,7 @@ if(nrow(data) > 20){
       tweet == 3 ~ "🥉",
       TRUE ~ as.character(tweet)
     )) %>% 
-    map(mutate, string = paste0(tweet, '. ', deck_code, ' (', archetype, ') \n\n', '# Match: ', match, ' - WR: ', winrate)) %>% 
+    map(mutate, string = paste0(emoji, '. ', deck_code, ' (', archetype, ') \n\n', '# Match: ', match, ' - WR: ', winrate)) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
