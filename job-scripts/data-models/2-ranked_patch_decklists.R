@@ -29,7 +29,7 @@ db_get_query <- function(conn, qry, limit = -1, print_text = TRUE, print_df = FA
 }
 
 # current patch release date
-min_datee <- lorr::get_patch_release_date()
+min_date <- lorr::get_patch_release_date()
 #min_date <- as.POSIXct("2021-12-14 18:00:00 UTC") # hotfix date
 
 # 2. connect to db and fetch data ----
