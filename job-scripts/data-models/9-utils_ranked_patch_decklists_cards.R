@@ -41,6 +41,17 @@ if(nrow(data_v2) >  0){
   data_v2 %>% 
     DBI::dbWriteTable(conn = con, name = "utils_ranked_patch_decklists_cards", value = ., overwrite = TRUE, row.names = FALSE) 
   
+  DBI::dbExecute(
+    conn = con,
+    statement = sprintf(
+      "REPLACE INTO utils_update_time
+        (table_name, time)
+        VALUES
+        (%s);",
+      paste0("'", paste0(c('utils_ranked_patch_decklists_cards', as.charactetr(Sys.time())), collapse = "', '"), "'")
+    )
+  )
+  
 }
 
 DBI::dbDisconnect(con)
