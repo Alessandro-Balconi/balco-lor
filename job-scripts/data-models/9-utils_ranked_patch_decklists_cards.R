@@ -48,7 +48,7 @@ if(nrow(data_v2) >  0){
         (table_name, time)
         VALUES
         (%s);",
-      paste0("'", paste0(c('utils_ranked_patch_decklists_cards', as.charactetr(Sys.time())), collapse = "', '"), "'")
+      paste0("'", paste0(c('utils_ranked_patch_decklists_cards', as.character(Sys.time())), collapse = "', '"), "'")
     )
   )
   
