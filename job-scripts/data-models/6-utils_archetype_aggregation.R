@@ -4,7 +4,7 @@
 
 # 1. libraries ----
 
-suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(googlesheets4))
 
 # 2. parameters ----
