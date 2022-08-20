@@ -2,7 +2,9 @@
 
 # 1. libraries ----
 
-suppressPackageStartupMessages(library(tidyverse)) # all purposes package
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(stringr))
 
 # 2. connect to db & load data ----
 
