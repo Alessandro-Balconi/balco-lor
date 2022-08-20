@@ -53,7 +53,12 @@ data_champs <- lorr::get_cards_data(
   ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity) %>%
-  unnest(col = assets)
+  unnest(col = assets) %>% 
+  mutate(croppedPath = paste0(
+    'https://raw.githubusercontent.com/shaobaili3/LoR_Master/master/UI/src/assets/images/cards/cropped/',
+    cardCode,
+    '-cropped.png'
+  ))
 
 # regions names / abbreviations / logos from global JSON
 data_regions <- lorr::get_regions_data() %>% 
@@ -87,22 +92,45 @@ data <- tbl(con, 'ranked_match_metadata_30d') %>%
   filter(game_start_time_utc >= local(start_date - days(7))) %>% 
   {if(nweekly_master >= 10000) filter(., match_id %in% local(weekly_master_match$match_id)) else . } %>% 
   left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
-  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+  left_join(
+    y = tbl(con, 'utils_archetype_aggregation'), 
+    by = c('archetype' = 'old_name')
+  ) %>% 
   mutate(new_name = coalesce(new_name, archetype)) %>%
-  select(match_id, game_start_time_utc, puuid, deck_code, game_outcome, faction_1, faction_2, archetype, shard = region, new_name) %>% 
+  select(
+    match_id, 
+    game_start_time_utc, 
+    puuid, 
+    deck_code, 
+    game_outcome, 
+    faction_1, 
+    faction_2, 
+    archetype, 
+    shard = region, 
+    new_name
+  ) %>% 
   collect()
 
 # fix "Runeterra" region
 data <- data %>% 
-  mutate(across(starts_with('faction_'), function(x) ifelse(x %in% data_champs$name, 'Runeterra', x)))
+  mutate(across(
+    starts_with('faction_'), 
+    function(x) ifelse(x %in% data_champs$name, 'Runeterra', x)
+  ))
 
 # add champs codes & week
 data <- data %>% 
   distinct(archetype) %>% 
   mutate(
-    champs = str_extract_all(archetype, pattern = paste0(data_champs$name, "\\b", collapse = "|")),
+    champs = str_extract_all(
+      archetype, 
+      pattern = paste0(data_champs$name, "\\b", collapse = "|")
+    ),
     champs = map_chr(champs, str_flatten, collapse = " "),
-    champs = str_replace_all(champs, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))
+    champs = str_replace_all(
+      champs, 
+      set_names(data_champs$cardCode, paste0(data_champs$name, "\\b"))
+    )
   ) %>% 
   left_join(data, by = 'archetype') %>% 
   relocate(c(champs, archetype), .after = faction_2) %>% 
