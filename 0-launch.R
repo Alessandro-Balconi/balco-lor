@@ -20,7 +20,7 @@ rm(list = ls(all.names = TRUE))
 tryCatch({
   
   tictoc::tic()
-  source("/home/balco/dev/lor-meta-report/job-scripts/data-models/6-utils_archetype_aggregation.R")
+  source("/home/balco/dev/lor-meta-report/job-scripts/daily-data-models/utils_archetype_aggregation.R")
   rm(list = ls(all.names = TRUE))
   source("/home/balco/dev/lor-meta-report/job-scripts/data-models/5-ranked_daily_archetypes.R")
   rm(list = ls(all.names = TRUE))
