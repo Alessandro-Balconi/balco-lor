@@ -17,7 +17,6 @@ lor_deckcodes <- reticulate::import("lor_deckcodes")
 
 # load db credentials
 mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
-mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # 3. functions ----
 
@@ -55,17 +54,8 @@ m_db_eu <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_cr
 m_db_na <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_na")
 m_db_as <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = "lor_match_info_asia")
 
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = mysql_creds$uid,
-  password = mysql_creds$pwd,
-  dbname = mysql_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # get matches already in sql
 already_in_sql <- tbl(con, "expedition_match") %>% 
@@ -82,24 +72,12 @@ data_as <- m_db_as$find(query = sprintf('{"info.game_mode":"Expeditions", "metad
 
 data <- bind_rows('europe' = data_eu, 'americas' = data_na, 'asia' = data_as, .id = 'region')
 
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::get_last_set()
-
 # champions names / codes / regions from set JSONs
-data_champs <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
+data_champs <- lorr::get_cards_data(
+  select = c('name', 'cardCode', 'regionRefs', 'rarity')
 ) %>% 
-  filter(rarity == "Champion") %>% 
-  select(name, cardCode, regionRefs) %>%
-  filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
+  filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
+  select(-rarity)
 
 # master leaderboard 
 as_leaderboard <- tbl(con, "leaderboard_asia") %>% pull(name)
@@ -191,7 +169,13 @@ data <- data %>%
 if(nrow(data) >  0){
 
   data %>%
-    DBI::dbWriteTable(conn = con, name = "expedition_match", value = ., append = TRUE, row.names = FALSE)
+    DBI::dbWriteTable(
+      conn = con, 
+      name = "expedition_match", 
+      value = ., 
+      append = TRUE, 
+      row.names = FALSE
+    )
 
 }
 

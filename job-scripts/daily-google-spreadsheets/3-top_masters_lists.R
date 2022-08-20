@@ -37,23 +37,11 @@ get_top_masters <- function(region, prop = 0.1, add_region = TRUE){
   
 }
 
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::get_last_set()
-
 # champions names / codes / regions from set JSONs
-db_cards <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
+db_cards <- lorr::get_cards_data(
+  select = c("name", "cardCode")
 ) %>% 
-  select(name, cardCode) %>%
-  filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
+  filter(nchar(cardCode) <= 8)
 
 # fetch data ----
 
@@ -175,16 +163,19 @@ if(nrow(df) > 0){
   ss_id <- "1IezJoQ5IY-paK5Njdvz7ZGSFPeuRAIWZT6ZGxQthIJM"
   
   # update all sheets of the spreadsheet
-  with_gs4_quiet(sheet_write(data = df_cards_table,  ss = ss_id, sheet = "Cards Table"     ))
-  with_gs4_quiet(sheet_write(data = df_players_list, ss = ss_id, sheet = "Players Lists"   ))
-  with_gs4_quiet(sheet_write(data = info,            ss = ss_id, sheet = "Data Information"))
-  with_gs4_quiet(sheet_write(data = df_cards_nice,   ss = ss_id, sheet = "Database"        ))
+  sheet_write(data = df_cards_table,  ss = ss_id, sheet = "Cards Table"     )
+  sheet_write(data = df_players_list, ss = ss_id, sheet = "Players Lists"   )
+  sheet_write(data = info,            ss = ss_id, sheet = "Data Information")
+  sheet_write(data = df_cards_nice,   ss = ss_id, sheet = "Database"        )
   
   # names of the spreadsheet to update
   ss_names <- sheet_names(ss_id)
   
   # adjust spacing of columns in the spreadsheet
-  walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
+  walk(
+    .x = ss_names, 
+    .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns")
+  )
   
 }
 

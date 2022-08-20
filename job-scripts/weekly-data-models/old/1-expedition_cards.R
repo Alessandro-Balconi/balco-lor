@@ -14,22 +14,19 @@ suppressPackageStartupMessages(library(httr))      # http requests
 # create connection to MySQL database
 con <- lorr::create_db_con()
 
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::get_last_set()
-
 # cards names / codes / rarity from set JSONs
 data_cards <- get_cards_data(select = c('rarity', 'name', 'cardCode')) %>%
   filter(nchar(cardCode) <= 8)
 
 # most recent day in the table (it means we have updated up to this point)
-last_day = tbl(con, 'expedition_cards') %>% 
+last_day <- tbl(con, 'expedition_cards') %>% 
   summarise(maxts = max(day, na.rm = TRUE)) %>%
   collect() %>% 
   pull() %>% 
   {if(is.na(.)) ymd('2000-01-01') else . }
 
 # new matches that need to be added
-data = tbl(con, 'expedition_match') %>% 
+data <- tbl(con, 'expedition_match') %>% 
   mutate(day = sql("CAST(game_start_time_utc AS DATE)")) %>% 
   filter(day > local(last_day), day <= local(Sys.Date()-days(3))) %>% 
   select(match_id, day, game_version, game_outcome, cards, is_master) %>% 

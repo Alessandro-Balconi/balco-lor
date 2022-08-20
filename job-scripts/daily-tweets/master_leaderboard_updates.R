@@ -28,25 +28,12 @@ nice_region <- switch(
   'asia' = 'Asia-Pacific'
 )
 
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::get_last_set()
-
 # champions names / codes / images from set JSONs
-data_champs <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
+data_champs <- lorr::get_cards_data(
+  select = c('name', 'cardCode', 'rarity')
 ) %>% 
-  filter(rarity == "Champion") %>% 
-  select(assets, name, cardCode) %>%
-  unnest(col = assets) %>% 
-  filter(nchar(cardCode) <= 8) %>% # additional check because sometimes Riot messes up
+  filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
+  select(-rarity) %>% 
   mutate(croppedPath = paste0(
     'https://raw.githubusercontent.com/shaobaili3/LoR_Master/master/UI/src/assets/images/cards/cropped/',
     cardCode,
@@ -54,11 +41,7 @@ data_champs <- map_dfr(
   ))
 
 # regions names / abbreviations / logos from global JSON
-data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["regions"]] %>% 
+data_regions <- lorr::get_regions_data() %>% 
   mutate(nameRef = case_when(
     nameRef == "PiltoverZaun" ~ "Piltover",
     nameRef == "Targon" ~ "MtTargon",

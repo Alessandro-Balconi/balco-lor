@@ -16,9 +16,14 @@ suppressPackageStartupMessages(library(httr))      # http requests
 con <- lorr::create_db_con()
 
 # extract list of patches from sql data
-patch_list <- tbl(con, "ranked_match_metadata_30d") %>% 
-  distinct(game_version) %>% 
-  collect()
+patch_list <- lorr::get_db_query(
+  query = "
+  SELECT DISTINCT 
+    game_version
+  FROM 
+    ranked_match_metadata_30d
+  "
+)
 
 # quick preprocess
 patch_list <- patch_list %>% 
@@ -34,23 +39,24 @@ last_patch <- patch_list %>%
   pull(value)
 
 # latest saved patch
-mysql_patch <- tbl(con, "utils_patch_history") %>% 
-  filter(release_date == max(release_date, na.rm = TRUE)) %>% 
-  distinct(patch) %>% # should be just one anyway...
-  collect() %>% 
-  pull()
+mysql_patch <- lorr::get_db_query(
+  query = "
+  SELECT
+    patch
+  FROM
+    utils_patch_history
+  WHERE
+    release_date = (SELECT MAX(release_date) FROM utils_patch_history)
+  "
+)[[1]]
 
 # 5. perform calculations ----
 if(mysql_patch == last_patch){
   
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'Weekly patch history table update'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = "No update performed. Table was already up to date.",
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'Weekly Patch History Table Update',
+    message = "No update performed. Table was already up to date."
+  )
 
 } else {
   
@@ -189,14 +195,10 @@ if(mysql_patch == last_patch){
 
   }
   
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'Weekly patch history table update'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = sprintf("The weekly update was performed correctly; added patch %s", last_patch), 
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'Weekly Patch History Table Update',
+    message = sprintf("The weekly update was performed correctly; added patch %s", last_patch)
+  )
 
 }
 

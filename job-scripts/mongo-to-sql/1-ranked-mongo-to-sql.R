@@ -17,7 +17,6 @@ lor_deckcodes <- reticulate::import("lor_deckcodes")
 
 # load db credentials
 mongo_creds <- config::get("mongodb", file = "/home/balco/my_rconfig.yml")
-mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
 
 # 3. functions ----
 
@@ -40,50 +39,26 @@ get_monoregion <- function(champs){
 
 # 4. connect to db & load data ----
 
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # create connection to MySQL database
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = mysql_creds$uid,
-  password = mysql_creds$pwd,
-  dbname = mysql_creds$dbs
-)
-
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::get_last_set()
+con <- lorr::create_db_con()
 
 # champions names / codes / regions from set JSONs
-data_champs <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
+data_champs <- lorr::get_cards_data(
+  select = c('name', 'cardCode', 'regionRefs', 'rarity')
 ) %>% 
-  filter(rarity == "Champion") %>% 
-  select(name, cardCode, regionRefs) %>%
-  filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
+  filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
+  select(-rarity)
 
 # regions names / abbreviations / logos from global JSON
-data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["regions"]] %>% 
-  mutate(nameRef = case_when(
-    nameRef == "PiltoverZaun" ~ "Piltover",
-    nameRef == "Targon" ~ "MtTargon",
-    TRUE ~ nameRef
-  )) %>% 
-  mutate(abbreviation = if_else(abbreviation %in% data_champs$name, 'RU', abbreviation)) # fix RU champs
-
+data_regions <- lorr::get_regions_data() %>% 
+  mutate(
+    nameRef = case_when(
+      nameRef == "PiltoverZaun" ~ "Piltover",
+      nameRef == "Targon" ~ "MtTargon",
+      TRUE ~ nameRef
+    ),
+    abbreviation = if_else(abbreviation %in% data_champs$name, 'RU', abbreviation)
+  )
 
 # function to pull region specific data and make the update
 mongo_to_sql <- function(input_region){
