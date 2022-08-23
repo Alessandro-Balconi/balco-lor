@@ -13,26 +13,25 @@ suppressPackageStartupMessages(library(lubridate)) # working with dates
 
 # 2. connect to database ----
 
-# load mysql db credentials
-db_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
-# close previous connections to MySQL database (if any)
-if(exists("con")){ DBI::dbDisconnect(con) }
-
 # connect to db
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host = "127.0.0.1",
-  user = db_creds$uid,
-  password = db_creds$pwd,
-  dbname = db_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # 3. extract old matches from dbs ----
 
 old_matchid_v2 <- tbl(con, 'ranked_match_metadata_30d') %>% 
   filter(game_start_time_utc < local(Sys.Date()-days(30))) %>% 
   pull(match_id)
+
+# old_matchid_v2 <- lorr::get_db_query(
+#   query = "
+#   SELECT
+#     match_id
+#   FROM
+#     ranked_match_metadata_30d
+#   WHERE
+#     game_start_time_utc >= '{Sys.Date() - days(30)}'
+#   "
+# )[[1]]
 
 # 4. add those to "old_db" and remove them from main collections ----
 
