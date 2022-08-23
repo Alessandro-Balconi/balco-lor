@@ -1,10 +1,10 @@
 # HOW TO USE THIS SCRIPT:
 # 1. update the parameters right below these comments [ss_id and the seasonal_day]
 # 2. GIVE TO THE AUTOUPDATER EDIT PERMISSIONS ON THE SPREADSHEET !
-# 3. THE DAY OF THE SEASONAL: start a local job that runs this script (it's the trycatch wrapper job)
-# 4. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE LAST LINE OF CODE)
+# 3. THE DAY OF THE SEASONAL: start a local job that runs the trycatch wrapper job
+# 4. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE CODE BELOW)
 
-# PER IL PUNTO 3 CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
+# PER IL PUNTO 4 CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
 
 # import must have packages (others will be imported later)
@@ -13,7 +13,7 @@ suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(lubridate))
-suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
+suppressPackageStartupMessages(library(googlesheets4))
 suppressPackageStartupMessages(library(httr))
 suppressPackageStartupMessages(library(jsonlite))
 
@@ -23,8 +23,8 @@ httr::set_config(httr::config(http_version = 0))
 # set google API Key & Oauth credentials
 google_creds <- config::get("google", file = "/home/balco/my_rconfig.yml")
 gargle::oauth_app_from_json(google_creds$client_secret)
-googlesheets4::gs4_auth_configure(api_key = google_creds$api_key)
-googlesheets4::gs4_auth(path = google_creds$auth_path)
+gs4_auth_configure(api_key = google_creds$api_key)
+gs4_auth(path = google_creds$auth_path)
 
 # day of the seasonal (if not known, leave Sys.Date())
 seasonal_day <- Sys.Date()
@@ -52,63 +52,37 @@ seasonal_match_time <- tibble::tribble(
 
 # setup ----
 
-# credentials
-.mysql_creds <- config::get("mysql", file = "/home/balco/my_rconfig.yml")
-
 # api key
 .api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 
 # connect to mysql db
-con <- DBI::dbConnect(
-  RMariaDB::MariaDB(),
-  db_host  = "127.0.0.1",
-  user     = .mysql_creds$uid,
-  password = .mysql_creds$pwd,
-  dbname   = .mysql_creds$dbs
-)
+con <- lorr::create_db_con()
 
 # API path
 base.url <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
 
 # get most recent set number (to read sets JSONs)
-last_set <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["sets"]] %>% 
-  mutate(set = str_extract(nameRef, pattern = "[0-9]+")) %>% 
-  mutate(set = as.numeric(set)) %>% 
-  summarise(max(set, na.rm = TRUE)) %>% 
-  pull()
+last_set <- lorr::get_last_set()
 
 # champions names / codes / regions from set JSONs
-data_champs <- map_dfr(
-  .x = 1:last_set,
-  .f = function(x) {
-    sprintf("https://dd.b.pvp.net/latest/set%1$s/en_us/data/set%1$s-en_us.json", x) %>% 
-      GET() %>%  
-      content(encoding = "UTF-8") %>% 
-      fromJSON() %>% 
-      as_tibble()
-  },
-  .id = "set"
+data_champs <- lorr::get_cards_data(
+  select = c('name', 'cardCode', 'regionRefs', 'rarity')
 ) %>% 
-  filter(rarity == "Champion") %>% 
-  select(name, cardCode, regionRefs) %>%
-  filter(nchar(cardCode) <= 8) # additional check because sometimes Riot messes up
+  filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
+  select(-rarity)
 
 # regions names / abbreviations / logos from global JSON
-data_regions <- "https://dd.b.pvp.net/latest/core/en_us/data/globals-en_us.json" %>% 
-  GET() %>% 
-  content(encoding = "UTF-8") %>% 
-  fromJSON() %>% 
-  .[["regions"]] %>% 
+data_regions <- lorr::get_regions_data() %>% 
   mutate(nameRef = case_when(
     nameRef == "PiltoverZaun" ~ "Piltover",
     nameRef == "Targon" ~ "MtTargon",
     TRUE ~ nameRef
   )) %>% 
-  mutate(abbreviation = if_else(abbreviation %in% data_champs$name, 'RU', abbreviation)) # fix RU champs
+  mutate(abbreviation = if_else(
+    abbreviation %in% data_champs$name, 
+    'RU', 
+    abbreviation
+  )) # fix RU champs
 
 # extract region from monoregion champs
 get_monoregion <- function(champs){
@@ -164,10 +138,21 @@ extract_match_info <- function(match_id){
   
   # reshape (keeping only 1 row per deck)
   data <- data %>% 
-    group_by(match_id, game_mode, game_start_time_utc, puuid, deck_code, game_outcome) %>%
+    group_by(
+      match_id, 
+      game_mode, 
+      game_start_time_utc, 
+      puuid, 
+      deck_code, 
+      game_outcome
+    ) %>%
     mutate(id = row_number()) %>% 
     ungroup() %>% 
-    pivot_wider(names_from = id, values_from = factions, names_prefix = "faction_")
+    pivot_wider(
+      names_from = id, 
+      values_from = factions, 
+      names_prefix = "faction_"
+    )
   
   # return result
   return(data)
@@ -186,7 +171,9 @@ get_match_round <- function(match_time){
 # add end time (aka before the start of the next)
 seasonal_match_time <- seasonal_match_time %>% 
   mutate(end_time = lead(start_time)) %>% 
-  replace_na(list(end_time = max(seasonal_match_time$start_time + minutes(65))))
+  replace_na(
+    list(end_time = max(seasonal_match_time$start_time + minutes(65)))
+  )
 
 # list of already collected matches
 already_collected <- tbl(con, 'seasonal_match_data') %>% 
@@ -197,17 +184,36 @@ already_collected <- tbl(con, 'seasonal_match_data') %>%
 while(Sys.time() < max(seasonal_match_time$end_time)){
   
   # delay in minutes before adding match to spreadsheet
-  minutes_delay <- pull(range_read(ss = params_ss_id, sheet = 'Delay', col_names = FALSE, .name_repair = make.names))
+  minutes_delay <- pull(range_read(
+    ss = params_ss_id, 
+    sheet = 'Delay', 
+    col_names = FALSE, 
+    .name_repair = make.names
+  ))
   
-  # MANUALLY UPDATE PLAYER LIST
-  italian_players <- pull(range_read(ss = params_ss_id, sheet = 'Giocatori Italiani', col_names = FALSE, .name_repair = make.names))
-  other_players   <- pull(range_read(ss = params_ss_id, sheet = 'Other Players', col_names = FALSE, .name_repair = make.names))
+  # UPDATE PLAYER LIST
+  italian_players <- pull(range_read(
+    ss = params_ss_id, 
+    sheet = 'Giocatori Italiani', 
+    col_names = FALSE, 
+    .name_repair = make.names
+  ))
+  
+  other_players   <- pull(range_read(
+    ss = params_ss_id, 
+    sheet = 'Other Players',
+    col_names = FALSE, 
+    .name_repair = make.names
+  ))
   
   # get puuids from player list ----
   
   df_players <- tbl(con, 'utils_players') %>% 
     mutate(player = paste(gameName, tagLine, sep = "#")) %>% 
-    filter(region == 'europe', player %in% c(italian_players, other_players)) %>% 
+    filter(
+      region == 'europe', 
+      player %in% c(italian_players, other_players)
+    ) %>% 
     select(player, puuid) %>% 
     collect()
   
@@ -265,7 +271,11 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     map(content) %>% 
     map(unlist) %>% 
     as_tibble() %>% 
-    pivot_longer(cols = everything(), names_to = "player", values_to = "match_id")
+    pivot_longer(
+      cols = everything(), 
+      names_to = "player", 
+      values_to = "match_id"
+    )
   
   # keep only new matches
   new_matches <- setdiff(matches_list$match_id, already_collected)
@@ -313,12 +323,21 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         distinct(across(c(starts_with("faction_"), cards_list))) %>% 
         mutate(
           cards = map_chr(cards_list, str_flatten, collapse = " "),
-          champs = str_extract_all(cards, pattern = paste(data_champs$cardCode, collapse = "|")),
+          champs = str_extract_all(
+            cards, 
+            pattern = paste(data_champs$cardCode, collapse = "|")
+          ),
           champs = map_chr(champs, str_flatten, collapse = " "),
           champs_factions = map_chr(champs, get_monoregion)
         ) %>% 
-        left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
-        left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
+        left_join(
+          data_regions %>% select(faction_abb1 = abbreviation, nameRef), 
+          by = c("faction_1" = "nameRef")
+        ) %>% 
+        left_join(
+          data_regions %>% select(faction_abb2 = abbreviation, nameRef), 
+          by = c("faction_2" = "nameRef")
+        ) %>%
         unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
         mutate(
           factions = str_remove_all(factions, pattern = " NA|NA "),
@@ -330,22 +349,42 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
           archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
         ) %>% 
         left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
-        select(-c(cards_list, champs_factions, no_fix, starts_with('faction'), cards, champs))
+        select(-c(
+          cards_list, 
+          champs_factions, 
+          no_fix, 
+          starts_with('faction'), 
+          cards, 
+          champs
+        ))
       
       # make archetype name nicer
       data <- data %>% 
-        mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
+        mutate(archetype = str_replace_all(
+          archetype, 
+          set_names(data_champs$name, data_champs$cardCode)
+        )) %>% 
         mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
       
       # add new matches to db ----
       
       # fix time column format
       data <- data %>% 
-        mutate(time = as_datetime(game_start_time_utc), .keep = 'unused', .after = match_id)
+        mutate(
+          time = as_datetime(game_start_time_utc), 
+          .keep = 'unused', 
+          .after = match_id
+        )
       
       # save results to db
       data %>% 
-        DBI::dbWriteTable(conn = con, name = "seasonal_match_data", value = ., append = TRUE, row.names = FALSE)
+        DBI::dbWriteTable(
+          conn = con, 
+          name = "seasonal_match_data", 
+          value = ., 
+          append = TRUE, 
+          row.names = FALSE
+        )
       
       # list of already collected matches
       already_collected <- c(already_collected, new_matches)
@@ -355,7 +394,11 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # pull seasonal data from db
       gs4_data <- tbl(con, 'seasonal_match_data') %>% 
         #filter(game_mode == 'SeasonalTournamentLobby') %>% # for tests
-        filter(time >= local(Sys.time()-days(3)), game_mode == 'SeasonalTournamentLobby', time <= local(Sys.time()-minutes(minutes_delay))) %>%
+        filter(
+          time >= local(Sys.time()-days(3)), 
+          game_mode == 'SeasonalTournamentLobby', 
+          time <= local(Sys.time()-minutes(minutes_delay))
+        ) %>%
         select(time, deck_code, game_outcome, archetype, puuid) %>% 
         collect()
       
@@ -369,13 +412,20 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         mutate(round = map_dbl(time, get_match_round))
       
       # OLD VERSION OF LINEUPS, WITH TOO MUCH INFO
-      # lineups <- gs4_data %>% 
-      #   count(player, archetype, deck_code, game_outcome) %>% 
-      #   pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
-      #   {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
-      #   {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
-      #   {if("tie"  %in% colnames(.)) . else mutate(., tie  = 0)} %>% 
-      #   mutate(match = loss+win+tie, winrate = scales::percent(win / match, accuracy = .1)) %>% 
+      # lineups <- gs4_data %>%
+      #   count(player, archetype, deck_code, game_outcome) %>%
+      #   pivot_wider(
+      #     names_from = game_outcome, 
+      #     values_from = n, 
+      #     values_fill = 0
+      #   ) %>%
+      #   {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>%
+      #   {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>%
+      #   {if("tie"  %in% colnames(.)) . else mutate(., tie  = 0)} %>%
+      #   mutate(
+      #     match = loss+win+tie, 
+      #     winrate = scales::percent(win / match, accuracy = .1)
+      #   ) %>%
       #   select(-c(win, loss, tie))
 
       # player lineups
@@ -383,7 +433,12 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         distinct(player, archetype) %>% 
         mutate(player = str_remove_all(player, pattern = '#.*')) %>% 
         with_groups(.groups = player, .f = mutate, id = row_number()) %>% 
-        pivot_wider(names_from = id, values_from = archetype, values_fill = '', names_prefix = 'deck_') %>% 
+        pivot_wider(
+          names_from = id, 
+          values_from = archetype, 
+          values_fill = '', 
+          names_prefix = 'deck_'
+        ) %>% 
         {if("deck_1" %in% colnames(.)) . else mutate(., deck_1 = '')} %>% 
         {if("deck_2" %in% colnames(.)) . else mutate(., deck_2 = '')} %>% 
         {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} 
@@ -397,7 +452,11 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # get matches data
       score <- gs4_data %>% 
         count(player, round, game_outcome) %>% 
-        pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+        pivot_wider(
+          names_from = game_outcome, 
+          values_from = n, 
+          values_fill = 0
+        ) %>% 
         {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
         {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
         {if("tie"  %in% colnames(.)) select(., -tie) else .}
@@ -410,7 +469,12 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         left_join(score, by = c('player', 'round'))
       
       # this will overwrite match results where needed
-      overwrite_score <- range_read(ss = params_ss_id, sheet = 'Match Results', col_names = TRUE, .name_repair = tolower)
+      overwrite_score <- range_read(
+        ss = params_ss_id, 
+        sheet = 'Match Results', 
+        col_names = TRUE, 
+        .name_repair = tolower
+      )
       
       if(nrow(overwrite_score) > 0){
         
@@ -419,7 +483,10 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         
         score <- score %>% 
           left_join(overwrite_score, by = c("player", 'round')) %>% 
-          mutate(win = coalesce(win_new, win), loss = coalesce(loss_new, loss)) %>% 
+          mutate(
+            win = coalesce(win_new, win), 
+            loss = coalesce(loss_new, loss)
+          ) %>% 
           select(-c(win_new, loss_new))
         
       }
@@ -432,19 +499,32 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
           has_lost = ifelse(loss > win & loss >= 2, 1, 0)
         ) %>% 
         group_by(player) %>% 
-        summarise(wins = sum(has_won, na.rm = TRUE), losses = sum(has_lost, na.rm = TRUE), .groups = 'drop') %>% 
+        summarise(
+          wins = sum(has_won, na.rm = TRUE), 
+          losses = sum(has_lost, na.rm = TRUE), 
+          .groups = 'drop'
+        ) %>% 
         unite(col = overall, wins, losses, sep = "-")
       
       # complete data and reshape
       score <- score %>% 
         unite(col = score, c(win, loss), sep = "-") %>% 
         mutate(score = ifelse(score == "NA-NA", '-', score)) %>% 
-        pivot_wider(names_from = round, values_from = score, values_fill = "-", names_prefix = "round_")
+        pivot_wider(
+          names_from = round, 
+          values_from = score, 
+          values_fill = "-", 
+          names_prefix = "round_"
+        )
       
       # add overall score
       score <- score %>% 
         left_join(overall, by = 'player') %>% 
-        arrange(desc(overall), desc(across(all_of(sprintf('round_%s', 1:length(seasonal_match_time))))), player)
+        arrange(
+          desc(overall), 
+          desc(across(all_of(sprintf('round_%s', 1:length(seasonal_match_time))))), 
+          player
+        )
         #arrange(desc(overall))
       
       # aesthetical fixes
@@ -458,7 +538,13 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
           sprintf("Ultimo Aggiornamento: %s UTC", Sys.time()), 
           "Se volete esser aggiunti a questo foglio (o se trovate degli errori), contattatemi su discord (Balco#7067).",
           "Nei casi in cui non sia possibile risalire al risultato tramite API (es. BYE, drop, match terminati 1-1 causa timer, 
-match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo."
+match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo.",
+          sprintf("Last Updated: %s UTC", Sys.time()),
+          '',
+          "If you want to be added to the spreadsheet, contact me on Discord (Balco#7067).",
+          "In case of matches where it's not possible to get the winner from the api (e.g. missing matches due to BYEs,
+drops, matches ended 1-1 on timer), let me know the final result and I'll add it."
+          
         )
       )
       
