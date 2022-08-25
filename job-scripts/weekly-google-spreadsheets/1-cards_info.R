@@ -2,7 +2,7 @@
 
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(purrr))
-suppressPackageStartupMessages(library(string))
+suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(googlesheets4))
 suppressPackageStartupMessages(library(httr))
 suppressPackageStartupMessages(library(jsonlite))
@@ -47,7 +47,7 @@ with_gs4_quiet(sheet_write(data = data, ss = ss_id, sheet = "Cards Info"))
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
 info <- tibble(" " = c(update))
-with_gs4_quiet(sheet_write(data = info,   ss = ss_id, sheet = "Data Information"))
+sheet_write(data = info,   ss = ss_id, sheet = "Data Information")
 
 # names of the spreadsheet to update
 ss_names <- sheet_names(ss_id)
