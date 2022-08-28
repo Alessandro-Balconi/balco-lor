@@ -1,26 +1,23 @@
 # HOW TO USE THIS SCRIPT:
-# 1. update the parameters right below these comments [ss_id and the seasonal_day]
+# 1. update the parameters right below these comments [ss_id, seasonal_day, cutoff_day]
 # 2. GIVE TO THE AUTOUPDATER EDIT PERMISSIONS ON THE SPREADSHEET !
-# 3. THE DAY OF THE SEASONAL: start a local job that runs the trycatch wrapper job
+# 3. THE DAY OF THE SEASONAL (BEFORE 11 AM): start a local job that runs the trycatch wrapper job
 # 4. (OPTIONAL) remove rows from the db at the end of the seasonal (SEE CODE BELOW)
 
 # PER IL PUNTO 4 CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
 
 # import must have packages (others will be imported later)
-suppressPackageStartupMessages(library(dplyr))
-suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(purrr))
-suppressPackageStartupMessages(library(stringr))
-suppressPackageStartupMessages(library(lubridate))
-suppressPackageStartupMessages(library(googlesheets4))
-suppressPackageStartupMessages(library(httr))
-suppressPackageStartupMessages(library(jsonlite))
-
-options(googlesheets4_quiet = TRUE)
-httr::set_config(httr::config(http_version = 0))
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(lubridate)
+library(googlesheets4)
+library(httr)
 
 # set google API Key & Oauth credentials
+options(googlesheets4_quiet = TRUE)
 google_creds <- config::get("google", file = "/home/balco/my_rconfig.yml")
 gargle::oauth_app_from_json(google_creds$client_secret)
 gs4_auth_configure(api_key = google_creds$api_key)
@@ -29,8 +26,11 @@ gs4_auth(path = google_creds$auth_path)
 # day of the seasonal (if not known, leave Sys.Date())
 seasonal_day <- Sys.Date()
 
+# day of the ladder cutoff (if not known, leave Sys.Date()-3)
+cutoff_day <- Sys.Date()-2
+
 # google spreadsheet id
-ss_id <- "1d80uUZ03VLSO-faLwDej8JRDbnZSPG9MhVmVZSXFgoE"
+ss_id <- "1WT75qcCYIN4Ni_DycrIVvgY-fWSlq2R2vmkw8_YmO24"
 
 # google spreadsheet id with the parameters 
 params_ss_id <- "1pCixyJwIRkcceX3W9cwsd6tNNpOK4E75i88K1pXCN8A"
@@ -50,7 +50,7 @@ seasonal_match_time <- tibble::tribble(
 ) %>% 
   mutate(start_time = as_datetime(paste0(seasonal_day, start_time)))
 
-# setup ----
+# setup ------------------------------------------------------------------------
 
 # api key
 .api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
@@ -60,9 +60,6 @@ con <- lorr::create_db_con()
 
 # API path
 base.url <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
-
-# get most recent set number (to read sets JSONs)
-last_set <- lorr::get_last_set()
 
 # champions names / codes / regions from set JSONs
 data_champs <- lorr::get_cards_data(
@@ -180,8 +177,18 @@ already_collected <- tbl(con, 'seasonal_match_data') %>%
   distinct(match_id) %>% 
   pull()
 
-# keep fetching data while seasonal is running
+# ladder ranks
+ladder_rank <- tbl(con, 'leaderboard_daily') %>% 
+  filter(region == 'europe', day == cutoff_day) %>%
+  mutate(name = tolower(name)) %>% 
+  group_by(name) %>%
+  summarise(ladder_rank = min(rank, na.rm = TRUE), .groups = 'drop') %>% 
+  collect() 
+
+# keep fetching data while seasonal is running ---------------------------------
 while(Sys.time() < max(seasonal_match_time$end_time)){
+  
+  # read data from parameters spreadsheet --------------------------------------
   
   # delay in minutes before adding match to spreadsheet
   minutes_delay <- pull(range_read(
@@ -206,7 +213,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     .name_repair = make.names
   ))
   
-  # get puuids from player list ----
+  # get puuids from player list ------------------------------------------------
   
   df_players <- tbl(con, 'utils_players') %>% 
     mutate(player = paste(gameName, tagLine, sep = "#")) %>% 
@@ -231,7 +238,13 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       .x = set_names(missing_puuids, missing_puuids),
       .f = function(x) GET(
         base.url, 
-        path = paste0("/riot/account/v1/accounts/by-riot-id/", str_replace(utils::URLencode(x, reserved = TRUE), pattern = "%23", replacement = "/")), 
+        path = paste0(
+          "/riot/account/v1/accounts/by-riot-id/", 
+          str_replace(
+            utils::URLencode(x, reserved = TRUE), 
+            pattern = "%23", 
+            replacement = "/"
+        )), 
         add_headers("X-Riot-Token" = .api_key), 
         config = config(connecttimeout = 60)
       )
@@ -239,6 +252,9 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     
     # extract content in JSON format
     missing_puuids <- map_dfr(get_new_players, content, .id = 'player') %>%
+      # this prevents errors if I only have wrong names to collect
+      {if(!'puuid' %in% colnames(.)) tibble(a = 1) %>% select(-a) else . } %>% 
+      # this prevents errors if I have both wrong and correct names
       {if("status" %in% colnames(.)) select(., -status) %>% drop_na() else . }
     
     if(ncol(missing_puuids) > 0 ){
@@ -250,7 +266,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     
   }
   
-  # get recent match_id of all players ----
+  # get recent match_id of all players -----------------------------------------
   
   # call to get list of matches
   get_match_id <- map(
@@ -280,7 +296,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   # keep only new matches
   new_matches <- setdiff(matches_list$match_id, already_collected)
   
-  # get info of new matches of all players ----
+  # get info of new matches of all players -------------------------------------
   
   # if needed, fetch new matches data
   if(length(new_matches) > 0){
@@ -341,12 +357,27 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
         mutate(
           factions = str_remove_all(factions, pattern = " NA|NA "),
-          across(c(champs, champs_factions, factions),  function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))),
-          no_fix = map2_lgl(.x = factions, .y = champs_factions, .f = ~grepl(pattern = .x, x = .y)),
-          champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
+          across(
+            c(champs, champs_factions, factions),
+            function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))
+          ),
+          no_fix = map2_lgl(
+            .x = factions, 
+            .y = champs_factions, 
+            .f = ~grepl(pattern = .x, x = .y)
+          ),
+          champs_factions = str_replace_all(
+            champs_factions, 
+            pattern = " ", 
+            replacement = "|"
+          ),
           champs_factions = paste0(champs_factions, "| "),
           factions_to_add = str_remove_all(factions, pattern = champs_factions),
-          archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
+          archetype = if_else(
+            no_fix, 
+            champs, 
+            sprintf("%s (%s)", champs, factions_to_add)
+          )
         ) %>% 
         left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
         select(-c(
@@ -364,9 +395,12 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
           archetype, 
           set_names(data_champs$name, data_champs$cardCode)
         )) %>% 
-        mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
+        mutate(across(
+          archetype, 
+          function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x)
+        )) 
       
-      # add new matches to db ----
+      # add new matches to db --------------------------------------------------
       
       # fix time column format
       data <- data %>% 
@@ -389,14 +423,13 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # list of already collected matches
       already_collected <- c(already_collected, new_matches)
       
-      # update gs4 ----
+      # update gs4 -------------------------------------------------------------
       
       # pull seasonal data from db
       gs4_data <- tbl(con, 'seasonal_match_data') %>% 
-        #filter(game_mode == 'SeasonalTournamentLobby') %>% # for tests
         filter(
-          time >= local(Sys.time()-days(3)), 
           game_mode == 'SeasonalTournamentLobby', 
+          time >= local(Sys.time()-days(3)), 
           time <= local(Sys.time()-minutes(minutes_delay))
         ) %>%
         select(time, deck_code, game_outcome, archetype, puuid) %>% 
@@ -411,37 +444,23 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       gs4_data <- gs4_data %>% 
         mutate(round = map_dbl(time, get_match_round))
       
-      # OLD VERSION OF LINEUPS, WITH TOO MUCH INFO
-      # lineups <- gs4_data %>%
-      #   count(player, archetype, deck_code, game_outcome) %>%
-      #   pivot_wider(
-      #     names_from = game_outcome, 
-      #     values_from = n, 
-      #     values_fill = 0
-      #   ) %>%
-      #   {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>%
-      #   {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>%
-      #   {if("tie"  %in% colnames(.)) . else mutate(., tie  = 0)} %>%
-      #   mutate(
-      #     match = loss+win+tie, 
-      #     winrate = scales::percent(win / match, accuracy = .1)
-      #   ) %>%
-      #   select(-c(win, loss, tie))
-
       # player lineups
       lineups <- gs4_data %>% 
-        distinct(player, archetype) %>% 
-        mutate(player = str_remove_all(player, pattern = '#.*')) %>% 
+        distinct(player, archetype, deck_code) %>% 
+        mutate(player = str_remove_all(player, pattern = '#.*')) %>%
+        rename(deck = archetype, code = deck_code) %>% 
         with_groups(.groups = player, .f = mutate, id = row_number()) %>% 
         pivot_wider(
           names_from = id, 
-          values_from = archetype, 
-          values_fill = '', 
-          names_prefix = 'deck_'
+          values_from = c(deck, code), 
+          values_fill = ''
         ) %>% 
         {if("deck_1" %in% colnames(.)) . else mutate(., deck_1 = '')} %>% 
         {if("deck_2" %in% colnames(.)) . else mutate(., deck_2 = '')} %>% 
-        {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} 
+        {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} %>% 
+        {if("code_1" %in% colnames(.)) . else mutate(., code_1 = '')} %>% 
+        {if("code_2" %in% colnames(.)) . else mutate(., code_2 = '')} %>% 
+        {if("code_3" %in% colnames(.)) . else mutate(., code_3 = '')}
       
       # aesthetical fixes
       lineups <- lineups %>%
@@ -479,15 +498,20 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       if(nrow(overwrite_score) > 0){
         
         overwrite_score <- overwrite_score %>% 
-          rename(win_new = win, loss_new = loss)
+          rename(win_new = win, loss_new = loss) %>% 
+          mutate(player = tolower(player))
         
         score <- score %>% 
-          left_join(overwrite_score, by = c("player", 'round')) %>% 
+          mutate(player_lower = tolower(player)) %>% 
+          left_join(
+            overwrite_score, 
+            by = c("player_lower" = 'player', 'round')
+          ) %>% 
           mutate(
             win = coalesce(win_new, win), 
             loss = coalesce(loss_new, loss)
           ) %>% 
-          select(-c(win_new, loss_new))
+          select(-c(player_lower, win_new, loss_new))
         
       }
       
@@ -506,66 +530,100 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         ) %>% 
         unite(col = overall, wins, losses, sep = "-")
       
-      # complete data and reshape
-      score <- score %>% 
-        unite(col = score, c(win, loss), sep = "-") %>% 
-        mutate(score = ifelse(score == "NA-NA", '-', score)) %>% 
-        pivot_wider(
-          names_from = round, 
-          values_from = score, 
-          values_fill = "-", 
-          names_prefix = "round_"
-        )
-      
-      # add overall score
-      score <- score %>% 
-        left_join(overall, by = 'player') %>% 
-        arrange(
-          desc(overall), 
-          desc(across(all_of(sprintf('round_%s', 1:length(seasonal_match_time))))), 
-          player
-        )
-        #arrange(desc(overall))
-      
-      # aesthetical fixes
-      score <- score %>% 
-        rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
-        rename_with(str_to_title)
-      
-      # spreadsheet info
-      info <- tibble(
-        " " = c(
-          sprintf("Ultimo Aggiornamento: %s UTC", Sys.time()), 
-          "Se volete esser aggiunti a questo foglio (o se trovate degli errori), contattatemi su discord (Balco#7067).",
-          "Nei casi in cui non sia possibile risalire al risultato tramite API (es. BYE, drop, match terminati 1-1 causa timer, 
+      if(nrow(score) > 0){
+        
+        # complete data and reshape
+        score <- score %>% 
+          unite(col = score, c(win, loss), sep = "-") %>% 
+          mutate(score = ifelse(score == "NA-NA", '-', score)) %>% 
+          pivot_wider(
+            names_from = round, 
+            values_from = score, 
+            values_fill = "-", 
+            names_prefix = "round_"
+          )
+        
+        # add ladder rank
+        score <- score %>% 
+          mutate(name = str_remove(tolower(player), pattern = "#.*")) %>% 
+          left_join(ladder_rank, by = 'name') %>% 
+          relocate(ladder_rank, .after = player) %>% 
+          select(-name)
+        
+        # add overall score
+        score <- score %>% 
+          left_join(overall, by = 'player') %>% 
+          arrange(
+            desc(overall), 
+            ladder_rank, 
+            player
+          )
+        
+        # replace NAs in ladder rank
+        score <- score %>% 
+          mutate(ladder_rank = as.character(ladder_rank)) %>% 
+          replace_na(list(ladder_rank = '-'))
+        
+        # aesthetical fixes
+        score <- score %>% 
+          rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
+          rename_with(str_to_title) %>% 
+          rename("~Ladder Rank" = "Ladder Rank")
+        
+        # spreadsheet info
+        info <- tibble(
+          " " = c(
+            sprintf("Ultimo Aggiornamento: %s UTC", Sys.time()), 
+            "Se volete esser aggiunti a questo foglio (o se trovate degli errori), contattatemi su discord (Balco#7067).",
+            "Nei casi in cui non sia possibile risalire al risultato tramite API (es. BYE, drop, match terminati 1-1 causa timer, 
 match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo.",
-          sprintf("Last Updated: %s UTC", Sys.time()),
-          '',
-          "If you want to be added to the spreadsheet, contact me on Discord (Balco#7067).",
-          "In case of matches where it's not possible to get the winner from the api (e.g. missing matches due to BYEs,
-drops, matches ended 1-1 on timer), let me know the final result and I'll add it."
-          
+            "Il rank in ladder è una stima dato che dalle API non è possibile recuperare l'informazione esatta al momento del cutoff",
+            '',
+            sprintf("Last Updated: %s UTC", Sys.time()),
+            "If you want to be added to the spreadsheet, contact me on Discord (Balco#7067).",
+            "In case of matches where it's not possible to get the winner from the api (e.g. missing matches due to BYEs,
+drops, matches ended 1-1 on timer), let me know the final result and I'll add it.",
+            "Ladder Rank is an estimate since from API is not possible to get the exact snapshot at cutoff time."
+            
+          )
         )
-      )
-      
-      # split italians and others
-      score_ita <- score %>% 
-        filter(Player %in% italian_players) %>% 
-        mutate(Player = str_remove_all(Player, pattern = '#.*'))
-      
-      score_other <- score %>% 
-        filter(Player %in% other_players) %>% 
-        mutate(Player = str_remove_all(Player, pattern = '#.*'))
-      
-      # update all sheets of the spreadsheet
-      range_write(data = info,        ss = ss_id, sheet = "Info"   ,       reformat = FALSE)
-      range_write(data = lineups,     ss = ss_id, sheet = "Lineups",       reformat = FALSE)
-      range_write(data = score_ita,   ss = ss_id, sheet = "Score (ITA)",   reformat = FALSE)
-      range_write(data = score_other, ss = ss_id, sheet = "Score (Other)", reformat = FALSE)
-      
+        
+        # split italians and others
+        score_ita <- score %>% 
+          filter(tolower(Player) %in% tolower(italian_players)) %>% 
+          mutate(Player = str_remove_all(Player, pattern = '#.*'))
+        
+        score_other <- score %>% 
+          filter(tolower(Player) %in% tolower(other_players)) %>% 
+          filter(!tolower(Player) %in% tolower(italian_players)) %>% 
+          mutate(Player = str_remove_all(Player, pattern = '#.*'))
+        
+        # update all sheets of the spreadsheet -----------------------------------
+        
+        sheets_to_update <- list(
+          "Info" = info,
+          "Lineups" = lineups,
+          "Score (ITA)" = score_ita,
+          "Score (Other)" = score_other
+        )
+        
+        iwalk(
+          .x = sheets_to_update,
+          .f = ~range_write(
+            data = .x,
+            ss = ss_id,
+            sheet = .y,
+            reformat = FALSE
+          )
+        )
+
+      }
+
     }
     
   }
+  
+  print(Sys.time())
   
 }
 
