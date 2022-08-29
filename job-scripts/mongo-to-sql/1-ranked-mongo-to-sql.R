@@ -72,11 +72,21 @@ mongo_to_sql <- function(input_region){
   )
   
   # connect to MongoDB
-  m_db <- mongo(url = sprintf("mongodb://%s:%s@localhost:27017/admin", mongo_creds$uid, mongo_creds$pwd), collection = mongo_collection)
+  m_db <- mongo(
+    url = sprintf(
+      "mongodb://%s:%s@localhost:27017/admin", 
+      mongo_creds$uid, 
+      mongo_creds$pwd
+    ), 
+    collection = mongo_collection
+  )
   
   # get matches already in sql
   focus_time <- Sys.time()-days(7)
-  mongo_focus_time <- as.character(focus_time) %>% str_replace(pattern = " ", replacement = "T") %>% paste0(., ".000Z")
+  
+  mongo_focus_time <- as.character(focus_time) %>% 
+    str_replace(pattern = " ", replacement = "T") %>% 
+    paste0(., ".000Z")
   
   already_in_sql <- tbl(con, "ranked_match_metadata_30d") %>% 
     filter(region == input_region, game_start_time_utc >= focus_time) %>% 
@@ -87,7 +97,13 @@ mongo_to_sql <- function(input_region){
     paste0("\"", ., "\"")
   
   # read new data from MongoDB
-  data <- m_db$find(query = sprintf('{"info.game_type":"Ranked", "info.game_start_time_utc" : { "$gte" : "%s"}, "metadata.match_id" : { "$nin" : [ %s ] } }', mongo_focus_time, already_in_sql))
+  data <- m_db$find(
+    query = sprintf(
+      '{"info.game_type":"Ranked", "info.game_start_time_utc" : { "$gte" : "%s"}, "metadata.match_id" : { "$nin" : [ %s ] } }', 
+      mongo_focus_time, 
+      already_in_sql
+    )
+  )
   
   # name of the region-specific leaderboard table in MySQL
   tbl_leaderboard <- switch(
@@ -109,7 +125,13 @@ mongo_to_sql <- function(input_region){
     {if(nrow(.) > 0) pull(., puuid) else NA_character_}
   
   # old master leaderboard
-  old_master_players <- readRDS(paste0("/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_", input_region, ".rds"))
+  old_master_players <- readRDS(
+    paste0(
+      "/home/balco/dev/lor-meta-report/templates/master_leaderboards/old_", 
+      input_region, 
+      ".rds"
+    )
+  )
 
   # get PUUIDs of old master players (current plat+)
   plat_puuids <- tbl(con, 'utils_players') %>% 
@@ -121,15 +143,11 @@ mongo_to_sql <- function(input_region){
   
   if(nrow(data) == 0){
     
-    discordr::create_discord_connection(
-      webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-      username = sprintf("%s - Daily database update", toupper(input_region))
-    ) %>% 
-      discordr::send_webhook_message(
-        message = "No new matches found since the last update. Check for issues.", 
-        conn = .
-      )
-    
+    lorr::send_discord_message(
+      username = sprintf("%s - Daily database update", toupper(input_region)),
+      message = "No new matches found since the last update. Check for issues."
+    )
+
   } else {
     
     # unpack data & remove useless column
@@ -139,9 +157,18 @@ mongo_to_sql <- function(input_region){
     
     # fix date format
     data <- data %>% 
-      mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = ".000Z")) %>% 
-      mutate(game_start_time_utc = str_remove(game_start_time_utc, pattern = "Z")) %>% 
-      mutate(game_start_time_utc = str_replace(game_start_time_utc, pattern = "T", replacement = " "))
+      mutate(game_start_time_utc = str_remove(
+        game_start_time_utc, 
+        pattern = ".000Z"
+      )) %>% 
+      mutate(game_start_time_utc = str_remove(
+        game_start_time_utc, 
+        pattern = "Z"
+      )) %>% 
+      mutate(game_start_time_utc = str_replace(
+        game_start_time_utc, 
+        pattern = "T", replacement = " "
+      ))
     
     # unnest "players" column
     data <- data %>% 
@@ -161,21 +188,40 @@ mongo_to_sql <- function(input_region){
     
     # fix change in game version
     data <- data %>%
-      mutate(game_version = str_replace_all(game_version, pattern = '-', replacement = '_')) %>% 
-      mutate(game_version = str_replace_all(game_version, pattern = '_green_|_blue_', replacement = '_'))
+      mutate(game_version = str_replace_all(
+        game_version, 
+        pattern = '-', 
+        replacement = '_'
+      )) %>% 
+      mutate(game_version = str_replace_all(
+        game_version, 
+        pattern = '_green_|_blue_', 
+        replacement = '_'
+      ))
     
     # reshape (keeping only 1 row per deck)
     data <- data %>% 
       group_by(match_id, puuid, deck_code, game_outcome) %>%
       mutate(id = row_number()) %>% 
       ungroup() %>% 
-      pivot_wider(names_from = id, values_from = factions, names_prefix = "faction_")
+      pivot_wider(
+        names_from = id, 
+        values_from = factions, 
+        names_prefix = "faction_"
+      )
     
     # extract card codes from deck code
     data <- data %>% 
       distinct(deck_code) %>% 
-      mutate(cards_list = map(.x = deck_code, .f = lor_deckcodes$decode$decode_deck)) %>%
-      #mutate(cards_list = map(deck_code, lordecks::get_decklist_from_code, format = 'simple')) %>% 
+      mutate(cards_list = map(
+        .x = deck_code, 
+        .f = lor_deckcodes$decode$decode_deck
+      )) %>%
+      # mutate(cards_list = map(
+      #   deck_code, 
+      #   lordecks::get_decklist_from_code, 
+      #   format = 'simple'
+      # )) %>% 
       left_join(x = data, y = ., by = "deck_code")
     
     # get deck champions & archetype
@@ -183,14 +229,23 @@ mongo_to_sql <- function(input_region){
       distinct(across(c(starts_with("faction_"), cards_list))) %>% 
       mutate(
         cards = map_chr(cards_list, str_flatten, collapse = " "),
-        champs = str_extract_all(cards, pattern = paste0('[1-3]:', data_champs$cardCode, collapse = "|")),
+        champs = str_extract_all(
+          cards, 
+          pattern = paste0('[1-3]:', data_champs$cardCode, collapse = "|")
+        ),
         champs = map_chr(champs, str_flatten, collapse = " "),
         champs = str_remove_all(champs, pattern = paste0('[2-3]:|', paste0('1:', data_champs$cardCode, collapse = "|"))),
         champs = str_squish(champs),
         champs_factions = map_chr(champs, get_monoregion)
       ) %>% 
-      left_join(data_regions %>% select(faction_abb1 = abbreviation, nameRef), by = c("faction_1" = "nameRef")) %>% 
-      left_join(data_regions %>% select(faction_abb2 = abbreviation, nameRef), by = c("faction_2" = "nameRef")) %>%
+      left_join(
+        data_regions %>% select(faction_abb1 = abbreviation, nameRef), 
+        by = c("faction_1" = "nameRef")
+      ) %>% 
+      left_join(
+        data_regions %>% select(faction_abb2 = abbreviation, nameRef), 
+        by = c("faction_2" = "nameRef")
+      ) %>%
       unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
       mutate(
         factions = str_remove_all(factions, pattern = " NA|NA "),
@@ -199,15 +254,25 @@ mongo_to_sql <- function(input_region){
         champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
         champs_factions = paste0(champs_factions, "| "),
         factions_to_add = str_remove_all(factions, pattern = champs_factions),
-        archetype = if_else(no_fix, champs, sprintf("%s (%s)", champs, factions_to_add))
+        archetype = if_else(
+          no_fix, 
+          champs, 
+          sprintf("%s (%s)", champs, factions_to_add)
+        )
       ) %>% 
       left_join(data, ., by = c("faction_1", "faction_2", "cards_list")) %>% 
       select(-c(cards_list, champs_factions, factions, no_fix, factions_to_add))
     
     # make archetype name nicer
     data <- data %>% 
-      mutate(archetype = str_replace_all(archetype, set_names(data_champs$name, data_champs$cardCode))) %>% 
-      mutate(across(archetype, function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x))) 
+      mutate(archetype = str_replace_all(
+        archetype, 
+        set_names(data_champs$name, data_champs$cardCode)
+      )) %>% 
+      mutate(across(
+        archetype, 
+        function(x) ifelse(grepl("^( )", x), paste0("No Champions", x), x)
+      )) 
     
     # add player rank (master, plat+, any)
     data <- data %>% 
@@ -229,13 +294,45 @@ mongo_to_sql <- function(input_region){
     if(nrow(data) >  0){
       
       data %>%
-        group_by(match_id, game_start_time_utc, game_version, total_turn_count, region) %>%
-        summarise(match_rank = sum(player_rank, na.rm = TRUE), .groups = 'drop') %>%
-        DBI::dbWriteTable(conn = con, name = "ranked_match_metadata_30d", value = ., append = TRUE, row.names = FALSE)
+        group_by(
+          match_id, 
+          game_start_time_utc, 
+          game_version, 
+          total_turn_count, 
+          region
+        ) %>%
+        summarise(
+          match_rank = sum(player_rank, na.rm = TRUE), 
+          .groups = 'drop'
+        ) %>%
+        DBI::dbWriteTable(
+          conn = con, 
+          name = "ranked_match_metadata_30d", 
+          value = ., 
+          append = TRUE, 
+          row.names = FALSE
+        )
       
       data %>%
-        select(match_id, puuid, deck_code, game_outcome, order_of_play, faction_1, faction_2, cards, archetype, player_rank) %>%
-        DBI::dbWriteTable(conn = con, name = "ranked_match_info_30d", value = ., append = TRUE, row.names = FALSE)
+        select(
+          match_id, 
+          puuid, 
+          deck_code, 
+          game_outcome, 
+          order_of_play, 
+          faction_1, 
+          faction_2, 
+          cards, 
+          archetype, 
+          player_rank
+        ) %>%
+        DBI::dbWriteTable(
+          conn = con, 
+          name = "ranked_match_info_30d", 
+          value = ., 
+          append = TRUE, 
+          row.names = FALSE
+        )
       
     }
  
