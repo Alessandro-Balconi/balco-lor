@@ -8,6 +8,7 @@
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
 
 # import must have packages (others will be imported later)
+library(lorr)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -56,20 +57,23 @@ seasonal_match_time <- tibble::tribble(
 .api_key <- config::get("riot_api", file = "/home/balco/my_rconfig.yml")
 
 # connect to mysql db
-con <- lorr::create_db_con()
+con <- create_db_con()
 
 # API path
 base.url <- "https://europe.api.riotgames.com/" # americas, asia, europe, sea
 
+# path where queries are stored
+queries_path <- "/home/balco/dev/lor-meta-report/other-scripts/seasonal-open-rounds/queries/"
+
 # champions names / codes / regions from set JSONs
-data_champs <- lorr::get_cards_data(
+data_champs <- get_cards_data(
   select = c('name', 'cardCode', 'regionRefs', 'rarity')
 ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity)
 
 # regions names / abbreviations / logos from global JSON
-data_regions <- lorr::get_regions_data() %>% 
+data_regions <- get_regions_data() %>% 
   mutate(nameRef = case_when(
     nameRef == "PiltoverZaun" ~ "Piltover",
     nameRef == "Targon" ~ "MtTargon",
@@ -173,17 +177,13 @@ seasonal_match_time <- seasonal_match_time %>%
   )
 
 # list of already collected matches
-already_collected <- tbl(con, 'seasonal_match_data') %>% 
-  distinct(match_id) %>% 
+already_collected <- get_db_query(
+  query = paste0(queries_path, "already_collected.sql")
+) %>% 
   pull()
 
 # ladder ranks
-ladder_rank <- tbl(con, 'leaderboard_daily') %>% 
-  filter(region == 'europe', day == cutoff_day) %>%
-  mutate(name = tolower(name)) %>% 
-  group_by(name) %>%
-  summarise(ladder_rank = min(rank, na.rm = TRUE), .groups = 'drop') %>% 
-  collect() 
+ladder_rank <- get_db_query(query = paste0(queries_path, "ladder_rank.sql"))
 
 # keep fetching data while seasonal is running ---------------------------------
 while(Sys.time() < max(seasonal_match_time$end_time)){
@@ -206,7 +206,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
     .name_repair = make.names
   ))
   
-  other_players   <- pull(range_read(
+  other_players <- pull(range_read(
     ss = params_ss_id, 
     sheet = 'Other Players',
     col_names = FALSE, 
@@ -215,14 +215,13 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   
   # get puuids from player list ------------------------------------------------
   
-  df_players <- tbl(con, 'utils_players') %>% 
-    mutate(player = paste(gameName, tagLine, sep = "#")) %>% 
-    filter(
-      region == 'europe', 
-      player %in% c(italian_players, other_players)
-    ) %>% 
-    select(player, puuid) %>% 
-    collect()
+  # query to convert players into a MySQL filtering string
+  mysql_player_filter <- c(italian_players, other_players) %>% 
+    unique() %>% 
+    paste0(collapse = "', '")
+  
+  # get PUUIDs of players to collect
+  df_players <- get_db_query(query = paste0(queries_path, "df_players.sql")) 
   
   # players with missing puuid
   missing_puuids <- setdiff(
@@ -553,19 +552,12 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         # add overall score
         score <- score %>% 
           left_join(overall, by = 'player') %>% 
-          arrange(
-            desc(overall), 
-            ladder_rank, 
-            player
-          )
+          arrange(desc(overall), ladder_rank, player)
         
-        # replace NAs in ladder rank
+        # aesthetical fixes (replace NAs, prettify column names)
         score <- score %>% 
           mutate(ladder_rank = as.character(ladder_rank)) %>% 
-          replace_na(list(ladder_rank = '-'))
-        
-        # aesthetical fixes
-        score <- score %>% 
+          replace_na(list(ladder_rank = '-')) %>% 
           rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
           rename_with(str_to_title) %>% 
           rename("~Ladder Rank" = "Ladder Rank")
