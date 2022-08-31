@@ -60,8 +60,8 @@ CREATE TABLE tmp_ranked_patch_matchups AS (
     i.time_frame, 
     i.is_master,
     i.region,
-    1.0 * SUM(i.game_outcome = 'win') AS win,
-    1.0 * COUNT(*) AS n,
+    1.0 * SUM(i.game_outcome = 'win') + 0E0 AS win,
+    1.0 * COUNT(*) + 0E0 AS n,
     CASE
       WHEN i.archetype_1 = od.archetype_2 THEN 0.5
       ELSE (1.0 * SUM(game_outcome = 'win') / COUNT(*)) 

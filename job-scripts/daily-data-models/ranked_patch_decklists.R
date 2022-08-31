@@ -9,13 +9,13 @@ execute_db_query(
   bigint = 'numeric'
 )
 
-# clear data from main table
-execute_db_query(query = "TRUNCATE TABLE ranked_patch_decklists")
+# drop main table
+execute_db_query(query = "DROP TABLE ranked_patch_decklists")
 
-# insert updated data into main table
+# recreate main table with the updated data from the tmp table
 execute_db_query(
   query = "
-  INSERT INTO ranked_patch_decklists
+  CREATE TABLE ranked_patch_decklists AS
   SELECT * FROM tmp_ranked_patch_decklists
   "
 )

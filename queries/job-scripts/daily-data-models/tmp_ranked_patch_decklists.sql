@@ -36,9 +36,9 @@ CREATE TABLE tmp_ranked_patch_decklists AS (
     region,
     time_frame,
     is_master,
-    1.0 * COUNT(*) AS `match`,
-    1.0 * SUM(game_outcome = 'win') AS `win`,
-    (1.0 * SUM(game_outcome = 'win') / COUNT(*)) AS winrate
+    1.0 * COUNT(*) + 0E0 AS `match`,
+    1.0 * SUM(game_outcome = 'win') + 0E0 AS `win`,
+    (1.0 * SUM(game_outcome = 'win') / COUNT(*)) + 0E0 AS winrate
   FROM
     data
   GROUP BY
