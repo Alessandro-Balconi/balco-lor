@@ -2,14 +2,10 @@
 tryCatch({
   source("/home/balco/dev/lor-meta-report/job-scripts/api-calls/main-scripts/2-AMERICAS-mongo-scraper.R")
 }, error = function(e) {
-  discordr::create_discord_connection(
-    webhook = 'https://discord.com/api/webhooks/940930457070096444/qBSYJH0KETu992oDrdJBH20H1j4yPbBMZm2T3KNKZA5AU1LhRypZshQ0uKly9N_7jeGy',
-    username = 'LoR-Meta AMERICAS server'
-  ) %>% 
-    discordr::send_webhook_message(
-      message = sprintf("Restarting process... (%s)", e$message), 
-      conn = .
-    )
+  lorr::send_discord_message(
+    username = 'LoR-Meta AMERICAS server',
+    message = sprintf("Restarting process... (%s)", e$message)
+  )
   print(e)
 }, finally = {
   Sys.sleep(180)
