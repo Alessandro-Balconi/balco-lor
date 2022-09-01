@@ -195,8 +195,22 @@ get_country_emoji <- function(country){
   
 }
 
+n_master <- lorr::get_db_query(
+  query = "
+  SELECT
+    COUNT(*) AS n
+    FROM {leaderboard_region}
+  ",
+  leaderboard_region = switch(
+    update_region,
+    'europe' = 'leaderboard_eu',
+    'americas' = 'leaderboard_na',
+    'asia' = 'leaderboard_asia'
+  )
+)[[1]]
+
 # run this thing only if there are at least 10 people in master
-if(nrow(data) > 20){
+if(n_master > 20){
   
   # quick reshaping
   data <- data %>% 
