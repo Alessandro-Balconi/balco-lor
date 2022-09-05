@@ -1,6 +1,6 @@
 # google spreadshett update optimization ----
-suppressPackageStartupMessages(library(tidyverse)) # all purposes package
-suppressPackageStartupMessages(library(googlesheets4)) # manage google sheets API
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(googlesheets4))
 
 # create connection to MySQL database
 con <- lorr::create_db_con()
@@ -8,14 +8,24 @@ con <- lorr::create_db_con()
 update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_id){
   
   # ndays to use to check for patches
-  patch_ndays <- switch(as.character(input_time_frame), "0" = 1e3, "1" = 7, "2" = 3, "3" = 1)
+  patch_ndays <- switch(
+    as.character(input_time_frame), 
+    "0" = 1e3, 
+    "1" = 7, 
+    "2" = 3, 
+    "3" = 1
+  )
   
   # date to be considered
   last_n_days <- local(Sys.time()-lubridate::days(patch_ndays))
   
   # most played archetypes
   top <- tbl(con, 'ranked_patch_matchups') %>% 
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region)) %>% 
+    filter(
+      is_master == 1, 
+      time_frame >= local(input_time_frame), 
+      region == local(input_region)
+    ) %>% 
     group_by(archetype_1) %>%
     summarise(n = sum(n, na.rm = TRUE), .groups = "drop") %>% 
     arrange(desc(n)) %>% 
@@ -29,8 +39,15 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
   
   # collect matchups data
   x <- tbl(con, 'ranked_patch_matchups') %>%
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region)) %>% 
-    mutate(archetype_1 = if_else(archetype_1 %in% top, archetype_1, 'Other'), archetype_2 = if_else(archetype_2 %in% top, archetype_2, 'Other')) %>% 
+    filter(
+      is_master == 1, 
+      time_frame >= local(input_time_frame), 
+      region == local(input_region)
+    ) %>% 
+    mutate(
+      archetype_1 = if_else(archetype_1 %in% top, archetype_1, 'Other'), 
+      archetype_2 = if_else(archetype_2 %in% top, archetype_2, 'Other')
+    ) %>% 
     group_by(archetype_1, archetype_2) %>% 
     summarise(across(c(n, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
     mutate(winrate = win / n) %>% 
@@ -46,14 +63,23 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
   
   # total number of games played
   total_n <- tbl(con, 'ranked_patch_matchups') %>% 
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region)) %>% 
+    filter(
+      is_master == 1, 
+      time_frame >= local(input_time_frame), 
+      region == local(input_region)
+    ) %>% 
     summarise(full_n = sum(n, na.rm = TRUE)) %>% 
     collect() %>% 
     pull()
   
   # top decks info (playrate)
   y <- tbl(con, 'ranked_patch_matchups') %>% 
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region), archetype_1 %in% top) %>%
+    filter(
+      is_master == 1,
+      time_frame >= local(input_time_frame), 
+      region == local(input_region), 
+      archetype_1 %in% top
+    ) %>%
     group_by(archetype_1) %>% 
     summarise(games_played = sum(n, na.rm = TRUE), .groups = "drop") %>% 
     collect() %>% 
@@ -63,7 +89,12 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
   
   # top decks info (winrate)
   yy_wr <- tbl(con, 'ranked_patch_matchups') %>% 
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region), archetype_1 %in% top) %>%
+    filter(
+      is_master == 1, 
+      time_frame >= local(input_time_frame), 
+      region == local(input_region), 
+      archetype_1 %in% top
+    ) %>%
     group_by(archetype_1) %>% 
     summarise(across(c(n, win), sum, na.rm = TRUE)) %>% 
     mutate(winrate = win / n) %>% 
@@ -93,7 +124,11 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
     rename(" " = archetype_1)
   
   deck_codes <- tbl(con, 'ranked_patch_decklists') %>% 
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region)) %>% 
+    filter(
+      is_master == 1, 
+      time_frame >= local(input_time_frame), 
+      region == local(input_region)
+    ) %>% 
     count(deck_code, wt = match) %>% 
     filter(n >= 5) %>% 
     collect() %>% 
@@ -101,7 +136,12 @@ update_spreadsheet <- function(input_region, n, input_time_frame, is_master, ss_
   
   # extract data from MySQL
   list_df_master <- tbl(con, 'ranked_patch_decklists') %>% 
-    filter(is_master == 1, time_frame >= local(input_time_frame), region == local(input_region), deck_code %in% deck_codes) %>% 
+    filter(
+      is_master == 1, 
+      time_frame >= local(input_time_frame), 
+      region == local(input_region), 
+      deck_code %in% deck_codes
+    ) %>% 
     group_by(archetype, deck_code) %>% 
     summarise(across(c(match, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
     arrange(desc(match)) %>% 
@@ -129,12 +169,12 @@ update_spreadsheet(input_region = 'americas', n = 40, input_time_frame = 1, is_m
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
 info <- tibble(" " = c(update))
-with_gs4_quiet(sheet_write(data = info, ss = id_ss, sheet = "Data Information"))
+sheet_write(data = info, ss = id_ss, sheet = "Data Information")
 
 # names of the spreadsheet to update
 ss_names <- sheet_names(id_ss)
 
 # adjust spacing of columns in the spreadsheet
-walk(.x = ss_names, .f = ~range_autofit(ss = id_ss, sheet = ., dimension = "columns"))
+walk(.x = ss_names, .f = ~range_autofit(ss = id_ss, sheet = .))
 
 DBI::dbDisconnect(con)

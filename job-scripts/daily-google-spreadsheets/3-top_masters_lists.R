@@ -172,10 +172,7 @@ if(nrow(df) > 0){
   ss_names <- sheet_names(ss_id)
   
   # adjust spacing of columns in the spreadsheet
-  walk(
-    .x = ss_names, 
-    .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns")
-  )
+  walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = .))
   
 }
 

@@ -141,6 +141,6 @@ sheet_write(data = df4,  ss = ss_id, sheet = "Master - Last 7 Days"  )
 ss_names <- sheet_names(ss_id)
 
 # adjust spacing of columns in the spreadsheet
-walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
+walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = .))
 
 DBI::dbDisconnect(con)

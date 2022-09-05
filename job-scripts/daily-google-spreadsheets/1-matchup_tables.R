@@ -118,19 +118,16 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
     rename(" " = archetype_1)
   
   # update all sheets of the spreadsheet
-  with_gs4_quiet(range_write(data = x_wr,      ss = ss_id, sheet = "Winrate"))
-  with_gs4_quiet(range_write(data = x_n,       ss = ss_id, sheet = "Number of Games"))
-  with_gs4_quiet(range_write(data = deck_info, ss = ss_id, sheet = "Decks Information"))
-  with_gs4_quiet(range_write(data = info,      ss = ss_id, sheet = "Data Information"))
+  range_write(data = x_wr,      ss = ss_id, sheet = "Winrate")
+  range_write(data = x_n,       ss = ss_id, sheet = "Number of Games")
+  range_write(data = deck_info, ss = ss_id, sheet = "Decks Information")
+  range_write(data = info,      ss = ss_id, sheet = "Data Information")
   
   # names of the spreadsheet to update
   ss_names <- sheet_names(ss_id)
   
   # adjust spacing of columns in the spreadsheet
-  map(
-    .x = ss_names,
-    .f = ~with_gs4_quiet(range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
-  )
+  walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = .))
   
 }
 

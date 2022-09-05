@@ -53,12 +53,12 @@ sheet_write(data = list_df_master[['patch'  ]], ss = ss_id, sheet = 'Master - Cu
 # additional information
 update <- sprintf("Last update: %s UTC", Sys.time())
 info <- tibble(" " = c(update))
-with_gs4_quiet(sheet_write(data = info,   ss = ss_id, sheet = "Data Information"))
+sheet_write(data = info,   ss = ss_id, sheet = "Data Information")
 
 # names of the spreadsheet to update
 ss_names <- sheet_names(ss_id)
 
 # adjust spacing of columns in the spreadsheet
-walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = ., dimension = "columns"))
+walk(.x = ss_names, .f = ~range_autofit(ss = ss_id, sheet = .))
 
 DBI::dbDisconnect(con)
