@@ -28,7 +28,7 @@ gs4_auth(path = google_creds$auth_path)
 seasonal_day <- Sys.Date()
 
 # day of the ladder cutoff (if not known, leave Sys.Date()-3)
-cutoff_day <- Sys.Date()-2
+cutoff_day <- Sys.Date() - 2
 
 # google spreadsheet id
 ss_id <- "1WT75qcCYIN4Ni_DycrIVvgY-fWSlq2R2vmkw8_YmO24"
@@ -562,24 +562,6 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
           rename_with(str_to_title) %>% 
           rename("~Ladder Rank" = "Ladder Rank")
         
-        # spreadsheet info
-        info <- tibble(
-          " " = c(
-            sprintf("Ultimo Aggiornamento: %s UTC", Sys.time()), 
-            "Se volete esser aggiunti a questo foglio (o se trovate degli errori), contattatemi su discord (Balco#7067).",
-            "Nei casi in cui non sia possibile risalire al risultato tramite API (es. BYE, drop, match terminati 1-1 causa timer, 
-match mancanti per eventuali problemi alle API), fatemelo sapere e aggiungo.",
-            "Il rank in ladder è una stima dato che dalle API non è possibile recuperare l'informazione esatta al momento del cutoff",
-            '',
-            sprintf("Last Updated: %s UTC", Sys.time()),
-            "If you want to be added to the spreadsheet, contact me on Discord (Balco#7067).",
-            "In case of matches where it's not possible to get the winner from the api (e.g. missing matches due to BYEs,
-drops, matches ended 1-1 on timer), let me know the final result and I'll add it.",
-            "Ladder Rank is an estimate since from API is not possible to get the exact snapshot at cutoff time."
-            
-          )
-        )
-        
         # split italians and others
         score_ita <- score %>% 
           filter(tolower(Player) %in% tolower(italian_players)) %>% 
@@ -593,7 +575,6 @@ drops, matches ended 1-1 on timer), let me know the final result and I'll add it
         # update all sheets of the spreadsheet -----------------------------------
         
         sheets_to_update <- list(
-          "Info" = info,
           "Lineups" = lineups,
           "Score (ITA)" = score_ita,
           "Score (Other)" = score_other
