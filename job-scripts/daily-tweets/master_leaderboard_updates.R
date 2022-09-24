@@ -209,8 +209,19 @@ n_master <- lorr::get_db_query(
   )
 )[[1]]
 
+today_date <- switch(
+  update_region,
+  'europe' = Sys.Date() - 1,
+  'americas' = Sys.Date() - 1,
+  'asia' = Sys.Date()
+  
+)
+
 # run this thing only if there are at least 10 people in master
-if(n_master > 20){
+# amd if I managed to collect today's data
+if(max_date < today_date){
+  stop('Daily Leadeboard is not up to date...')
+} else if(n_master > 20){
   
   # quick reshaping
   data <- data %>% 
