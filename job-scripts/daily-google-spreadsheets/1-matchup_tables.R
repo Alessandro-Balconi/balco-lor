@@ -129,7 +129,7 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
     rename(" " = archetype_1)
   
   # additional information
-  update <- sprintf("Last update: %s UTC", Sys.time())
+  update <- sprintf("Last update: %s UTC", format(Sys.time(), '%d %b, %Y %X'))
   patches <- sprintf("Patch Analyzed: %s", patches)
   
   info <- tibble(
@@ -160,8 +160,17 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
   
   # for Flixus's SS do it a bit differently
   if(ss_id == '1Oe5-neLTksWlldS1lc1viiCwjKE_L3GbcQAC0T-l5N0'){
+
     range_write(data = x_wr,      ss = ss_id, sheet = "Matchup Table")
     range_write(data = x_n,       ss = ss_id, sheet = "Number of Games")
+    
+    range_write(
+      data = info, 
+      ss = ss_id, 
+      sheet = "important information",
+      range = "E3"
+    )
+    
   }
 
 }
