@@ -84,7 +84,7 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
     group_by(archetype_1) %>% 
     summarise(across(c(n, win), sum, na.rm = TRUE), .groups = 'drop') %>% 
     mutate(winrate = win / n) %>% 
-    select(archetype_1, n, winrate) %>% 
+    select(archetype_1, winrate) %>% 
     collect()
 
   # prepare matchup table ----
