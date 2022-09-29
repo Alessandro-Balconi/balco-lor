@@ -40,7 +40,8 @@ patches <- setdiff(patches, c(
   'live_3_07_',
   'live_3_08_',
   'live_3_09_',
-  'live_3_10_'
+  'live_3_10_',
+  'live_3_11_'
 ))
 
 query <- "
