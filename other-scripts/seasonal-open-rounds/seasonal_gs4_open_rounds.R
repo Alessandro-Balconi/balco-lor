@@ -574,7 +574,13 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         
         # update all sheets of the spreadsheet -----------------------------------
         
+        last_update <- Sys.time() %>% 
+          format(format = "%d %b, %X", tz = "CET") %>%
+          paste0("Last Update: ", ., " CET") %>%
+          tibble::as_tibble_col(column_name = " ")
+        
         sheets_to_update <- list(
+          "Info" = last_update,
           "Lineups" = lineups,
           "Score (ITA)" = score_ita,
           "Score (Other)" = score_other
