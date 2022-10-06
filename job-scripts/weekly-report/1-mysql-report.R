@@ -327,9 +327,8 @@ ggsave(
 
 p <- data %>% 
   select(week, starts_with("faction_")) %>% 
-  pivot_longer(cols = -week) %>% 
+  pivot_longer(cols = -week, names_to = character(), values_drop_na = TRUE) %>% 
   count(week, value, sort = TRUE) %>% 
-  drop_na() %>%
   left_join(games_by_week, by = "week") %>% 
   mutate(playrate = n / tot) %>%
   select(-c(n, tot)) %>% 
