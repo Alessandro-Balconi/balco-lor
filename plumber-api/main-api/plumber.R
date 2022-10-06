@@ -1,17 +1,19 @@
-library(dplyr)
-
 #* LoR-Meta Tier List
 #* @get /player/<region>/<name>
 function(region = '', name = '') {
   
-  # create connection to MySQL database
-  con <- lorr::create_db_con()
+  tag <- lorr::get_db_query(
+    "
+    SELECT
+      tagLine
+    FROM
+      utils_players
+    WHERE
+      region = '{region}'
+      AND gameName = '{URLdecode(name)}'
+  "
+  )[[1]]
   
-  tag <- tbl(con, 'utils_players') %>% 
-    filter(region == local(region), gameName == local(URLdecode(name))) %>% 
-    pull(tagLine)
-  
-  DBI::dbDisconnect(con)
     
   return(tag)
 
