@@ -15,7 +15,10 @@ suppressPackageStartupMessages(library(httr))      # http requests
 con <- lorr::create_db_con()
 
 # cards names / codes / rarity from set JSONs
-data_cards <- get_cards_data(select = c('rarity', 'name', 'cardCode')) %>%
+data_cards <- get_cards_data(
+  select = c('rarity', 'name', 'cardCode'),
+  use_latest = FALSE
+) %>%
   filter(nchar(cardCode) <= 8)
 
 # most recent day in the table (it means we have updated up to this point)

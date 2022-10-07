@@ -30,7 +30,8 @@ nice_region <- switch(
 
 # champions names / codes / images from set JSONs
 data_champs <- lorr::get_cards_data(
-  select = c('name', 'cardCode', 'rarity')
+  select = c('name', 'cardCode', 'rarity'),
+  use_latest = FALSE
 ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity) %>% 

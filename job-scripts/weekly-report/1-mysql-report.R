@@ -50,7 +50,8 @@ con <- lorr::create_db_con()
 
 # champions names / codes / images from set JSONs
 data_champs <- lorr::get_cards_data(
-  select = c("assets", "name", "cardCode", "rarity")
+  select = c("assets", "name", "cardCode", "rarity"),
+  use_latest = FALSE
   ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity) %>%

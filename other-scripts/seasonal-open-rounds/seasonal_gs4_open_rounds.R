@@ -67,7 +67,8 @@ queries_path <- "/home/balco/dev/lor-meta-report/other-scripts/seasonal-open-rou
 
 # champions names / codes / regions from set JSONs
 data_champs <- get_cards_data(
-  select = c('name', 'cardCode', 'regionRefs', 'rarity')
+  select = c('name', 'cardCode', 'regionRefs', 'rarity'),
+  use_latest = FALSE
 ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity)

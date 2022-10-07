@@ -74,7 +74,8 @@ data <- bind_rows('europe' = data_eu, 'americas' = data_na, 'asia' = data_as, .i
 
 # champions names / codes / regions from set JSONs
 data_champs <- lorr::get_cards_data(
-  select = c('name', 'cardCode', 'regionRefs', 'rarity')
+  select = c('name', 'cardCode', 'regionRefs', 'rarity'),
+  use_latest = FALSE
 ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity)
