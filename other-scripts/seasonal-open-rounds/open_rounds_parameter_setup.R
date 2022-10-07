@@ -45,7 +45,7 @@ range_delete(ss = params_ss_id, sheet = "Giocatori Italiani", range = "1")
 
 # top eu players names for cutoff day
 other_name <- tbl(con, 'leaderboard_daily') |> 
-  filter(region == "europe", day == cutoff_day, rank <= 75) |> 
+  filter(region == "europe", day == cutoff_day, rank <= 150) |> 
   pull(name)
 
 # extract gameName + tagLine for these players from my db
