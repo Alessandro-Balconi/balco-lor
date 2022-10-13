@@ -16,8 +16,7 @@ con <- lorr::create_db_con()
 
 # cards names / codes / rarity from set JSONs
 data_cards <- get_cards_data(
-  select = c('rarity', 'name', 'cardCode'),
-  use_latest = FALSE
+  select = c('rarity', 'name', 'cardCode')
 ) %>%
   filter(nchar(cardCode) <= 8)
 

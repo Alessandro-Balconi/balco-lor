@@ -39,8 +39,7 @@ get_top_masters <- function(region, prop = 0.1, add_region = TRUE){
 
 # champions names / codes / regions from set JSONs
 db_cards <- lorr::get_cards_data(
-  select = c("name", "cardCode"),
-  use_latest = FALSE
+  select = c("name", "cardCode")
 ) %>% 
   filter(nchar(cardCode) <= 8)
 

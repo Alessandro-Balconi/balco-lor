@@ -33,8 +33,7 @@ data <- lorr::get_cards_data(
     "levelupDescriptionRaw",
     "flavorText",
     "artistName"
-  ),
-  use_latest = FALSE
+  )
 )
 
 # flatten list columns, using "-" as a separator; also arrange by cardcode
