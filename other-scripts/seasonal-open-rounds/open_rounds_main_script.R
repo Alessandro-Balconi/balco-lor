@@ -6,6 +6,7 @@
 
 # PER IL PUNTO 4 CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
+# E CHE QUESTO FILE NON ESISTA: already_collected.rds
 
 # import must have packages (others will be imported later)
 library(lorr)
@@ -67,8 +68,7 @@ queries_path <- "/home/balco/dev/lor-meta-report/other-scripts/seasonal-open-rou
 
 # champions names / codes / regions from set JSONs
 data_champs <- get_cards_data(
-  select = c('name', 'cardCode', 'regionRefs', 'rarity'),
-  use_latest = FALSE
+  select = c('name', 'cardCode', 'regionRefs', 'rarity')
 ) %>% 
   filter(rarity == "Champion", nchar(cardCode) <= 8) %>% 
   select(-rarity)
@@ -178,10 +178,16 @@ seasonal_match_time <- seasonal_match_time %>%
   )
 
 # list of already collected matches
-already_collected <- get_db_query(
-  query = paste0(queries_path, "already_collected.sql")
-) %>% 
-  pull()
+if(file.exists("/home/balco/dev/lor-meta-report/other-scripts/seasonal-open-rounds/already_collected.rds")){
+  already_collected <- readRDS(
+    "/home/balco/dev/lor-meta-report/other-scripts/seasonal-open-rounds/already_collected.rds"
+  )
+} else {
+  already_collected <- get_db_query(
+    query = paste0(queries_path, "already_collected.sql")
+  ) %>%
+    pull()
+}
 
 # ladder ranks
 ladder_rank <- get_db_query(query = paste0(queries_path, "ladder_rank.sql"))
@@ -285,8 +291,7 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
   # list of most recent 20 matches of each player
   matches_list <- get_match_id %>% 
     map(content) %>% 
-    map(unlist) %>% 
-    as_tibble() %>% 
+    map_dfr(unlist) %>% 
     pivot_longer(
       cols = everything(), 
       names_to = "player", 
@@ -423,6 +428,12 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
       # list of already collected matches
       already_collected <- c(already_collected, new_matches)
       
+      # also save to RDS so we avoid recollecting them on restart
+      saveRDS(
+        object = already_collected, 
+        file = '/home/balco/dev/lor-meta-report/other-scripts/seasonal-open-rounds/already_collected.rds'
+      )
+      
       # update gs4 -------------------------------------------------------------
       
       # pull seasonal data from db
@@ -435,170 +446,174 @@ while(Sys.time() < max(seasonal_match_time$end_time)){
         select(time, deck_code, game_outcome, archetype, puuid) %>% 
         collect()
       
-      # use player names
-      gs4_data <- gs4_data %>% 
-        inner_join(df_players, by = 'puuid') %>% 
-        select(-puuid)
-      
-      # add round number to data
-      gs4_data <- gs4_data %>% 
-        mutate(round = map_dbl(time, get_match_round))
-      
-      # player lineups
-      lineups <- gs4_data %>% 
-        distinct(player, archetype, deck_code) %>% 
-        mutate(player = str_remove_all(player, pattern = '#.*')) %>%
-        rename(deck = archetype, code = deck_code) %>% 
-        with_groups(.groups = player, .f = mutate, id = row_number()) %>% 
-        pivot_wider(
-          names_from = id, 
-          values_from = c(deck, code), 
-          values_fill = ''
-        ) %>% 
-        {if("deck_1" %in% colnames(.)) . else mutate(., deck_1 = '')} %>% 
-        {if("deck_2" %in% colnames(.)) . else mutate(., deck_2 = '')} %>% 
-        {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} %>% 
-        {if("code_1" %in% colnames(.)) . else mutate(., code_1 = '')} %>% 
-        {if("code_2" %in% colnames(.)) . else mutate(., code_2 = '')} %>% 
-        {if("code_3" %in% colnames(.)) . else mutate(., code_3 = '')}
-      
-      # aesthetical fixes
-      lineups <- lineups %>%
-        arrange(player) %>% 
-        rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
-        rename_with(str_to_title)
-
-      # get matches data
-      score <- gs4_data %>% 
-        count(player, round, game_outcome) %>% 
-        pivot_wider(
-          names_from = game_outcome, 
-          values_from = n, 
-          values_fill = 0
-        ) %>% 
-        {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
-        {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
-        {if("tie"  %in% colnames(.)) select(., -tie) else .}
-      
-      # add all rounds info
-      score <- crossing(
-        player = unique(score$player), 
-        round = seq(1:nrow(seasonal_match_time))
-      ) %>% 
-        left_join(score, by = c('player', 'round'))
-      
-      # this will overwrite match results where needed
-      overwrite_score <- range_read(
-        ss = params_ss_id, 
-        sheet = 'Match Results', 
-        col_names = TRUE, 
-        .name_repair = tolower
-      )
-      
-      if(nrow(overwrite_score) > 0){
+      if(nrow(gs4_data) > 0){
         
-        overwrite_score <- overwrite_score %>% 
-          rename(win_new = win, loss_new = loss) %>% 
-          mutate(player = tolower(player))
+        # use player names
+        gs4_data <- gs4_data %>% 
+          inner_join(df_players, by = 'puuid') %>% 
+          select(-puuid)
         
-        score <- score %>% 
-          mutate(player_lower = tolower(player)) %>% 
-          left_join(
-            overwrite_score, 
-            by = c("player_lower" = 'player', 'round')
-          ) %>% 
-          mutate(
-            win = coalesce(win_new, win), 
-            loss = coalesce(loss_new, loss)
-          ) %>% 
-          select(-c(player_lower, win_new, loss_new))
+        # add round number to data
+        gs4_data <- gs4_data %>% 
+          mutate(round = map_dbl(time, get_match_round))
         
-      }
-      
-      # get overall score for each player
-      overall <- score %>% 
-        replace_na(list(win = 0, loss = 0)) %>% 
-        mutate(
-          has_won = ifelse(win > loss & win >= 2, 1, 0), 
-          has_lost = ifelse(loss > win & loss >= 2, 1, 0)
-        ) %>% 
-        group_by(player) %>% 
-        summarise(
-          wins = sum(has_won, na.rm = TRUE), 
-          losses = sum(has_lost, na.rm = TRUE), 
-          .groups = 'drop'
-        ) %>% 
-        unite(col = overall, wins, losses, sep = "-")
-      
-      if(nrow(score) > 0){
-        
-        # complete data and reshape
-        score <- score %>% 
-          unite(col = score, c(win, loss), sep = "-") %>% 
-          mutate(score = ifelse(score == "NA-NA", '-', score)) %>% 
+        # player lineups
+        lineups <- gs4_data %>% 
+          distinct(player, archetype, deck_code) %>% 
+          mutate(player = str_remove_all(player, pattern = '#.*')) %>%
+          rename(deck = archetype, code = deck_code) %>% 
+          with_groups(.groups = player, .f = mutate, id = row_number()) %>% 
           pivot_wider(
-            names_from = round, 
-            values_from = score, 
-            values_fill = "-", 
-            names_prefix = "round_"
-          )
+            names_from = id, 
+            values_from = c(deck, code), 
+            values_fill = ''
+          ) %>% 
+          {if("deck_1" %in% colnames(.)) . else mutate(., deck_1 = '')} %>% 
+          {if("deck_2" %in% colnames(.)) . else mutate(., deck_2 = '')} %>% 
+          {if("deck_3" %in% colnames(.)) . else mutate(., deck_3 = '')} %>% 
+          {if("code_1" %in% colnames(.)) . else mutate(., code_1 = '')} %>% 
+          {if("code_2" %in% colnames(.)) . else mutate(., code_2 = '')} %>% 
+          {if("code_3" %in% colnames(.)) . else mutate(., code_3 = '')}
         
-        # add ladder rank
-        score <- score %>% 
-          mutate(name = str_remove(tolower(player), pattern = "#.*")) %>% 
-          left_join(ladder_rank, by = 'name') %>% 
-          relocate(ladder_rank, .after = player) %>% 
-          select(-name)
-        
-        # add overall score
-        score <- score %>% 
-          left_join(overall, by = 'player') %>% 
-          arrange(desc(overall), ladder_rank, player)
-        
-        # aesthetical fixes (replace NAs, prettify column names)
-        score <- score %>% 
-          mutate(ladder_rank = as.character(ladder_rank)) %>% 
-          replace_na(list(ladder_rank = '-')) %>% 
+        # aesthetical fixes
+        lineups <- lineups %>%
+          arrange(player) %>% 
           rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
-          rename_with(str_to_title) %>% 
-          rename("~Ladder Rank" = "Ladder Rank")
+          rename_with(str_to_title)
         
-        # split italians and others
-        score_ita <- score %>% 
-          filter(tolower(Player) %in% tolower(italian_players)) %>% 
-          mutate(Player = str_remove_all(Player, pattern = '#.*'))
+        # get matches data
+        score <- gs4_data %>% 
+          count(player, round, game_outcome) %>% 
+          pivot_wider(
+            names_from = game_outcome, 
+            values_from = n, 
+            values_fill = 0
+          ) %>% 
+          {if("win"  %in% colnames(.)) . else mutate(., win  = 0)} %>% 
+          {if("loss" %in% colnames(.)) . else mutate(., loss = 0)} %>% 
+          {if("tie"  %in% colnames(.)) select(., -tie) else .}
         
-        score_other <- score %>% 
-          filter(tolower(Player) %in% tolower(other_players)) %>% 
-          filter(!tolower(Player) %in% tolower(italian_players)) %>% 
-          mutate(Player = str_remove_all(Player, pattern = '#.*'))
+        # add all rounds info
+        score <- crossing(
+          player = unique(score$player), 
+          round = seq(1:nrow(seasonal_match_time))
+        ) %>% 
+          left_join(score, by = c('player', 'round'))
         
-        # update all sheets of the spreadsheet -----------------------------------
-        
-        last_update <- Sys.time() %>% 
-          format(format = "%d %b, %X", tz = "CET") %>%
-          paste0("Last Update: ", ., " CET") %>%
-          tibble::as_tibble_col(column_name = " ")
-        
-        sheets_to_update <- list(
-          "Info" = last_update,
-          "Lineups" = lineups,
-          "Score (ITA)" = score_ita,
-          "Score (Other)" = score_other
+        # this will overwrite match results where needed
+        overwrite_score <- range_read(
+          ss = params_ss_id, 
+          sheet = 'Match Results', 
+          col_names = TRUE, 
+          .name_repair = tolower
         )
         
-        iwalk(
-          .x = sheets_to_update,
-          .f = ~range_write(
-            data = .x,
-            ss = ss_id,
-            sheet = .y,
-            reformat = FALSE
+        if(nrow(overwrite_score) > 0){
+          
+          overwrite_score <- overwrite_score %>% 
+            rename(win_new = win, loss_new = loss) %>% 
+            mutate(player = tolower(player))
+          
+          score <- score %>% 
+            mutate(player_lower = tolower(player)) %>% 
+            left_join(
+              overwrite_score, 
+              by = c("player_lower" = 'player', 'round')
+            ) %>% 
+            mutate(
+              win = coalesce(win_new, win), 
+              loss = coalesce(loss_new, loss)
+            ) %>% 
+            select(-c(player_lower, win_new, loss_new))
+          
+        }
+        
+        # get overall score for each player
+        overall <- score %>% 
+          replace_na(list(win = 0, loss = 0)) %>% 
+          mutate(
+            has_won = ifelse(win > loss & win >= 2, 1, 0), 
+            has_lost = ifelse(loss > win & loss >= 2, 1, 0)
+          ) %>% 
+          group_by(player) %>% 
+          summarise(
+            wins = sum(has_won, na.rm = TRUE), 
+            losses = sum(has_lost, na.rm = TRUE), 
+            .groups = 'drop'
+          ) %>% 
+          unite(col = overall, wins, losses, sep = "-")
+        
+        if(nrow(score) > 0){
+          
+          # complete data and reshape
+          score <- score %>% 
+            unite(col = score, c(win, loss), sep = "-") %>% 
+            mutate(score = ifelse(score == "NA-NA", '-', score)) %>% 
+            pivot_wider(
+              names_from = round, 
+              values_from = score, 
+              values_fill = "-", 
+              names_prefix = "round_"
+            )
+          
+          # add ladder rank
+          score <- score %>% 
+            mutate(name = str_remove(tolower(player), pattern = "#.*")) %>% 
+            left_join(ladder_rank, by = 'name') %>% 
+            relocate(ladder_rank, .after = player) %>% 
+            select(-name)
+          
+          # add overall score
+          score <- score %>% 
+            left_join(overall, by = 'player') %>% 
+            arrange(desc(overall), ladder_rank, player)
+          
+          # aesthetical fixes (replace NAs, prettify column names)
+          score <- score %>% 
+            mutate(ladder_rank = as.character(ladder_rank)) %>% 
+            replace_na(list(ladder_rank = '-')) %>% 
+            rename_with(str_replace_all, pattern = "_", replacement = " ") %>% 
+            rename_with(str_to_title) %>% 
+            rename("~Ladder Rank" = "Ladder Rank")
+          
+          # split italians and others
+          score_ita <- score %>% 
+            filter(tolower(Player) %in% tolower(italian_players)) %>% 
+            mutate(Player = str_remove_all(Player, pattern = '#.*'))
+          
+          score_other <- score %>% 
+            filter(tolower(Player) %in% tolower(other_players)) %>% 
+            filter(!tolower(Player) %in% tolower(italian_players)) %>% 
+            mutate(Player = str_remove_all(Player, pattern = '#.*'))
+          
+          # update all sheets of the spreadsheet -----------------------------------
+          
+          last_update <- Sys.time() %>% 
+            format(format = "%d %b, %X", tz = "CET") %>%
+            paste0("Last Update: ", ., " CET") %>%
+            tibble::as_tibble_col(column_name = " ")
+          
+          sheets_to_update <- list(
+            "Info" = last_update,
+            "Lineups" = lineups,
+            "Score (ITA)" = score_ita,
+            "Score (Other)" = score_other
           )
-        )
-
+          
+          iwalk(
+            .x = sheets_to_update,
+            .f = ~range_write(
+              data = .x,
+              ss = ss_id,
+              sheet = .y,
+              reformat = FALSE
+            )
+          )
+          
+        }
+        
       }
-
+      
     }
     
   }
