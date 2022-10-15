@@ -154,7 +154,7 @@ while(TRUE){
     match_list <- lapply(
       X = matches,
       FUN = function(x){
-        Sys.sleep(1)
+        Sys.sleep(0.5)
         GET(
           base.url, 
           path = paste0("lor/match/v1/matches/", x), 
@@ -217,8 +217,10 @@ while(TRUE){
       # extract content in JSON format
       new_players <- map(get_new_players, content)
       
-      # for each player, check if we already have it or not; if we don't, add it. else update its info
-      map(.x = new_players, .f = add_player_to_db)
+      # for each player, check if we already have it or not; 
+      # if we don't, add it. else update its info
+      # THIS IS WRAPPED IN A TRY STATEMENT CAUSE SOMETIMES IT FAILS
+      try(walk(.x = new_players, .f = add_player_to_db))
       
     }
     
@@ -247,6 +249,7 @@ while(TRUE){
   }
   
   # wait to prevent too many calls
-  if(get_matches$status_code != 200 | length(matches) < 3){ Sys.sleep(2) } else { Sys.sleep(1) }
+  #if(get_matches$status_code != 200 | length(matches) < 3){ Sys.sleep(2) } else { Sys.sleep(1) }
+  Sys.sleep(0.1)
   
 }
