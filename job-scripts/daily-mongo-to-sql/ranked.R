@@ -82,7 +82,7 @@ mongo_to_sql <- function(input_region){
   )
   
   # get matches already in sql
-  focus_time <- Sys.time()-days(7)
+  focus_time <- Sys.time()-days(3)
   
   mongo_focus_time <- as.character(focus_time) %>% 
     str_replace(pattern = " ", replacement = "T") %>% 
