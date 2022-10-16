@@ -43,16 +43,22 @@ add_player_to_db <- function(player, region = 'asia'){
   if(!is.null(player$puuid)){
     
     # run update
-    DBI::dbExecute(
-      conn = con,
-      statement = sprintf(
-        "REPLACE INTO utils_players
+    update_user <- try(
+      DBI::dbExecute(
+        conn = con,
+        statement = sprintf(
+          "REPLACE INTO utils_players
         (puuid, gameName, tagLine, region)
         VALUES
         (%s);",
         paste0("'", paste0(c(player$puuid, player$gameName, player$tagLine, region), collapse = "', '"), "'")
+        )
       )
     )
+    
+    if('try-error' %in% class(update_user)){ 
+      cat(sprintf('Error updating user: %s', player$puuid))
+    }
 
   }
   
@@ -219,8 +225,7 @@ while(TRUE){
       
       # for each player, check if we already have it or not; 
       # if we don't, add it. else update its info
-      # THIS IS WRAPPED IN A TRY STATEMENT CAUSE SOMETIMES IT FAILS
-      try(walk(.x = new_players, .f = add_player_to_db))
+      walk(.x = new_players, .f = add_player_to_db)
       
     }
     
