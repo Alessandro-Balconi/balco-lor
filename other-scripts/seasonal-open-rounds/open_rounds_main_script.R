@@ -1,9 +1,8 @@
 # HOW TO USE THIS SCRIPT:
 # 1. update the parameters right below these comments [ss_id, seasonal_day, cutoff_day]
-# 2. GIVE TO THE AUTOUPDATER EDIT PERMISSIONS ON THE SPREADSHEET !
-# 3. THE DAY OF THE SEASONAL (BEFORE 11 AM): start a local job that runs the trycatch wrapper job
-# 4. SLOW DOWN API CALLS IN THE LAUNCH_EUROPE.R SCRIPT (optional but do it: 0.1 -> 0.2 and restart)
-# 5. REMOVE ROWS FROM FB AT THE END OF SEASONAL (SEE CODE BELOW)
+# 2. THE DAY OF THE SEASONAL (BEFORE 11 AM): start a local job that runs the trycatch wrapper job
+# 3. SLOW DOWN API CALLS IN THE LAUNCH_EUROPE.R SCRIPT (optional but do it: 0.1 -> 0.2 and restart)
+# 4. REMOVE ROWS FROM FB AT THE END OF SEASONAL (SEE CODE BELOW)
 
 # PER IL PUNTO 5 CONTROLLARE CHE QUESTA TABELLA SIA VUOTA
 #DBI::dbExecute(conn = con, statement = "DELETE FROM seasonal_match_data;")
