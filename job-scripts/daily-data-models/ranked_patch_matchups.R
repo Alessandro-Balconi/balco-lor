@@ -1,5 +1,5 @@
 # This script updates the "ranked_patch_matchups" table
-library(lorr)
+suppressPackageStartupMessages(library(lorr))
 
 # fetch updated data and store in temporary table
 execute_db_query(
@@ -9,13 +9,13 @@ execute_db_query(
   bigint = 'numeric'
 )
 
-# drop main table
+drop main table
 execute_db_query(query = "DROP TABLE ranked_patch_matchups")
 
 # recreate main table as tmp table
 execute_db_query(
   query = "
-  CREATE TABLE ranked_patch_matchups AS 
+  CREATE TABLE ranked_patch_matchups AS
   SELECT * FROM tmp_ranked_patch_matchups
   "
 )

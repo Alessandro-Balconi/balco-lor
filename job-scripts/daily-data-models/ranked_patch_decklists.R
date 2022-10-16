@@ -1,5 +1,5 @@
 # This script updates the "ranked_patch_decklists" table
-library(lorr)
+suppressPackageStartupMessages(library(lorr))
 
 # fetch updated data and store in temporary table
 execute_db_query(
