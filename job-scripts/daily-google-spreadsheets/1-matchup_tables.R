@@ -11,25 +11,27 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
   patch_ndays <- switch(as.character(time_frame), "0" = 1e3, "1" = 7, "2" = 3)
   
   # patches from which data is analyzed
-  patches <- tbl(con, "utils_patch_history") %>%
-    collect() %>% 
-    arrange(desc(release_date)) %>%
-    mutate(release_date = lag(release_date)) %>% 
-    filter(is.na(release_date) | release_date >= Sys.Date() - lubridate::days(patch_ndays)) %>% 
-    mutate(new_change = lag(change)) %>% 
-    replace_na(list(new_change = 0)) %>% 
-    mutate(cum_change = cumsum(new_change)) %>% 
-    filter(cum_change == min(cum_change)) %>%
-    arrange(release_date) %>% 
-    pull(patch) %>% 
-    paste0(collapse = ", ")
+  patches <- lorr::get_current_patch(sep = ", ")
   
   # most played archetypes
-  top <- tbl(con, "ranked_patch_matchups") %>% 
-    filter(time_frame >= local(time_frame), is_master >= local(is_master)) %>% 
-    count(archetype_1, wt = n, sort = TRUE) %>% 
-    head(n = local(n)) %>% 
-    pull(archetype_1)
+  top <- lorr::get_db_query(
+    query = "
+    SELECT
+      archetype,
+      SUM(`match`) AS `match`
+    FROM
+      ranked_patch_archetypes
+    WHERE
+      time_frame >= {time_frame}
+      AND is_master >= {is_master}
+    GROUP BY
+      archetype
+    ORDER BY
+      `match` DESC
+    LIMIT {n}
+  "
+  ) |> 
+    pull(archetype)
   
   # same but wrapped (nicer looking in spreadsheets)
   top_wrap <- str_wrap(top, width = 8)
@@ -49,8 +51,15 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
   
   # adjust winrate (so that the sum is 100%)
   x <- x %>% 
-    left_join(x, by = c('archetype_1' = 'archetype_2', "archetype_2" = "archetype_1")) %>% 
-    mutate(across(starts_with("winrate."), .fns = list(function(x) x / (winrate.x + winrate.y)), .names = "{col}_adj")) %>% 
+    left_join(x, by = c(
+      'archetype_1' = 'archetype_2', 
+      "archetype_2" = "archetype_1"
+    )) %>% 
+    mutate(across(
+      .cols = starts_with("winrate."), 
+      .fns = list(function(x) x / (winrate.x + winrate.y)), 
+      .names = "{col}_adj"
+    )) %>% 
     mutate(n_adj = round((n.x + n.y) / 2, digits = 0)) %>% 
     select(archetype_1, archetype_2, winrate = winrate.x_adj, n = n_adj)
   
@@ -105,7 +114,10 @@ update_spreadsheet <- function(n, time_frame, is_master, ss_id){
   } else {
     
     x <- x %>% 
-      mutate(across(c(winrate, n), function(x) ifelse(archetype_1 == archetype_2, NA, x))) 
+      mutate(across(
+        .cols = c(winrate, n), 
+        .fns = function(x) ifelse(archetype_1 == archetype_2, NA, x)
+      )) 
     
   }
 
@@ -181,7 +193,6 @@ update_spreadsheet(n = 40, time_frame = 0, is_master = 0, ss_id = "1b2sgPXcgV7zT
 update_spreadsheet(n = 60, time_frame = 0, is_master = 0, ss_id = "1Y30Rng9sA7WVZLjRDs2OBnpJGkHLgtjDMdY8mjkKBZg")
 update_spreadsheet(n = 40, time_frame = 1, is_master = 0, ss_id = "1K_V50pebtLj9nM-lKcFZ7louo27VBVL4zLY9AVRdMnE")
 update_spreadsheet(n = 40, time_frame = 2, is_master = 0, ss_id = "1BHK_ZsZadjD7WhqmmKXReBcWe_Rok9UkqE8y_ukTdmc")
-update_spreadsheet(n = 25, time_frame = 0, is_master = 1, ss_id = "1v2OtHSvmhYIvtUvCW7whvkuU1NIQa0teFyDtVxr-rnM")
 update_spreadsheet(n = 40, time_frame = 0, is_master = 1, ss_id = "1x2RhoT45Wdow6g8C3ZuatrxniqLrwjIOk4yn240G0GA")
 
 # this updates the spreadsheet of the Flixus Guy
