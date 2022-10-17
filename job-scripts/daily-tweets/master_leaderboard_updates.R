@@ -80,11 +80,17 @@ data_meta <- tbl(con, 'ranked_patch_archetypes') %>%
 
 # most played version of the deck (for aggregated archetypes)
 most_played_version <- tbl(con, 'ranked_match_metadata_30d') %>% 
-  filter(region == update_region, game_start_time_utc >= local(Sys.time()-lubridate::days(1))) %>% 
+  filter(
+    region == update_region, 
+    game_start_time_utc >= local(Sys.time()-lubridate::days(1))
+  ) %>% 
   left_join(tbl(con, 'ranked_match_info_30d'), by = 'match_id') %>% 
   filter(player_rank == 2) %>% 
   count(archetype, sort = TRUE) %>%
-  left_join(tbl(con, 'utils_archetype_aggregation'), by = c('archetype' = 'old_name')) %>% 
+  left_join(
+    tbl(con, 'utils_archetype_aggregation'), 
+    by = c('archetype' = 'old_name')
+  ) %>% 
   mutate(new_name = coalesce(new_name, archetype)) %>% 
   filter(new_name %in% local(data_meta$archetype)) %>% 
   group_by(new_name) %>% 
@@ -108,7 +114,11 @@ make_tweet <- function(token, status, as_reply = FALSE){
   
   # make tweet
   suppressMessages(
-    post_tweet(token = token, status = status, in_reply_to_status_id = reply_id)
+    post_tweet(
+      token = token, 
+      status = status, 
+      in_reply_to_status_id = reply_id
+    )
   )
 
 }
@@ -128,7 +138,11 @@ get_country <- function(name, shard){
   # manual fix for asia / apac shard
   if(shard == 'asia'){ shard <- 'apac' }
   
-  get_call <- sprintf("https://runeterra.ar/Users/get/country/%s/%s", shard, name) %>% 
+  get_call <- sprintf(
+    "https://runeterra.ar/Users/get/country/%s/%s", 
+    shard, 
+    name
+  ) %>% 
     utils::URLencode() %>% 
     get_slowly()
   
@@ -260,13 +274,20 @@ if(max_date < today_date){
   data_top3 <- tbl(con, 'ranked_match_info_30d') %>% 
     filter(puuid %in% local(top3_puuids$puuid)) %>% 
     left_join(tbl(con, 'ranked_match_metadata_30d'), by = 'match_id') %>% 
-    filter(region == update_region, game_start_time_utc >= local(Sys.time()-lubridate::days(1))) %>% 
+    filter(
+      region == update_region, 
+      game_start_time_utc >= local(Sys.time()-lubridate::days(1))
+    ) %>% 
     count(puuid, archetype, deck_code, game_outcome) %>% 
     collect()
   
   deck_top3 <- data_top3 %>% 
     left_join(top3_puuids, by = 'puuid') %>%
-    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+    pivot_wider(
+      names_from = game_outcome, 
+      values_from = n, 
+      values_fill = 0
+    ) %>% 
     {if('tie' %in% colnames(.)) . else mutate(., tie = 0)} %>% 
     mutate(match = win + loss + tie) %>% 
     group_by(gameName, archetype, deck_code) %>% 
@@ -300,12 +321,19 @@ if(max_date < today_date){
       TRUE ~ as.character(id)
     )) %>% 
     split(.$tweet) %>% 
-    map(mutate, string = paste0(id, '. ', name, ' ', emoji, ' [+', lp_diff, ']')) %>% 
+    map(
+      .f = mutate, 
+      string = paste0(id, '. ', name, ' ', emoji, ' [+', lp_diff, ']')
+    ) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
   # for each tweet, get previous id and post it as an answer
-  tweet_2_header <- sprintf('%s - %s \n #LoR TOP 20 Master Players that Gained more LP \n\n', nice_region, format(max_date, '%d %B, %Y'))
+  tweet_2_header <- sprintf(
+    '%s - %s \n #LoR TOP 20 Master Players that Gained more LP \n\n', 
+    nice_region, 
+    format(max_date, '%d %B, %Y')
+  )
   
   # post 1st tweet
   suppressMessages(
@@ -316,7 +344,11 @@ if(max_date < today_date){
   if(length(data_2) > 1){
     walk(
       .x = 2:length(data_2), 
-      .f = ~make_tweet(token = token, status = paste0(tweet_2_header, data_2[.]), as_reply = TRUE)
+      .f = ~make_tweet(
+        token = token, 
+        status = paste0(tweet_2_header, data_2[.]), 
+        as_reply = TRUE
+      )
     ) 
   }
   
@@ -357,13 +389,20 @@ if(max_date < today_date){
   data_bot3 <- tbl(con, 'ranked_match_info_30d') %>% 
     filter(puuid %in% local(bot3_puuids$puuid)) %>% 
     left_join(tbl(con, 'ranked_match_metadata_30d'), by = 'match_id') %>% 
-    filter(region == update_region, game_start_time_utc >= local(Sys.time()-lubridate::days(1))) %>% 
+    filter(
+      region == update_region, 
+      game_start_time_utc >= local(Sys.time()-lubridate::days(1))
+    ) %>% 
     count(puuid, archetype, deck_code, game_outcome) %>% 
     collect()
   
   deck_bot3 <- data_bot3 %>% 
     left_join(bot3_puuids, by = 'puuid') %>%
-    pivot_wider(names_from = game_outcome, values_from = n, values_fill = 0) %>% 
+    pivot_wider(
+      names_from = game_outcome, 
+      values_from = n, 
+      values_fill = 0
+    ) %>% 
     {if('tie' %in% colnames(.)) . else mutate(., tie = 0)} %>% 
     mutate(match = win + loss + tie) %>% 
     group_by(gameName, archetype, deck_code) %>% 
@@ -381,8 +420,8 @@ if(max_date < today_date){
     map(mutate, string = paste0(
       'Most played deck by ', gameName, 
       ' to lose ', lp_diff, ' LP: \n\n',
-      deck_code, '\n\n',
-      archetype, ' - N: ', match, ' - WR: ', scales::percent(wr, accuracy = .1)
+      deck_code, '\n\n', archetype, 
+      ' - N: ', match, ' - WR: ', scales::percent(wr, accuracy = .1)
     )) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
@@ -397,12 +436,19 @@ if(max_date < today_date){
       TRUE ~ as.character(id)
     )) %>% 
     split(.$tweet) %>% 
-    map(mutate, string = paste0(id, '. ', name, ' ', emoji, ' [', lp_diff, ']')) %>% 
+    map(
+      .f = mutate, 
+      string = paste0(id, '. ', name, ' ', emoji, ' [', lp_diff, ']')
+    ) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
   # for each tweet, get previous id and post it as an answer
-  tweet_3_header <- sprintf('%s - %s \n #LoR TOP 20 Unluckiest Master Players \n\n', nice_region, format(max_date, '%d %B, %Y'))
+  tweet_3_header <- sprintf(
+    '%s - %s \n #LoR TOP 20 Unluckiest Master Players \n\n', 
+    nice_region, 
+    format(max_date, '%d %B, %Y')
+  )
   
   # post 1st tweet
   suppressMessages(
@@ -413,7 +459,11 @@ if(max_date < today_date){
   if(length(data_3) > 1){
     walk(
       .x = 2:length(data_3), 
-      .f = ~make_tweet(token = token, status = paste0(tweet_3_header, data_3[.]), as_reply = TRUE)
+      .f = ~make_tweet(
+        token = token, 
+        status = paste0(tweet_3_header, data_3[.]), 
+        as_reply = TRUE
+      )
     )
   }
   
@@ -437,30 +487,78 @@ if(max_date < today_date){
         row_number() == 3 ~ "🥉",
         TRUE ~ ''
     )) %>% 
-    mutate(string = paste0(emoji, ' ', archetype, ' (N: ', match, ' - WR: ', winrate, ')')) %>% 
+    mutate(string = paste0(
+      emoji, 
+      ' ', 
+      archetype, 
+      ' (N: ', 
+      match, 
+      ' - WR: ', 
+      winrate, 
+      ')'
+    )) %>% 
     pull(string) %>% 
     paste0(collapse = "\n")
   
   data_plot <- data_meta %>% 
     left_join(most_played_version, by = c('archetype' = 'aggregate')) %>% 
     mutate(image = str_remove_all(original, "No Champions ")) %>% 
-    mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
+    mutate(image = str_replace_all(
+      image, 
+      set_names(data_champs$cardCode, paste0(data_champs$name, "\\b"))
+    )) %>% 
     separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
     mutate(tmp2 = str_replace_all(tmp2, pattern = " ", replacement = "x_x")) %>% 
     mutate(tmp2 = ifelse(is.na(tmp2), tmp2, paste0("(", tmp2))) %>% 
     unite(col = image, tmp1, tmp2, sep = "", na.rm = TRUE) %>% 
     mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
-    mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
-    mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "x")) %>%
-    separate(col = image, into = sprintf("image_%s", 1:7), fill = "right", sep = "_") %>% 
+    mutate(image = ifelse(
+      grepl("[A-Z]{4}", image), 
+      paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), 
+      image
+    )) %>% 
+    mutate(image = str_replace_all(
+      image, 
+      pattern = "\\(|\\)", 
+      replacement = "x"
+    )) %>%
+    separate(
+      col = image, 
+      into = sprintf("image_%s", 1:7), 
+      fill = "right", 
+      sep = "_"
+    ) %>% 
     mutate(winrate = win / match, match = as.numeric(match)) %>% 
     select(archetype, match, winrate, pr, starts_with('image_')) %>% 
     select(where(function(x) any(!is.na(x)))) %>% 
-    mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_champs$croppedPath, data_champs$cardCode)))) %>% 
-    mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_regions$iconAbsolutePath, paste0("x", data_regions$abbreviation, "x"))))) %>% 
-    mutate(archetype = factor(archetype, levels = data_meta$archetype, ordered = TRUE)) %>% 
+    mutate(across(
+      .cols = starts_with("image_"), 
+      .fns = ~str_replace_all(
+        ., 
+        set_names(data_champs$croppedPath, data_champs$cardCode)
+      )
+    )) %>% 
+    mutate(across(
+      .cols = starts_with("image_"), 
+      .fns = ~str_replace_all(
+        ., 
+        set_names(
+          data_regions$iconAbsolutePath, 
+          paste0("x", data_regions$abbreviation, "x")
+        )
+      )
+    )) %>% 
+    mutate(archetype = factor(
+      archetype, 
+      levels = data_meta$archetype, 
+      ordered = TRUE
+    )) %>% 
     pivot_longer(cols = -c(archetype, starts_with('image_'))) %>%
-    mutate(name = factor(name, levels = c('match', 'pr', 'winrate'), ordered = TRUE)) %>% 
+    mutate(name = factor(
+      name, 
+      levels = c('match', 'pr', 'winrate'), 
+      ordered = TRUE
+    )) %>% 
     mutate(name_numeric = as.numeric(name))
   
   max_champs_play <- ncol(data_plot) - 4
@@ -470,13 +568,35 @@ if(max_date < today_date){
     mutate(disp_images = sum(!is.na(c_across(starts_with("image_"))))) %>%
     ungroup() %>% 
     ggplot(aes(x = name_numeric, y = reorder(archetype, desc(archetype)))) +
-    geom_rect(aes(xmin = -Inf, ymin = -Inf, xmax = Inf, ymax = Inf), fill = '#E8D3B9', alpha = 0.002) +
-    geom_tile(aes(alpha = if_else(name == 'pr', value, if_else(name == 'winrate', (value-0.4)/2, 0)), fill = name)) +
-    ggfittext::geom_fit_text(aes(label = archetype, xmin = -((4/4)+((max_champs_play-disp_images)*3/10)), xmax = 0.5), 
-                             size = 18, reflow = TRUE, padding.x = grid::unit(3, "mm"), padding.y = grid::unit(3, "mm"), place = "right") +
+    geom_rect(
+      aes(xmin = -Inf, ymin = -Inf, xmax = Inf, ymax = Inf), 
+      fill = '#E8D3B9', 
+      alpha = 0.002
+    ) +
+    geom_tile(aes(alpha = if_else(
+      name == 'pr', 
+      value, 
+      if_else(name == 'winrate', (value-0.4)/2, 0)
+      ), fill = name)) +
+    ggfittext::geom_fit_text(
+      aes(
+        label = archetype, 
+        xmin = -((4/4)+((max_champs_play-disp_images)*3/10)), 
+        xmax = 0.5
+      ),
+      size = 18, 
+      reflow = TRUE, 
+      padding.x = grid::unit(3, "mm"), 
+      padding.y = grid::unit(3, "mm"), 
+      place = "right"
+    ) +
     shadowtext::geom_shadowtext(
       aes(
-        label = if_else(name == 'match', scales::comma(value, accuracy = 1), scales::percent(value, accuracy = .1)),
+        label = if_else(
+          name == 'match', 
+          scales::comma(value, accuracy = 1), 
+          scales::percent(value, accuracy = .1)
+        ),
         color = case_when(
           name != 'winrate' ~ 'not_colored',
           value > 0.6 ~ 'super_pos', 
@@ -501,7 +621,9 @@ if(max_date < today_date){
       position = "top", 
       limits = c(-(max_champs_play+2)*4/10-0.1, 3.3)
     ) +
-    scale_fill_manual(values = c('pr' = 'steelblue', 'winrate' = 'forestgreen')) +
+    scale_fill_manual(
+      values = c('pr' = 'steelblue', 'winrate' = 'forestgreen')
+    ) +
     scale_color_manual(
       values = c(
         'not_colored' = 'black', 
@@ -512,7 +634,11 @@ if(max_date < today_date){
         'not_changed' = '#EFB700'
       )) +
     labs(
-      title = sprintf('%s - %s \nMost Played Archetypes at Master Rank', nice_region, format(max_date, '%d %B, %Y')), 
+      title = sprintf(
+        '%s - %s \nMost Played Archetypes at Master Rank', 
+        nice_region, 
+        format(max_date, '%d %B, %Y')
+      ), 
       x = element_blank(), 
       y = element_blank()
     ) +
@@ -525,10 +651,20 @@ if(max_date < today_date){
       axis.ticks.y = element_blank()
     )
   
-  ggsave(filename = "/home/balco/dev/lor-meta-report/templates/tweet-plots/plot.png", plot = plot_5, width = 12, height = 8, dpi = 180)
+  ggsave(
+    filename = "/home/balco/dev/lor-meta-report/templates/tweet-plots/plot.png", 
+    plot = plot_5, 
+    width = 12, 
+    height = 8, 
+    dpi = 180
+  )
   
   # for each tweet, get previous id and post it as an answer
-  tweet_5_header <- sprintf('%s - %s \n #LoR TOP Archetypes at Master Rank by Playrate \n\n', nice_region, format(max_date, '%d %B, %Y'))
+  tweet_5_header <- sprintf(
+    '%s - %s \n #LoR TOP Archetypes at Master Rank by Playrate \n\n', 
+    nice_region, 
+    format(max_date, '%d %B, %Y')
+  )
   
   # post 1st tweet
   suppressMessages(
@@ -552,18 +688,37 @@ if(max_date < today_date){
       tweet == 3 ~ "🥉",
       TRUE ~ as.character(tweet)
     )) %>% 
-    map(mutate, string = paste0(emoji, '. ', deck_code, ' (', archetype, ') \n\n', '# Match: ', match, ' - WR: ', winrate)) %>% 
+    map(mutate, string = paste0(
+      emoji, 
+      '. ', 
+      deck_code, 
+      ' (', 
+      archetype, 
+      ') \n\n', 
+      '# Match: ', 
+      match, 
+      ' - WR: ', 
+      winrate
+    )) %>% 
     map(pull, string) %>% 
     map_chr(paste0, collapse = "\n")
   
   # for each tweet, get previous id and post it as an answer
-  tweet_4_header <- sprintf('%s - %s \n #LoR Most 3 played Decklists at Master Rank \n\n', nice_region, format(max_date, '%d %B, %Y'))
+  tweet_4_header <- sprintf(
+    '%s - %s \n #LoR Most 3 played Decklists at Master Rank \n\n', 
+    nice_region, 
+    format(max_date, '%d %B, %Y')
+  )
   
   # post the others as replies
   if(length(data_4) > 1){
     walk(
       .x = 1:length(data_4), 
-      .f = ~make_tweet(token = token, status = paste0(tweet_4_header, data_4[.]), as_reply = TRUE)
+      .f = ~make_tweet(
+        token = token, 
+        status = paste0(tweet_4_header, data_4[.]), 
+        as_reply = TRUE
+      )
     )
   }
   
