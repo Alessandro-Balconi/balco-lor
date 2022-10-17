@@ -512,19 +512,33 @@ p <- data %>%
     title = "Region Playrate"
   )
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/region_pr.png", plot = p, width = 12, height = 8, dpi = 180)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/region_pr.png", 
+  plot = p, 
+  width = 12, 
+  height = 8, 
+  dpi = 180
+)
 
 # 6.2. champions playrate ----
 
 data_pr <- data %>% 
   select(week, champs) %>% 
-  separate(col = champs, into = sprintf("champ_%s", 1:6), sep = " ", fill = "right") %>% 
+  separate(
+    col = champs, 
+    into = sprintf("champ_%s", 1:6), 
+    sep = " ", 
+    fill = "right"
+  ) %>% 
   pivot_longer(cols = -week) %>% 
   drop_na(value) %>% 
   count(week, value, sort = TRUE) %>% 
   left_join(games_by_week, by = "week") %>% 
   mutate(playrate = n / tot) %>%
-  left_join(data_champs %>% select(name, cardCode), by = c("value" = "cardCode")) %>% 
+  left_join(
+    data_champs %>% select(name, cardCode), 
+    by = c("value" = "cardCode")
+  ) %>% 
   drop_na(name)
 
 p <- data_pr %>% 
@@ -532,48 +546,102 @@ p <- data_pr %>%
   pivot_wider(names_from = week, values_from = playrate) %>% 
   mutate(change = current - last) %>% 
   slice_max(n = 10, order_by = current, with_ties = FALSE) %>%
-  left_join(data_champs %>% select(cardCode, img = gameAbsolutePath), by = c("value" = "cardCode")) %>% 
+  left_join(
+    data_champs %>% select(cardCode, img = gameAbsolutePath), 
+    by = c("value" = "cardCode")
+  ) %>% 
   mutate(region = str_remove_all(value, "[0-9]")) %>% 
-  left_join(data_regions %>% select(abbreviation, nameRef, logo = iconAbsolutePath), by = c("region" = "abbreviation")) %>% 
+  left_join(
+    data_regions %>% select(abbreviation, nameRef, logo = iconAbsolutePath), 
+    by = c("region" = "abbreviation")
+  ) %>% 
   ggplot(aes(x = reorder(name, current))) +
   geom_col(aes(y = current, fill = nameRef), color = "grey30", alpha = 0.8) +
   geom_text(aes(label = "", y = current*1.1), size = 6) +
-  geom_text(aes(label = scales::percent(current, accuracy = .1), y = current), size = 6, hjust = -0.5, vjust = -0.5) +
-  geom_text(size = 5, hjust = -0.375, vjust = 1.5, aes(label = scales_percent_plus(change, accuracy = .1), y = current, 
-                                                       color = case_when(is.na(change) ~ "na", abs(change)<=(0.1/200) ~ "same", change>0 ~ "pos", change<0 ~ "neg"))) +
+  geom_text(
+    aes(label = scales::percent(current, accuracy = .1), y = current), 
+    size = 6, 
+    hjust = -0.5, 
+    vjust = -0.5
+  ) +
+  geom_text(
+    aes(
+      label = scales_percent_plus(change, accuracy = .1), 
+      y = current,
+      color = case_when(
+        is.na(change) ~ "na", 
+        abs(change)<=(0.1/200) ~ "same", 
+        change>0 ~ "pos", 
+        change<0 ~ "neg"
+      )
+    ),
+    size = 5, 
+    hjust = -0.375, 
+    vjust = 1.5,
+  ) +
   geom_image(aes(image = img, y = -max(current)/5), size = 0.045, asp = 1.5) +
-  ggfittext::geom_fit_text(aes(label = name, ymin = -(max(current)/5.5), ymax = 0), size = 20, padding.x = grid::unit(5, "mm")) +
+  ggfittext::geom_fit_text(
+    aes(label = name, ymin = -(max(current)/5.5), ymax = 0), 
+    size = 20, 
+    padding.x = grid::unit(5, "mm")
+  ) +
   coord_flip() +
   theme_classic(base_size = 18) +
   theme(legend.position = "none") +
   scale_y_continuous(breaks = NULL) +
   scale_x_discrete(labels = element_blank()) +
   scale_fill_manual(values = region_colors) +
-  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2", "na" = "steelblue", "same" = "#EFB700")) +
+  scale_color_manual(values = c(
+    "pos" = "#149414", 
+    "neg" = "coral2", 
+    "na" = "steelblue", 
+    "same" = "#EFB700"
+  )) +
   theme(legend.position = "none") +
-  labs(x = "Champion", y = "% of decks containing the champion", title = "Champion Playrate")
+  labs(
+    x = "Champion", 
+    y = "% of decks containing the champion", 
+    title = "Champion Playrate"
+  )
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/champs_pr.png", plot = p, width = 12, height = 8, dpi = 180)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/champs_pr.png", 
+  plot = p, 
+  width = 12, 
+  height = 8, 
+  dpi = 180
+)
 
 tbl <- data_pr %>%
   filter(week == "current") %>% 
   select(name, match = n, playrate) %>% 
   arrange(-match) %>% 
   rename_with(str_to_title) %>% 
-  datatable(rownames = FALSE, options = list(pageLength = 10, lengthChange = FALSE)) %>% 
+  datatable(
+    rownames = FALSE, 
+    options = list(pageLength = 10, lengthChange = FALSE)
+  ) %>% 
   formatPercentage(columns = "Playrate", digits = 1)
 
 tbl$width<-"100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
 
-saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/champs_pr.html", background = "inherit")
+saveWidget(
+  tbl, 
+  "/home/balco/dev/lor-meta-report/output/champs_pr.html", 
+  background = "inherit"
+)
 
 # 6.3. historical play-rate ----
 
 # pull data (add fix for "Runeterra" region)
 data_history <- tbl(con, "ranked_weekly_region_ngames") %>% 
-  mutate(value = ifelse(value %in% local(data_champs$name), 'Runeterra', value)) %>% 
+  mutate(value = ifelse(
+    value %in% local(data_champs$name), 
+    'Runeterra', 
+    value
+  )) %>% 
   group_by(week, value, tot_games) %>% 
   summarise(n = sum(n, na.rm = TRUE), .groups = 'drop') %>%
   arrange(week, value, tot_games) %>% 
@@ -595,14 +663,22 @@ weekly_decks <- data %>%
   distinct(match_id, week) %>% 
   count(week, name = "tot_games") %>% 
   mutate(tot_games = tot_games * 2) %>% # number of decks = number of games * 2
-  mutate(week = if_else(week == "last", date(start_date), date(start_date) + days(7)))
+  mutate(week = if_else(
+    week == "last", 
+    date(start_date), 
+    date(start_date) + days(7)
+  ))
 
 data_history_new <- data %>% 
   select(week, game_start_time_utc, starts_with("faction_")) %>% 
   pivot_longer(cols = starts_with("faction_")) %>%
   drop_na(value) %>% 
   count(week, value) %>% 
-  mutate(week = if_else(week == "last", date(start_date), date(start_date) + days(7))) %>% 
+  mutate(week = if_else(
+    week == "last", 
+    date(start_date), 
+    date(start_date) + days(7)
+  )) %>% 
   left_join(weekly_decks, by = "week") %>% 
   arrange(week)
 
@@ -619,7 +695,10 @@ p <- data_history %>%
 p <- add_patch_vlines(plot = p, df_patch = patches)
 
 p <- p +
-  geom_point(aes(x = week, y = playrate, color = value, group = value), size = 5) +
+  geom_point(
+    aes(x = week, y = playrate, color = value, group = value), 
+    size = 5
+  ) +
   theme_bw(base_size = 15) +
   theme(axis.text.x = element_text(angle = 20, hjust = 1)) +
   expand_limits(y = 0) +
@@ -627,10 +706,21 @@ p <- p +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1L)) +
   scale_color_manual(values = region_colors) +
   theme(legend.position = "bottom") +
-  labs(x = "Week", y = "Playrate", title = "Weekly Region Playrate", color = "Region") +
+  labs(
+    x = "Week", 
+    y = "Playrate", 
+    title = "Weekly Region Playrate", 
+    color = "Region"
+  ) +
   guides(colour = guide_legend(nrow = 2))
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/region_hist.png", plot = p, width = 12, height = 8, dpi = 180)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/region_hist.png", 
+  plot = p, 
+  width = 12, 
+  height = 8, 
+  dpi = 180
+)
 
 # 6.4 archetype playrate ----
 
@@ -651,18 +741,49 @@ data_archetype_pr <- data %>%
   mutate(change = current - last) %>%
   left_join(most_played_version, by = 'new_name') %>% 
   mutate(image = str_remove_all(archetype, "No Champions ")) %>% 
-  mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
+  mutate(image = str_replace_all(
+    image, 
+    set_names(data_champs$cardCode, paste0(data_champs$name, "\\b"))
+  )) %>% 
   separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
   mutate(tmp2 = str_replace_all(tmp2, pattern = " ", replacement = "x_x")) %>% 
   mutate(tmp2 = ifelse(is.na(tmp2), tmp2, paste0("(", tmp2))) %>% 
   unite(col = image, tmp1, tmp2, sep = "", na.rm = TRUE) %>% 
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
-  mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
-  mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "x")) %>%
-  separate(col = image, into = sprintf("image_%s", 1:7), fill = "right", sep = "_") %>% 
+  mutate(image = ifelse(
+    grepl("[A-Z]{4}", image), 
+    paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), 
+    image
+  )) %>% 
+  mutate(image = str_replace_all(
+    image, 
+    pattern = "\\(|\\)", 
+    replacement = "x"
+  )) %>%
+  separate(
+    col = image, 
+    into = sprintf("image_%s", 1:7), 
+    fill = "right", 
+    sep = "_"
+  ) %>% 
   select(new_name, last, current, change, where(function(x) any(!is.na(x)))) %>% 
-  mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_champs$gameAbsolutePath, data_champs$cardCode)))) %>% 
-  mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_regions$iconAbsolutePath, paste0("x", data_regions$abbreviation, "x"))))) 
+  mutate(across(
+    .cols = starts_with("image_"), 
+    .fns = ~str_replace_all(
+      ., 
+      set_names(data_champs$gameAbsolutePath, data_champs$cardCode)
+    )
+  )) %>% 
+  mutate(across(
+    .cols = starts_with("image_"), 
+    .fns = ~str_replace_all(
+      ., 
+      set_names(
+        data_regions$iconAbsolutePath, 
+        paste0("x", data_regions$abbreviation, "x")
+      )
+    )
+  )) 
 
 max_champs_play <- ncol(data_archetype_pr) - 5
 
@@ -671,11 +792,34 @@ p <- data_archetype_pr %>%
   mutate(disp_images = sum(!is.na(c_across(starts_with("image_"))))) %>%
   ungroup() %>% 
   ggplot(aes(x = reorder(new_name, current))) +
-  geom_col(aes(y = current), fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_col(
+    aes(y = current), 
+    fill = "#13294b", 
+    color = "steelblue", 
+    alpha = 0.9
+  ) +
   geom_text(aes(label = "", y = 1.1*current), size = 6) +
-  geom_text(aes(label = scales::percent(current, accuracy = .1), y = current), size = 6, hjust = -0.5, vjust = -0.5) +
-  geom_text(size = 5, hjust = -0.375, vjust = 1.5, aes(label = scales_percent_plus(change, accuracy = .1), y = current, 
-                                                       color = case_when(is.na(change) ~ "na", abs(change)<=(0.1/200) ~ "same", change>0 ~ "pos", change<0 ~ "neg"))) +
+  geom_text(
+    aes(label = scales::percent(current, accuracy = .1), y = current), 
+    size = 6, 
+    hjust = -0.5, 
+    vjust = -0.5
+  ) +
+  geom_text(
+    aes(
+      label = scales_percent_plus(change, accuracy = .1), 
+      y = current,
+      color = case_when(
+        is.na(change) ~ "na", 
+        abs(change)<=(0.1/200) ~ "same", 
+        change>0 ~ "pos", 
+        change<0 ~ "neg"
+      )
+    ),
+    size = 5, 
+    hjust = -0.375, 
+    vjust = 1.5
+  ) +
   {if(max_champs_play > 0) geom_image(aes(image = image_1, y = -(max_champs_play+2)*max(current)/10), size = 0.045, asp = 1.5) } +
   {if(max_champs_play > 1) geom_image(aes(image = image_2, y = -(max_champs_play+1)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_play > 2) geom_image(aes(image = image_3, y = -(max_champs_play-0)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
@@ -683,21 +827,42 @@ p <- data_archetype_pr %>%
   {if(max_champs_play > 4) geom_image(aes(image = image_5, y = -(max_champs_play-2)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_play > 5) geom_image(aes(image = image_6, y = -(max_champs_play-3)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
   {if(max_champs_play > 6) geom_image(aes(image = image_7, y = -(max_champs_play-4)*max(current)/10), size = 0.045, asp = 1.5, na.rm = TRUE) } +
-  ggfittext::geom_fit_text(aes(label = new_name, ymin = -((max(current)/4)+((max_champs_play-disp_images)*max(current)/10)), ymax = 0), 
-                           size = 18, reflow = TRUE, padding.x = grid::unit(3, "mm"), padding.y = grid::unit(3, "mm"), place = "right") +
+  ggfittext::geom_fit_text(
+    aes(
+      label = new_name, 
+      ymin = -((max(current)/4)+((max_champs_play-disp_images)*max(current)/10)), 
+      ymax = 0
+    ),
+    size = 18, 
+    reflow = TRUE, 
+    padding.x = grid::unit(3, "mm"), 
+    padding.y = grid::unit(3, "mm"), 
+    place = "right"
+  ) +
   theme_classic(base_size = 18) +
   coord_flip() +
   scale_x_discrete(labels = element_blank()) +
   scale_y_continuous(breaks = NULL) +
   theme(legend.position = "none") +
-  scale_color_manual(values = c("pos" = "#149414", "neg" = "coral2", "na" = "steelblue", "same" = "#EFB700")) +
+  scale_color_manual(values = c(
+    "pos" = "#149414", 
+    "neg" = "coral2", 
+    "na" = "steelblue", 
+    "same" = "#EFB700"
+  )) +
   labs(
     x = "Archetype", 
     y = "Playrate", 
     title = "TOP 10 Archetype Playrate"
   )
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/arch_pr.png", plot = p, width = 12, height = 8, dpi = 180)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/arch_pr.png", 
+  plot = p, 
+  width = 12, 
+  height = 8, 
+  dpi = 180
+)
 
 # 6.5 archetype winrate ----
 
@@ -713,17 +878,33 @@ data_archetype_wr <- data %>%
   mutate(winrate = win / n) %>%
   left_join(most_played_version, by = 'new_name') %>% 
   mutate(image = str_remove_all(archetype, "No Champions ")) %>% 
-  mutate(image = str_replace_all(image, set_names(data_champs$cardCode, paste0(data_champs$name, "\\b")))) %>% 
+  mutate(image = str_replace_all(
+    image, 
+    set_names(data_champs$cardCode, paste0(data_champs$name, "\\b"))
+  )) %>% 
   mutate(image = str_trim(image, side = "left")) %>% 
   separate(image, into = c("tmp1", "tmp2"), sep = "\\(", fill = "right") %>% 
   mutate(tmp2 = str_replace_all(tmp2, pattern = " ", replacement = "_")) %>% 
   mutate(tmp2 = ifelse(is.na(tmp2), tmp2, paste0("(", tmp2))) %>% 
   unite(col = image, tmp1, tmp2, sep = "", na.rm = TRUE) %>%
   mutate(image = str_replace_all(image, pattern = " ", replacement = "_")) %>%
-  mutate(image = ifelse(grepl("[A-Z]{4}", image), paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), image)) %>% 
-  mutate(image = str_replace_all(image, pattern = "\\(|\\)", replacement = "")) %>% 
+  mutate(image = ifelse(
+    grepl("[A-Z]{4}", image), 
+    paste0(str_sub(image, 2, 4), "_", str_sub(image, 5, 7)), 
+    image
+  )) %>% 
+  mutate(image = str_replace_all(
+    image, 
+    pattern = "\\(|\\)", 
+    replacement = ""
+  )) %>% 
   mutate(playrate = n / tot) %>%
-  separate(col = image, into = sprintf("image_%s", 1:8), fill = "right", sep ="_") %>% 
+  separate(
+    col = image, 
+    into = sprintf("image_%s", 1:8), 
+    fill = "right", 
+    sep ="_"
+  ) %>% 
   select(where(function(x) any(!is.na(x))), -tot) %>%
   mutate(across(starts_with("image_"), function(x) ifelse(nchar(x) < 3, paste0("x", x, "x"), x))) %>% 
   mutate(across(starts_with("image_"), ~str_replace_all(., set_names(data_champs$gameAbsolutePath, data_champs$cardCode)))) %>% 
@@ -743,7 +924,12 @@ p <- data_archetype_wr %>%
   mutate(disp_images = sum(!is.na(c_across(starts_with("image_"))))) %>%
   ungroup() %>% 
   ggplot(aes(x = reorder(new_name, winrate))) +
-  geom_col(aes(y = winrate), fill = "#13294b", color = "steelblue", alpha = 0.9) +
+  geom_col(
+    aes(y = winrate), 
+    fill = "#13294b", 
+    color = "steelblue", 
+    alpha = 0.9
+  ) +
   geom_text(aes(label = "", y = 1.1*winrate), size = 6) +
   geom_text(aes(label = scales::percent(winrate, accuracy = .1), y = winrate), size = 6, hjust = -0.5) +
   {if(max_champs_win > 0) geom_image(aes(image = image_1, y = -(max_champs_win+2)*max(winrate)/10), size = 0.045, asp = 1.5) } +
