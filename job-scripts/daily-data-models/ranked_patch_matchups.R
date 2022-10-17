@@ -9,7 +9,7 @@ execute_db_query(
   bigint = 'numeric'
 )
 
-drop main table
+# drop main table
 execute_db_query(query = "DROP TABLE ranked_patch_matchups")
 
 # recreate main table as tmp table

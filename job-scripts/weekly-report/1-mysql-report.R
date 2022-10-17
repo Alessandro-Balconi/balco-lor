@@ -1,11 +1,11 @@
 # 1. libraries ----
 
 suppressPackageStartupMessages(library(tidyverse))   # all purposes package
-suppressPackageStartupMessages(library(jsonlite))    # convert JSON to R objects
+suppressPackageStartupMessages(library(jsonlite))    # convert JSON to R object
 suppressPackageStartupMessages(library(httr))        # http requests
 suppressPackageStartupMessages(library(lubridate))   # working with dates
 suppressPackageStartupMessages(library(ggimage))     # add images to ggplot
-suppressPackageStartupMessages(library(gridExtra))   # display tables as pictures
+suppressPackageStartupMessages(library(gridExtra))   # display table as picture
 suppressPackageStartupMessages(library(ggrepel))     # repel geom_text
 suppressPackageStartupMessages(library(DT))          # display nice tables
 suppressPackageStartupMessages(library(reactable))   # display nice tables
@@ -57,7 +57,12 @@ data_champs <- lorr::get_cards_data(
   select(-rarity) %>%
   unnest(col = assets) %>% 
   mutate(croppedPath = paste0(
-    'https://raw.githubusercontent.com/shaobaili3/LoR_Master/master/UI/src/assets/images/cards/cropped/',
+    paste(
+      'https://raw.githubusercontent.com',
+      'shaobaili3/LoR_Master/master',
+      'UI/src/assets/images/cards/cropped/',
+      sep = "/"
+    ),
     cardCode,
     '-cropped.png'
   ))
@@ -89,6 +94,30 @@ weekly_master_match <- tbl(con, 'ranked_match_metadata_30d') %>%
 # number of weekly matches at master
 nweekly_master <- weekly_master_match %>% filter(week == 'current') %>% nrow()
 
+# nweekly_master <- lorr::get_db_query(
+#   "
+#   WITH md_7d AS (
+#     SELECT
+#       match_id
+#     FROM 
+#       ranked_match_metadata_30d 
+#     WHERE
+#       game_start_time_utc >= '{sprintf(\"%sT16:50:00\", Sys.Date() - 7)}'
+#       AND match_rank >= 2
+#   )
+#   SELECT 
+#     COUNT(DISTINCT match_id)
+#   FROM
+#     md_7d
+#   INNER JOIN
+#     ranked_match_info_30d
+#   USING(match_id)
+#   WHERE
+#     player_rank = 2
+#   "
+# )
+
+
 # import match data (only from ranked games)
 data <- tbl(con, 'ranked_match_metadata_30d') %>% 
   filter(game_start_time_utc >= local(start_date - days(7))) %>% 
@@ -112,6 +141,100 @@ data <- tbl(con, 'ranked_match_metadata_30d') %>%
     new_name
   ) %>% 
   collect()
+
+# if(nweekly_master >= 10000){
+#   data <- lorr::get_db_query(
+#     "
+#   WITH
+#   md14d AS (
+#     SELECT
+#       match_id,
+#       region AS shard,
+#       game_start_time_utc
+#     FROM
+#       ranked_match_metadata_30d
+#     WHERE
+#       game_start_time_utc >= '{sprintf(\"%sT16:50:00\", Sys.Date() - 14)}'
+#   )
+#
+#   SELECT
+#     match_id, 
+#     game_start_time_utc, 
+#     puuid, 
+#     deck_code, 
+#     game_outcome, 
+#     faction_1, 
+#     faction_2, 
+#     archetype, 
+#     shard, 
+#     NVL(new_name, archetype) AS new_name
+#   FROM
+#     md14d md
+#   INNER JOIN
+#     ranked_match_info_30d i
+#   ON
+#     md.match_id = i.match_id
+#   LEFT JOIN
+#     utils_archetype_aggregation aa
+#   ON
+#     i.archetype = aa.old_name
+#   "
+#   )
+# # } else {
+#   data <- lorr::get_db_query(
+#     "
+#     WITH
+#     md14d AS (
+#       SELECT
+#         match_id,
+#         region AS shard,
+#         game_start_time_utc
+#       FROM
+#         ranked_match_metadata_30d
+#       WHERE
+#         game_start_time_utc >= '{sprintf(\"%sT16:50:00\", Sys.Date() - 14)}'
+#         AND match_rank >= 2
+#     ),
+#     to_keep AS (
+#       SELECT DISTINCT 
+#         match_id
+#       FROM
+#         md_14d
+#       INNER JOIN
+#         ranked_match_info_30d
+#       USING(match_id)
+#       WHERE
+#         player_rank = 2
+#     )
+#     
+#     SELECT
+#       match_id, 
+#       game_start_time_utc, 
+#       puuid, 
+#       deck_code, 
+#       game_outcome, 
+#       faction_1, 
+#       faction_2, 
+#       archetype, 
+#       shard, 
+#       NVL(new_name, archetype) AS new_name
+#     FROM
+#       to_keep
+#     INNER JOIN
+#       md14d md
+#     ON
+#       tk.match_id = md.match_id
+#     INNER JOIN
+#       ranked_match_info_30d i
+#     ON
+#       tk.match_id = i.match_id
+#     LEFT JOIN
+#       utils_archetype_aggregation aa
+#     ON
+#       i.archetype = aa.old_name
+#     "
+#   )
+# }
 
 # fix "Runeterra" region
 data <- data %>% 
@@ -649,14 +772,21 @@ tbl <- data_archetype_wr %>%
   select(archetype = new_name, match = n, win, playrate, winrate) %>%
   arrange(-playrate, -winrate) %>% 
   rename_with(str_to_title) %>% 
-  datatable(rownames = FALSE, options = list(pageLength = 10, lengthChange = FALSE)) %>% 
+  datatable(
+    rownames = FALSE, 
+    options = list(pageLength = 10, lengthChange = FALSE)
+  ) %>% 
   formatPercentage(columns = c("Playrate", "Winrate"), digits = 1)
 
 tbl$width  <- "100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
 
-saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/arch_wr.html", background = "inherit")
+saveWidget(
+  tbl, 
+  "/home/balco/dev/lor-meta-report/output/arch_wr.html", 
+  background = "inherit"
+)
 
 # 6.6 archetype matchup ----
 
@@ -666,8 +796,16 @@ data_matchup <- data %>%
   group_by(match_id) %>%
   arrange(match_id, new_name) %>% 
   mutate(id = row_number()) %>% 
-  mutate(winner = case_when(id == 1 & game_outcome == "win" ~ 1, id == 2 & game_outcome == "win" ~ 2, TRUE ~ 0)) %>% 
-  pivot_wider(names_from = id, values_from = new_name, names_prefix = "archetype_") %>% 
+  mutate(winner = case_when(
+    id == 1 & game_outcome == "win" ~ 1, 
+    id == 2 & game_outcome == "win" ~ 2, 
+    TRUE ~ 0
+  )) %>% 
+  pivot_wider(
+    names_from = id, 
+    values_from = new_name, 
+    names_prefix = "archetype_"
+  ) %>% 
   fill(starts_with("archetype_"), .direction = "updown") %>% 
   ungroup() %>% 
   filter(winner != 0) %>%
@@ -676,31 +814,71 @@ data_matchup <- data %>%
   mutate(a1_wr = ifelse(archetype_1 == archetype_2, NA_real_, wins / n)) 
 
 p <- data_matchup %>% 
-  mutate(across(c(archetype_1, archetype_2), function(x) if_else(x %in% data_archetype_pr$new_name, x, 'Other'))) %>% 
-  with_groups(.groups = c(archetype_1, archetype_2), .f = summarise, across(c(n, wins), sum)) %>% 
+  mutate(across(c(archetype_1, archetype_2), function(x) if_else(
+    x %in% data_archetype_pr$new_name, 
+    x, 
+    'Other'
+  ))) %>% 
+  with_groups(
+    .groups = c(archetype_1, archetype_2), 
+    .f = summarise, 
+    across(c(n, wins), sum)
+  ) %>% 
   mutate(a1_wr = ifelse(archetype_1 == archetype_2, NA_real_, wins / n)) %>% 
   select(-c(n, wins)) %>% 
   pivot_wider(names_from = archetype_2, values_from = a1_wr) %>%
   column_to_rownames(var = "archetype_1") %>%
   fill_matchup_table() %>%
   rownames_to_column(var = "archetype_1") %>% 
-  pivot_longer(cols = -archetype_1, names_to = "archetype_2", values_to = "a1_wr") %>%
-  mutate(bin = cut(a1_wr, c(0, 0.4, 0.45, 0.55, 0.6, 1), include.lowest = TRUE)) %>%
-  mutate(across(c(archetype_1, archetype_2), ~factor(., levels = c(data_archetype_pr$new_name, 'Other'), ordered = TRUE))) %>%
+  pivot_longer(
+    cols = -archetype_1, 
+    names_to = "archetype_2", 
+    values_to = "a1_wr"
+  ) %>%
+  mutate(bin = cut(
+    a1_wr, 
+    c(0, 0.4, 0.45, 0.55, 0.6, 1), 
+    include.lowest = TRUE
+  )) %>%
+  mutate(across(c(archetype_1, archetype_2), ~factor(
+    ., 
+    levels = c(data_archetype_pr$new_name, 'Other'), 
+    ordered = TRUE
+  ))) %>%
   ggplot(aes(y = reorder(archetype_1, desc(archetype_1)), x = archetype_2)) +
   geom_tile(aes(fill = bin), color = "grey90", size = 1, stat = "identity") +
-  shadowtext::geom_shadowtext(aes(label = scales::percent(a1_wr, accuracy = .1)), color = "white", size = 6, na.rm = TRUE) +
+  shadowtext::geom_shadowtext(
+    aes(label = scales::percent(a1_wr, accuracy = .1)), 
+    color = "white", 
+    size = 6, 
+    na.rm = TRUE
+  ) +
   theme_minimal(base_size = 15) +
   labs(x = element_blank(), y = element_blank()) +
   scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
-  scale_x_discrete(labels = function(x) str_wrap(x, width = 10), position = "top") +
+  scale_x_discrete(
+    labels = function(x) str_wrap(x, width = 10), 
+    position = "top"
+  ) +
   theme(legend.position = "none") +
   scale_fill_manual(
-    values = c("[0,0.4]" = "#B81D13", "(0.4,0.45]" = "coral2", "(0.45,0.55]" = "#EFB700", "(0.55,0.6]" = "#149414", "(0.6,1]" = "#046507"), 
+    values = c(
+      "[0,0.4]" = "#B81D13", 
+      "(0.4,0.45]" = "coral2", 
+      "(0.45,0.55]" = "#EFB700", 
+      "(0.55,0.6]" = "#149414", 
+      "(0.6,1]" = "#046507"
+    ), 
     na.value = "grey90"
   )
 
-ggsave(filename = "/home/balco/dev/lor-meta-report/output/matchup_tbl.png", plot = p, width = 12, height = 8, dpi = 180)
+ggsave(
+  filename = "/home/balco/dev/lor-meta-report/output/matchup_tbl.png", 
+  plot = p, 
+  width = 12, 
+  height = 8, 
+  dpi = 180
+)
 
 data_matchup1 <- data_matchup %>% 
   filter(archetype_1 != archetype_2) %>% 
@@ -725,26 +903,51 @@ tbl <- data_matchup1 %>%
   mutate(winrate = round(winrate*100, digits = 1)) %>% # nicer filter
   rename(player = archetype_1, opponent = archetype_2, match = n) %>% 
   rename_with(str_to_title) %>% 
-  datatable(rownames = FALSE, filter = 'top', options = list(pageLength = 10, lengthChange = FALSE)) %>% 
-  formatCurrency(columns = "Winrate", currency = "%", before = FALSE, digits = 1)
+  datatable(
+    rownames = FALSE, 
+    filter = 'top', 
+    options = list(pageLength = 10, lengthChange = FALSE)
+  ) %>% 
+  formatCurrency(
+    columns = "Winrate", 
+    currency = "%", 
+    before = FALSE, 
+    digits = 1
+  )
 
 tbl$width  <- "100%"
 tbl$height <- "500px"
 tbl$sizingPolicy$browser$padding <- 10
 
-saveWidget(tbl, "/home/balco/dev/lor-meta-report/output/matchup_tbl.html", background = "inherit")
+saveWidget(
+  tbl, 
+  "/home/balco/dev/lor-meta-report/output/matchup_tbl.html", 
+  background = "inherit"
+)
 
 # 6.7 meta score ----
 
 data_score1 <- data %>%
   filter(week == "current") %>% 
   select(match_id, game_outcome, new_name) %>%
-  mutate(new_name = ifelse(new_name %in% data_archetype_pr$new_name, new_name, "Other")) %>% 
+  mutate(new_name = ifelse(
+    new_name %in% data_archetype_pr$new_name, 
+    new_name, 
+    "Other"
+  )) %>% 
   arrange(match_id, new_name) %>% 
   group_by(match_id) %>%
   mutate(id = row_number()) %>% 
-  mutate(winner = case_when(id == 1 & game_outcome == "win" ~ 1, id == 2 & game_outcome == "win" ~ 2, TRUE ~ 0)) %>% 
-  pivot_wider(names_from = id, values_from = new_name, names_prefix = "archetype_") %>% 
+  mutate(winner = case_when(
+    id == 1 & game_outcome == "win" ~ 1, 
+    id == 2 & game_outcome == "win" ~ 2, 
+    TRUE ~ 0
+  )) %>% 
+  pivot_wider(
+    names_from = id, 
+    values_from = new_name, 
+    names_prefix = "archetype_"
+  ) %>% 
   fill(starts_with("archetype_"), .direction = "updown") %>% 
   ungroup() %>% 
   filter(winner != 0) %>% 
@@ -763,20 +966,33 @@ data_score2 <- tibble(
 data_score <- data_score1 %>% 
   filter(archetype_1 != archetype_2) %>% 
   bind_rows(data_score2) %>% 
-  left_join(data_archetype_pr %>% select(new_name, playrate = current), by = c("archetype_2" = "new_name")) %>%
+  left_join(
+    data_archetype_pr %>% select(new_name, playrate = current), 
+    by = c("archetype_2" = "new_name")
+  ) %>%
   group_by(archetype_1) %>% 
-  mutate(playrate = ifelse(is.na(playrate), 1 - sum(playrate, na.rm = TRUE), playrate)) %>% 
+  mutate(playrate = ifelse(
+    is.na(playrate), 
+    1 - sum(playrate, na.rm = TRUE), 
+    playrate
+  )) %>% 
   ungroup() %>% 
-  replace_na(list(ai_wr = 0.5)) %>% # if i have 0 games of a particular matchup, assume its 50-50
+  # if I have 0 games of a particular match-up, assume its 50-50
+  replace_na(list(ai_wr = 0.5)) %>%
   mutate(deck_power = a1_wr*playrate) %>%
   group_by(archetype_1) %>% 
   summarise(deck_power = sum(deck_power), .groups = "drop") %>% 
   filter(archetype_1 != "Other") %>% 
   arrange(-deck_power) %>% 
-  left_join(data_archetype_pr %>% select(new_name, playrate = current), by = c("archetype_1" = "new_name")) %>% 
+  left_join(
+    data_archetype_pr %>% select(new_name, playrate = current), 
+    by = c("archetype_1" = "new_name")
+  ) %>% 
   mutate(freq_score = playrate*100 / max(playrate)) %>% 
   select(-playrate) %>% 
-  mutate(power_score = ((deck_power + max(deck_power) - 1) * 100) / (2*max(deck_power) - 1)) %>% 
+  mutate(power_score = ((deck_power + max(deck_power) - 1) * 100) / 
+           (2*max(deck_power) - 1)
+         ) %>% 
   mutate(meta_score = (power_score + freq_score) / 2) 
 
 p <- data_score %>% 
@@ -867,24 +1083,61 @@ favorite_deck <- data %>%
 tbl <- top_players %>% 
   left_join(favorite_deck, by = c("player" = "puuid")) %>%
   arrange(-winrate, -match) %>% 
-  mutate(player = map2_chr(.x = player, .y = shard, .f = ~from_puuid_to_riotid(puuid = .x, shard = .y))) %>% 
-  mutate(get_call = sprintf("https://runeterra.ar/Users/get/country/%s/%s", shard, sub('#[^#]*$', '', player))) %>% 
+  mutate(player = map2_chr(
+    .x = player, 
+    .y = shard, 
+    .f = ~from_puuid_to_riotid(puuid = .x, shard = .y)
+  )) %>% 
+  mutate(get_call = sprintf(
+    "https://runeterra.ar/Users/get/country/%s/%s", 
+    shard, 
+    sub('#[^#]*$', '', player)
+  )) %>% 
   mutate(get_call = utils::URLencode(get_call)) %>% 
   mutate(get = map(.x = get_call, .f = get_slowly)) %>% 
   mutate(status = map_int(.x = get, .f = status_code)) %>% 
   mutate(content = map(.x = get, .f = content)) %>% 
   mutate(country = ifelse(status == 200, content, NA_character_)) %>% 
   mutate(country = map_chr(country, str_flatten, collapse = " ")) %>% 
-  select(player, region = shard, country, most_played_deck = new_name, match, winrate) %>%
+  select(
+    player, 
+    region = shard, 
+    country, 
+    most_played_deck = new_name, 
+    match, 
+    winrate
+  ) %>%
   mutate(region = ifelse(region == 'asia', 'asia-pacific', region)) %>% 
   mutate(region = str_to_title(region)) %>% 
-  mutate(country = ifelse(!is.na(country), sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), country)) %>% 
+  mutate(country = ifelse(
+    !is.na(country), 
+    sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), 
+    country
+  )) %>% 
   mutate(pos = row_number()) %>% 
   relocate(pos, .before = everything()) %>% 
-  mutate(pos = case_when(pos == 1 ~ "gold.png", pos == 2 ~ "silver.png", pos == 3 ~ "bronze.png", TRUE ~ NA_character_)) %>%
-  mutate(size = case_when(pos == "gold.png" ~ 0.6, pos == "silver.png" ~ 0.45, pos == "bronze.png" ~ 0.3, TRUE ~ NA_real_)) %>% 
-  mutate(pos = ifelse(!is.na(pos), sprintf("/home/balco/dev/lor-meta-report/templates/medals/%s", pos), pos)) %>%
-  mutate(pos = map2_chr(.x = pos, .y = size, .f = ~ifelse(!is.na(.x), img_uri(x = .x, size = .y), .x))) %>% 
+  mutate(pos = case_when(
+    pos == 1 ~ "gold.png", 
+    pos == 2 ~ "silver.png", 
+    pos == 3 ~ "bronze.png", 
+    TRUE ~ NA_character_
+  )) %>%
+  mutate(size = case_when(
+    pos == "gold.png" ~ 0.6, 
+    pos == "silver.png" ~ 0.45, 
+    pos == "bronze.png" ~ 0.3, 
+    TRUE ~ NA_real_
+  )) %>% 
+  mutate(pos = ifelse(
+    !is.na(pos), 
+    sprintf("/home/balco/dev/lor-meta-report/templates/medals/%s", pos), 
+    pos
+  )) %>%
+  mutate(pos = map2_chr(
+    .x = pos, 
+    .y = size, 
+    .f = ~ifelse(!is.na(.x), img_uri(x = .x, size = .y), .x)
+  )) %>% 
   select(-size) %>% 
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>%
   rename(" " = pos) %>% 
@@ -923,10 +1176,25 @@ tbl <- data %>%
   filter(match >= 30) %>% 
   mutate(winrate = win / match) %>% 
   filter(winrate >= 0.7) %>% 
-  select(shard, player = puuid, archetype = new_name, deck_code, match, winrate) %>%
+  select(
+    shard, 
+    player = puuid, 
+    archetype = new_name, 
+    deck_code, 
+    match, 
+    winrate
+  ) %>%
   arrange(-winrate, -match, archetype) %>% 
-  mutate(player = map2_chr(.x = player, .y = shard, .f = ~from_puuid_to_riotid(puuid = .x, shard = .y))) %>% 
-  mutate(deck_code = sprintf('<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', deck_code, str_trunc(deck_code, width = 18))) %>% 
+  mutate(player = map2_chr(
+    .x = player, 
+    .y = shard, 
+    .f = ~from_puuid_to_riotid(puuid = .x, shard = .y)
+  )) %>% 
+  mutate(deck_code = sprintf(
+    '<a href="https://runeterra.ar/decks/code/%s" target="_blank">%s</a>', 
+    deck_code, 
+    str_trunc(deck_code, width = 18)
+  )) %>% 
   mutate(get_call = sprintf(
     "https://runeterra.ar/Users/get/country/%s/%s", 
     shard, 
@@ -949,7 +1217,11 @@ tbl <- data %>%
   ) %>% 
   mutate(region = ifelse(region == 'asia', 'asia-pacific', region)) %>% 
   mutate(region = str_to_title(region)) %>% 
-  mutate(country = ifelse(!is.na(country), sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), country)) %>% 
+  mutate(country = ifelse(
+    !is.na(country), 
+    sprintf("<img src='https://flagcdn.com/32x24/%s.png'></img>", country), 
+    country
+  )) %>% 
   rename_with(~str_replace_all(., pattern = "_", replacement = " ")) %>% 
   rename_with(str_to_title) %>% 
   datatable(
