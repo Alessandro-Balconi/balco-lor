@@ -2,7 +2,7 @@ CREATE TABLE tmp_utils_ranked_patch_decklists_cards AS (
   WITH 
   decklists AS (
     SELECT DISTINCT
-      aa.new_name AS archetype,
+      COALESCE(aa.new_name, i.archetype) AS archetype,
       i.deck_code,
       i.cards
     FROM 
@@ -10,7 +10,7 @@ CREATE TABLE tmp_utils_ranked_patch_decklists_cards AS (
     JOIN
       ranked_match_info_30d i
     USING(match_id)
-    JOIN
+    LEFT JOIN
       utils_archetype_aggregation aa
     ON
       i.archetype = aa.old_name
@@ -37,7 +37,7 @@ CREATE TABLE tmp_utils_ranked_patch_decklists_cards AS (
   SELECT 
     archetype,
     deck_code,
-    SUBSTRING_INDEX(cards, ':', 1) AS count,
+    SUBSTRING_INDEX(cards, ':', 1) AS `count`,
     SUBSTRING_INDEX(cards, ':', -1) AS card_code
   FROM
     data_cards
