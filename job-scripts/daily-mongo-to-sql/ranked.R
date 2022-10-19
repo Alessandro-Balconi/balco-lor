@@ -94,7 +94,7 @@ mongo_to_sql <- function(input_region){
   
   already_in_sql <- tbl(con, "ranked_match_metadata_30d") %>% 
     filter(region == input_region, game_start_time_utc >= focus_time) %>% 
-    pull() %>%
+    pull(match_id) %>%
     paste0(collapse = '\", \"') %>% 
     paste0("\"", ., "\"")
   
