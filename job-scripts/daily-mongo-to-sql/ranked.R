@@ -57,7 +57,11 @@ data_regions <- lorr::get_regions_data() %>%
       nameRef == "Targon" ~ "MtTargon",
       TRUE ~ nameRef
     ),
-    abbreviation = if_else(abbreviation %in% data_champs$name, 'RU', abbreviation)
+    abbreviation = if_else(
+      abbreviation %in% data_champs$name, 
+      'RU', 
+      abbreviation
+    )
   )
 
 # function to pull region specific data and make the update
@@ -90,8 +94,6 @@ mongo_to_sql <- function(input_region){
   
   already_in_sql <- tbl(con, "ranked_match_metadata_30d") %>% 
     filter(region == input_region, game_start_time_utc >= focus_time) %>% 
-    distinct(match_id) %>% 
-    collect() %>% 
     pull() %>%
     paste0(collapse = '\", \"') %>% 
     paste0("\"", ., "\"")
@@ -115,7 +117,6 @@ mongo_to_sql <- function(input_region){
   
   # master leaderboard 
   leaderboard <- tbl(con, tbl_leaderboard) %>%
-    collect() %>% 
     pull(name)
   
   # get PUUIDs of master players
@@ -234,7 +235,13 @@ mongo_to_sql <- function(input_region){
           pattern = paste0('[1-3]:', data_champs$cardCode, collapse = "|")
         ),
         champs = map_chr(champs, str_flatten, collapse = " "),
-        champs = str_remove_all(champs, pattern = paste0('[2-3]:|', paste0('1:', data_champs$cardCode, collapse = "|"))),
+        champs = str_remove_all(
+          champs, 
+          pattern = paste0(
+            '[2-3]:|', 
+            paste0('1:', data_champs$cardCode, collapse = "|")
+          )
+        ),
         champs = str_squish(champs),
         champs_factions = map_chr(champs, get_monoregion)
       ) %>% 
@@ -249,9 +256,20 @@ mongo_to_sql <- function(input_region){
       unite(col = factions, faction_abb1, faction_abb2, sep = " ") %>% 
       mutate(
         factions = str_remove_all(factions, pattern = " NA|NA "),
-        across(c(champs, champs_factions, factions),  function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))),
-        no_fix = map2_lgl(.x = factions, .y = champs_factions, .f = ~grepl(pattern = .x, x = .y)),
-        champs_factions = str_replace_all(champs_factions, pattern = " ", replacement = "|"),
+        across(
+          c(champs, champs_factions, factions), 
+          function(x) unname(sapply(x, function(x) { paste(sort(trimws(strsplit(x[1], ' ')[[1]])), collapse=' ')} ))
+        ),
+        no_fix = map2_lgl(
+          .x = factions, 
+          .y = champs_factions, 
+          .f = ~grepl(pattern = .x, x = .y)
+        ),
+        champs_factions = str_replace_all(
+          champs_factions, 
+          pattern = " ", 
+          replacement = "|"
+        ),
         champs_factions = paste0(champs_factions, "| "),
         factions_to_add = str_remove_all(factions, pattern = champs_factions),
         archetype = if_else(
