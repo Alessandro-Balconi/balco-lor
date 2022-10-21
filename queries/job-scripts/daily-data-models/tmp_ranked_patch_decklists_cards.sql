@@ -2,20 +2,14 @@ CREATE TABLE tmp_ranked_patch_decklists_cards AS (
   WITH 
   decklists AS (
     SELECT DISTINCT
-      COALESCE(aa.new_name, i.archetype) AS archetype,
-      i.deck_code,
-      i.cards
+      rpd.archetype,
+      rpd.deck_code,
+      rmi.cards
     FROM 
-      ranked_match_metadata_30d md
+      ranked_patch_decklists rpd
     JOIN
-      ranked_match_info_30d i
-    USING(match_id)
-    LEFT JOIN
-      utils_archetype_aggregation aa
-    ON
-      i.archetype = aa.old_name
-    WHERE
-      md.game_start_time_utc >= '{patch_release_date}'
+      ranked_match_info_30d rmi
+    USING(deck_code)
   ),
   data_cards AS (
     SELECT
