@@ -4,7 +4,6 @@ suppressPackageStartupMessages(library(lorr))
 # fetch updated data and store in temporary table
 execute_db_query(
   query = '/home/balco/dev/lor-meta-report/queries/job-scripts/daily-data-models/tmp_ranked_patch_decklists_cards.sql',
-  patch_release_date = lorr::get_patch_release_date(),
   bigint = 'numeric'
 )
 
