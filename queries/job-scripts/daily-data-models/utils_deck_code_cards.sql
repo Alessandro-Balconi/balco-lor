@@ -13,7 +13,7 @@ missing AS (
     rpd.archetype = udcc.archetype
     AND rpd.deck_code = udcc.deck_code
   WHERE
-    udcc.deck_code IS NULL
+    udcc.card_code IS NULL
 ),
 decklists AS (
   SELECT DISTINCT
