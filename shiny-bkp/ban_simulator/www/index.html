@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Ban Helper</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <script type="application/html-dependencies">json2[2014.02.04];shiny[0.12.1];htmlwidgets[0.4];datatables-binding[0.1];jquery[3.5.1];shiny-css[1.6.0];shiny-javascript[1.6.0];shinybusy[0.2.2];bootstrap[3.4.1]</script>
+  <link rel="stylesheet" href="/assets/css/custom-styles.css">
+  <script src="shared/shiny.min.js"></script>
+  <script src="shared/jquery.js" type="text/javascript"></script>
+  <script src="shared/shiny.js" type="text/javascript"></script>
+  <script src="htmlwidgets.js"></script>
+  <link rel="stylesheet" href="spinner.css">
+  <link rel="stylesheet" href="css-loaders.css">
+</head>
+
+<body>
+
+<div class=" container-md " role="main">
+
+  <div class="row" style="margin-left:10px">
+
+   <p>
+    <label>Rank:</label><br />
+    <select name="i_rank">
+      <option value="plat">Platinum+</option>
+      <option value="master">Master</option>
+    </select>
+  </p>
+
+  </div>
+
+  <div class="row">
+    <div class=" col-xl-12 col-lg-12 ">
+	  
+	  <div class="row">
+	  
+  	  <div data-display-if="!output.data_loading" data-ns-prefix="">
+		<img src="loading.gif" align="left" height="18px"/>
+		<em> &nbsp; Loading...</em>
+	  </div>
+	  
+	  <div class="col-sm-3">
+	  
+ 	  <div id="input_p1" class="shiny-html-output"></div>
+ 	  <div id="input_p2" class="shiny-html-output"></div>
+ 	  <div id="input_p3" class="shiny-html-output"></div>
+ 	  <div id="input_o1" class="shiny-html-output"></div>
+ 	  <div id="input_o2" class="shiny-html-output"></div>
+	  <div id="input_o3" class="shiny-html-output"></div>
+	  <br>
+	  <div id="input_btn" class="shiny-html-output"></div>
+	  
+	  </div>
+
+	  <div class="col-sm-9">
+
+	  <div id="caption" class="shiny-text-output" style="text-align: center"></div>
+	  <br>
+	  
+	  <div data-display-if="input.button > 0 && output.quality_check > 0" data-ns-prefix="">
+		<em> &nbsp; Please select ALL inputs before clicking the button...</em>
+	  </div>
+	  
+		<div data-display-if="input.button > 0 && output.quality_check == 0" data-ns-prefix="">
+		
+		<div id="matchups" class="shiny-image-output"></div>
+		<br>
+		<div id="best_ban" class="shiny-text-output"  style="text-align: center"></div>
+		
+	  </div>
+	  
+	  </div>
+	  	  
+	  </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+</body>
+
+</html>

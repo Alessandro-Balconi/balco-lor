@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en-US" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Welcome to balco-lor.com!</title>
+  <style type="text/css">
+    body, html {
+      font-family: Helvetica, Arial, sans-serif;
+      background-color: #F5F5F5;
+      color: #114;
+      margin: 0;
+      padding: 0;
+    }
+    a {
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    #titleBar {
+      height: 80px;
+      background-color: #3475b4;
+      overflow: hidden;
+      border-bottom: 1px solid #3475b3;
+      -moz-box-shadow:    0px 0px 10px 3px #BBC;
+      -webkit-box-shadow: 0px 0px 10px 3px #BBC;
+      box-shadow:         0px 0px 10px 3px #BBC;
+    }
+    #titleBar #container {
+      margin-top: 14px;
+    }
+    #titleBar h1 {
+      margin: 0 auto .5em auto;
+      padding: .2em;
+      color: #EEE;
+      text-align: center;
+    }
+    #intro {
+      background-color: #DDD;
+      margin: 1em 1em 0 1em;
+      padding: .75em;
+      text-align: center;
+      border: 1px solid #CCC;
+      font-size: 18px;
+    }
+    #intro p {
+      margin: .3em 0 .3em 0;
+    }
+    #outer-content {
+      max-width: 910px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #content {
+      margin: 1em auto 1em auto;
+      float: left;
+    }
+    #main{
+      margin-right: 350px;
+      float: left;
+      line-height: 24px;
+    }
+
+    #shiny{
+      float: left;
+      width: 305px;
+      margin-left: -330px;
+      padding-left: 20px;
+      border-left: 1px solid #AAA;
+    }
+    #shiny iframe {
+      margin-top: 30px;
+    }
+    .caption{
+      font-size: 13px;
+    }
+    code {
+      background-color: #E5E5E5;
+      border: 1px solid #AAA;
+      -webkit-border-radius: 3px;
+      -khtml-border-radius: 3px; 
+      -moz-border-radius: 3px;
+      border-radius: 3px;
+      padding: 0 .5em 0 .5em;
+    }
+  </style>
+</head>
+<body>
+  <div id="titleBar">
+    <div id="container">
+      <h1>Welcome to balco-lor.com!</h1>
+    </div>
+  </div>
+  <div id="outer-content">
+    <div id="intro">
+      <p>This is the server that I use to collect data from Riot's API. <strong>Hello!</strong> </p>
+    </div>
+    <div id="content">
+        <h2>RStudio Server</h2>
+        This is the link to access the RStudio Server where I collect the data:
+        <p><a href="https://www.balco-lor.com/rstudio">RStudio Server</a>
+        <p>You need a username and a password to access it (only a few people have them).</p>
+        
+        <h2>Other Stuff!</h2>
+        <p>I've also made a Shiny Server where I publish some tools that use the data collected.</p>
+
+        <h2><pre>Applications:</pre></h2>
+        <ul>
+          <!-- <li><p><a href="https://www.balco-lor.com/expeditions">Expedition</a></li> -->
+          <li><p><a href="https://www.balco-lor.com/deckroll">A Very Awesome Deckroll</a></li>
+          <li><p><a href="https://www.balco-lor.com/ban_simulator">Ban Simulator (Backup)</a> (the original one is on <a href="https://www.lor-meta.com/lineup">LoR-Meta</a>)</li>
+          <li><p><a href="https://www.balco-lor.com/ranked">Ranked Match Data Downloader</a></li>
+        </ul>
+
+        <h2><pre>API Endpoints:</pre></h2>
+        <ul> 
+        <li><b> Player: <a href="https://www.balco-lor.com/api/player/<region>/<gameName>">balco-lor.com/api/player/&ltregion&gt/&ltgameName&gt</a></b>
+        <small><br><br>
+        This endpoints returns all the tagLines associated with a given gameName in a specific region.
+        <ul>
+        <br> Parameters:
+          <ul> 
+            <li><b>region:</b> "europe", "americas" or "asia"</li>
+            <li><b>gameName:</b> name of the player (e.g. "Faker")</li>
+          </ul>
+          <br>
+          Example: <a href="https://www.balco-lor.com/api/player/asia/Faker">balco-lor.com/api/player/asia/Faker</a></b>
+        </small>
+        </ul></li>
+        </ul>
+
+    </div>
+  </div>
+</body>
+</html>
