@@ -1,3 +1,5 @@
+**This project is ded. RIP (2020-2022)**
+
 # balco-lor
 
 Files in this directory:
